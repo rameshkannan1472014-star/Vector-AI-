@@ -1,12 +1,13 @@
 import os
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-import google.generativeai as genai
+from google import genai
 
-app = FastAPI(title="AI Engineer Backend")
+app = FastAPI()
 
-# Enable CORS for web deployment
+# Enable CORS for browser access
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -15,35 +16,45 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Pull API key from environment variables on Render
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
-
-model = genai.GenerativeModel('gemini-2.5-flash')
-
-class PromptRequest(BaseModel):
+# Request schema for the AI chat endpoint
+class ChatRequest(BaseModel):
     prompt: str
 
+# Initialize Gemini AI Client
+API_KEY = os.getenv("GEMINI_API_KEY")
+client = genai.Client(api_key=API_KEY) if API_KEY else None
+
+
+# 1. SERVE UI (Frontend Home Route)
 @app.get("/")
-def home():
-    return {"status": "online", "message": "AI Engineer Backend Running on Render"}
+async def serve_ui():
+    """Serves the index.html interface directly from the root directory."""
+    if os.path.exists("index.html"):
+        return FileResponse("index.html")
+    return {"error": "index.html file not found in repository root."}
 
+
+# 2. SERVE AI BRAIN (Backend Chat API)
 @app.post("/api/chat")
-async def generate_response(request: PromptRequest):
+async def chat_endpoint(request: ChatRequest):
+    """Processes prompts from all UI tools and features through Gemini."""
+    if not client:
+        raise HTTPException(
+            status_code=500, 
+            detail="GEMINI_API_KEY is not configured in Render Environment Variables."
+        )
+    
     try:
-        if not request.prompt.strip():
-            raise HTTPException(status_code=400, detail="Prompt cannot be empty")
-        
-        system_instruction = "You are AI Engineer, an expert coding assistant built to help developer Ramesh write, debug, and optimize code efficiently."
-        full_prompt = f"{system_instruction}\n\nUser Question: {request.prompt}"
-
-        response = model.generate_content(full_prompt)
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=request.prompt,
+        )
         return {"response": response.text}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-if __name__ == "__main__":
-    import uvicorn
-    port = int(os.environ.get("PORT", 8000))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+
+# 3. HEALTH CHECK ROUTE
+@app.get("/health")
+async def health_check():
+    return {"status": "online", "brain": "Gemini 2.5 Flash", "ui": "Active"}
