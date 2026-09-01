@@ -16,35 +16,28 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Request schema for the AI chat endpoint
 class ChatRequest(BaseModel):
     prompt: str
 
-# Initialize Gemini AI Client
-API_KEY = os.getenv("GEMINI_API_KEY")
-client = genai.Client(api_key=API_KEY) if API_KEY else None
-
-
-# 1. SERVE UI (Frontend Home Route)
+# Serve UI interface on home route
 @app.get("/")
 async def serve_ui():
-    """Serves the index.html interface directly from the root directory."""
     if os.path.exists("index.html"):
         return FileResponse("index.html")
-    return {"error": "index.html file not found in repository root."}
+    return {"error": "index.html not found"}
 
-
-# 2. SERVE AI BRAIN (Backend Chat API)
+# Chat Endpoint
 @app.post("/api/chat")
 async def chat_endpoint(request: ChatRequest):
-    """Processes prompts from all UI tools and features through Gemini."""
-    if not client:
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
         raise HTTPException(
             status_code=500, 
-            detail="GEMINI_API_KEY is not configured in Render Environment Variables."
+            detail="GEMINI_API_KEY is missing in Render Environment Variables"
         )
     
     try:
+        client = genai.Client(api_key=api_key)
         response = client.models.generate_content(
             model="gemini-2.5-flash",
             contents=request.prompt,
@@ -52,9 +45,3 @@ async def chat_endpoint(request: ChatRequest):
         return {"response": response.text}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-
-# 3. HEALTH CHECK ROUTE
-@app.get("/health")
-async def health_check():
-    return {"status": "online", "brain": "Gemini 2.5 Flash", "ui": "Active"}
