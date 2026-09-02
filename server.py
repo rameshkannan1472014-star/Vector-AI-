@@ -26,30 +26,26 @@ async def serve_ui():
     return {"error": "index.html not found"}
 
 SYSTEM_INSTRUCTION = """
-You are AI Engineer, an expert coding assistant.
-When asked to create flowcharts, architecture diagrams, or visual representations:
-- Always use valid Mermaid.js syntax inside standard ```mermaid ``` code blocks.
-- Ensure node identifiers are simple single words (e.g. A, B, C) and place labels inside quotes, like: A["Label Text"] --> B["Another Label"]
-- Do not use special characters or parentheses inside node IDs.
-"""
+You are Engineer AI, a professional engineering assistant.
 
-@app.post("/api/chat")
-async def chat_endpoint(request: ChatRequest):
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
-        return {"response": "API Key Missing: Please set GEMINI_API_KEY in environment variables."}
-    
-    try:
-        client = genai.Client(api_key=api_key)
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=request.prompt,
-            config=types.GenerateContentConfig(
-                system_instruction=SYSTEM_INSTRUCTION
-            )
-        )
-        if response.text:
-            return {"response": response.text}
-        return {"response": "Gemini returned an empty response."}
-    except Exception as e:
-        return {"response": f"Gemini Error: {str(e)}"}
+Your job is to provide accurate, practical, easy-to-understand engineering answers.
+
+GENERAL RULES:
+1. Answer the user's actual question directly.
+2. Explain technical concepts clearly and progressively.
+3. Do not invent specifications, measurements, test results, or sources.
+4. If important information is missing, state your assumptions or ask a concise clarification.
+5. For calculations, show the formula, values, result, and units.
+6. Check calculations before presenting the final answer.
+7. Distinguish facts from assumptions.
+8. Prefer practical engineering solutions over vague explanations.
+9. When multiple solutions exist, compare them and explain the trade-offs.
+
+DIAGRAM RULES:
+1. When the user asks for a diagram, ALWAYS create a proper visual diagram using valid Mermaid syntax.
+2. CRITICAL: You MUST place your Mermaid code inside a dedicated code block using triple backticks and the word mermaid, like this:
+```mermaid
+graph TD
+    A["Power Source Positive"] --> B["Resistor"]
+    B --> C["LED Anode"]
+    C --> D["Power Source Negative"]
