@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>AI Engineer</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <!-- Diagram Rendering Script -->
     <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
     <script>mermaid.initialize({ startOnLoad: false, theme: 'dark' });</script>
     <style>
@@ -39,7 +38,6 @@
 
         .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
         .section-title { font-size: 14px; font-weight: 600; }
-        .link-text { color: #3B82F6; font-size: 11px; text-decoration: none; cursor: pointer; }
 
         .quick-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 18px; }
         .q-item { display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; }
@@ -49,7 +47,6 @@
         .list-box { display: flex; flex-direction: column; gap: 10px; }
         .card-item { background: #0A101D; border: 1px solid #162032; border-radius: 14px; padding: 12px; display: flex; justify-content: space-between; align-items: center; }
         .code-box { flex: 1; background: #03060D; border: 1px solid #162032; border-radius: 12px; padding: 12px; font-family: monospace; font-size: 12px; color: #A7F3D0; overflow: auto; white-space: pre; }
-        .terminal-box { flex: 1; background: #03060D; border: 1px solid #162032; border-radius: 10px; padding: 12px; font-family: monospace; font-size: 11px; color: #38BDF8; line-height: 1.6; }
 
         .chat-input-area { display: flex; gap: 8px; margin-top: 10px; }
         .chat-input-area input { flex: 1; background: #0A101D; border: 1px solid #162032; border-radius: 10px; padding: 10px 12px; color: #FFF; font-size: 12px; outline: none; }
@@ -61,7 +58,6 @@
         .nav-tab i { font-size: 16px; }
         .chat-btn-glow { width: 42px; height: 42px; background: linear-gradient(135deg, #2563EB, #7C3AED); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-top: -16px; box-shadow: 0 0 12px rgba(59, 130, 246, 0.6); color: white !important; }
 
-        /* Diagram Box Formatting */
         .mermaid { background: #080E1A; padding: 10px; border-radius: 8px; margin-top: 8px; overflow-x: auto; text-align: center; }
     </style>
 </head>
@@ -129,7 +125,8 @@
                 <button class="chat-send-btn" onclick="handleChatSend()"><i class="fa-solid fa-paper-plane"></i></button>
             </div>
         </div>
-                <!-- OTHER SCREENS -->
+
+        <!-- OTHER SCREENS -->
         <div class="screen-view" id="view-files"><div class="top-nav"><i class="fa-solid fa-chevron-left" onclick="showScreen('view-dashboard')"></i><span>Files</span></div></div>
         <div class="screen-view" id="view-terminal"><div class="top-nav"><i class="fa-solid fa-chevron-left" onclick="showScreen('view-dashboard')"></i><span>Terminal</span></div></div>
         <div class="screen-view" id="view-git"><div class="top-nav"><i class="fa-solid fa-chevron-left" onclick="showScreen('view-dashboard')"></i><span>Git</span></div></div>
@@ -138,7 +135,7 @@
         <div class="screen-view" id="view-profile"><div class="top-nav"><i class="fa-solid fa-chevron-left" onclick="showScreen('view-dashboard')"></i><span>Profile</span></div></div>
         <div class="screen-view" id="view-debugger"><div class="top-nav"><i class="fa-solid fa-chevron-left" onclick="showScreen('view-dashboard')"></i><span>Debugger</span></div></div>
 
-        <!-- BOTTOM NAVIGATION BAR -->
+        <!-- BOTTOM NAVIGATION -->
         <div class="bottom-nav">
             <div class="nav-tab active" onclick="showScreen('view-dashboard')" id="tab-dashboard"><i class="fa-solid fa-house"></i><span>Home</span></div>
             <div class="nav-tab" onclick="showScreen('view-projects')" id="tab-projects"><i class="fa-regular fa-folder"></i><span>Projects</span></div>
@@ -165,11 +162,13 @@
         const BACKEND_URL = "/api/chat";
 
         function formatMessage(text) {
-            // Converts ```mermaid blocks into renderable visual diagram elements
-            if (text.includes('```mermaid')) {
-                text = text.replace(/```mermaid([\s\S]*?)```/g, '<div class="mermaid">$1</div>');
-            }
-            // Basic line breaks
+            // Extract and prepare mermaid diagram elements
+            text = text.replace(/```mermaid([\s\S]*?)```/gi, (match, code) => {
+                return `<div class="mermaid">${code.trim()}</div>`;
+            });
+            // Format bold text
+            text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            // Line breaks
             return text.replace(/\n/g, '<br>');
         }
 
@@ -197,10 +196,9 @@
                     const formatted = formatMessage(data.response);
                     chatContainer.innerHTML += `<div style="color: #E2E8F0; margin-top: 6px;"><strong>AI Engineer:</strong><br>${formatted}</div>`;
                     
-                    // Trigger visual rendering for diagrams
                     setTimeout(() => {
                         try { mermaid.run(); } catch(e){}
-                    }, 100);
+                    }, 150);
 
                 } else {
                     chatContainer.innerHTML += `<p style="color: #EF4444; margin-top: 6px;"><strong>Error:</strong> Empty response received.</p>`;
