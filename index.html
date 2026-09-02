@@ -4,11 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>AI Engineer</title>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
-    <script>mermaid.initialize({ startOnLoad: false, theme: 'dark' });</script>
+    <link href="[https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css](https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css)" rel="stylesheet">
+    <script src="[https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js](https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js)"></script>
+    <script>
+        mermaid.initialize({ startOnLoad: false, theme: 'dark', suppressErrorRendering: false });
+    </script>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
         html, body { width: 100%; height: 100%; background-color: #03060D; color: #FFFFFF; overflow: hidden; }
         .app-container { width: 100vw; height: 100vh; background-color: #050914; display: flex; flex-direction: column; position: relative; overflow: hidden; }
 
@@ -17,11 +19,7 @@
             display: flex; flex-direction: column; opacity: 0; visibility: hidden; transform: translate3d(0, 12px, 0);
             transition: opacity 0.22s ease, transform 0.22s ease, visibility 0.22s;
         }
-        .screen-view::-webkit-scrollbar { display: none; }
         .screen-view.active { opacity: 1; visibility: visible; transform: translate3d(0, 0, 0); }
-
-        .q-item, .chip, .card-item, .nav-tab { transition: transform 0.12s ease, opacity 0.12s ease; }
-        .q-item:active, .chip:active, .card-item:active, .nav-tab:active { transform: scale(0.94); opacity: 0.85; }
 
         .top-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
         .nav-left { display: flex; align-items: center; gap: 10px; }
@@ -32,21 +30,6 @@
         .hero-banner { background: radial-gradient(circle at 80% 20%, #1E1B4B 0%, #0B1120 70%); border-radius: 18px; padding: 16px; margin-bottom: 18px; border: 1px solid #1E293B; }
         .prompt-bar { background-color: #090E1A; border: 1px solid #1E293B; border-radius: 12px; display: flex; align-items: center; padding: 10px 12px; gap: 8px; margin-top: 10px; }
         .prompt-bar input { background: transparent; border: none; color: #FFF; width: 100%; outline: none; font-size: 12px; }
-        .chip-row { display: flex; gap: 8px; overflow-x: auto; margin-top: 12px; }
-        .chip-row::-webkit-scrollbar { display: none; }
-        .chip { background: #0F172A; border: 1px solid #1E293B; border-radius: 20px; padding: 6px 12px; font-size: 11px; white-space: nowrap; color: #CBD5E1; display: flex; align-items: center; gap: 6px; cursor: pointer; }
-
-        .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-        .section-title { font-size: 14px; font-weight: 600; }
-
-        .quick-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 18px; }
-        .q-item { display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; }
-        .q-icon { width: 100%; aspect-ratio: 1; max-width: 50px; background-color: #0A101D; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 16px; border: 1px solid #162032; }
-        .q-label { font-size: 9px; color: #94A3B8; text-align: center; }
-
-        .list-box { display: flex; flex-direction: column; gap: 10px; }
-        .card-item { background: #0A101D; border: 1px solid #162032; border-radius: 14px; padding: 12px; display: flex; justify-content: space-between; align-items: center; }
-        .code-box { flex: 1; background: #03060D; border: 1px solid #162032; border-radius: 12px; padding: 12px; font-family: monospace; font-size: 12px; color: #A7F3D0; overflow: auto; white-space: pre; }
 
         .chat-input-area { display: flex; gap: 8px; margin-top: 10px; }
         .chat-input-area input { flex: 1; background: #0A101D; border: 1px solid #162032; border-radius: 10px; padding: 10px 12px; color: #FFF; font-size: 12px; outline: none; }
@@ -58,90 +41,57 @@
         .nav-tab i { font-size: 16px; }
         .chat-btn-glow { width: 42px; height: 42px; background: linear-gradient(135deg, #2563EB, #7C3AED); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-top: -16px; box-shadow: 0 0 12px rgba(59, 130, 246, 0.6); color: white !important; }
 
-        .mermaid { background: #080E1A; padding: 10px; border-radius: 8px; margin-top: 8px; overflow-x: auto; text-align: center; }
+        .mermaid-wrapper { background: #080E1A; border: 1px solid #162032; border-radius: 8px; padding: 12px; margin: 10px 0; overflow-x: auto; text-align: center; }
+        .mermaid { display: block; margin: 0 auto; }
     </style>
 </head>
 <body>
     <div class="app-container">
-        <!-- DASHBOARD -->
+        <!-- DASHBOARD VIEW -->
         <div class="screen-view active" id="view-dashboard">
             <div class="top-nav">
                 <div class="nav-left">
-                    <i class="fa-solid fa-bars" style="color: #94A3B8;"></i>
                     <div class="robot-avatar"><i class="fa-solid fa-robot" style="color: white; font-size: 16px;"></i></div>
                     <div>
                         <div style="font-size: 15px; font-weight: 700;">AI Engineer</div>
-                        <div style="font-size: 10px; color: #64748B;">Your Intelligent Developer Partner</div>
+                        <div style="font-size: 10px; color: #64748B;">Intelligent Assistant</div>
                     </div>
                 </div>
-                <div style="display: flex; gap: 12px; align-items: center;">
-                    <i class="fa-regular fa-bell" style="color: #94A3B8;"></i>
-                    <div class="user-avatar">R<div class="status-dot"></div></div>
-                </div>
+                <div class="user-avatar">R<div class="status-dot"></div></div>
             </div>
 
             <div class="hero-banner">
-                <h3 style="font-size: 18px;">Hello, Ramesh! 👋</h3>
-                <p style="font-size: 11px; color: #94A3B8; margin-top: 2px;">What are we building today?</p>
+                <h3 style="font-size: 18px;">Hello! 👋</h3>
+                <p style="font-size: 11px; color: #94A3B8; margin-top: 2px;">Ask any question or prompt for code and diagrams.</p>
                 <div class="prompt-bar">
                     <i class="fa-solid fa-wand-magic-sparkles" style="color: #3B82F6;"></i>
                     <input type="text" id="main-prompt-input" placeholder="Ask AI Engineer anything...">
                     <i class="fa-solid fa-paper-plane" style="color: #3B82F6; cursor: pointer;" onclick="handleDashboardSend()"></i>
                 </div>
-                <div class="chip-row">
-                    <div class="chip" onclick="showScreen('view-editor')"><i class="fa-solid fa-code" style="color: #3B82F6;"></i> Code Editor</div>
-                    <div class="chip" onclick="showScreen('view-debugger')"><i class="fa-solid fa-bug" style="color: #10B981;"></i> Debugger</div>
-                    <div class="chip" onclick="showScreen('view-projects')"><i class="fa-solid fa-box" style="color: #A855F7;"></i> Projects</div>
+            </div>
+        </div>
+
+        <!-- AI CHAT VIEW -->
+        <div class="screen-view" id="view-chat">
+            <div class="top-nav">
+                <div class="nav-left">
+                    <i class="fa-solid fa-chevron-left" style="cursor:pointer;" onclick="showScreen('view-dashboard')"></i>
+                    <span style="font-weight:700; margin-left: 8px;">AI Chat Assistant</span>
                 </div>
             </div>
-
-            <div class="section-header">
-                <div class="section-title">Quick Access</div>
-            </div>
-
-            <div class="quick-grid">
-                <div class="q-item" onclick="showScreen('view-editor')"><div class="q-icon"><i class="fa-solid fa-code" style="color: #3B82F6;"></i></div><div class="q-label">Code Editor</div></div>
-                <div class="q-item" onclick="showScreen('view-chat')"><div class="q-icon"><i class="fa-solid fa-comments" style="color: #8B5CF6;"></i></div><div class="q-label">AI Chat</div></div>
-                <div class="q-item" onclick="showScreen('view-files')"><div class="q-icon"><i class="fa-solid fa-folder-closed" style="color: #EAB308;"></i></div><div class="q-label">File Explorer</div></div>
-                <div class="q-item" onclick="showScreen('view-terminal')"><div class="q-icon"><i class="fa-solid fa-terminal" style="color: #10B981;"></i></div><div class="q-label">Terminal</div></div>
-                <div class="q-item" onclick="showScreen('view-git')"><div class="q-icon"><i class="fa-solid fa-code-branch" style="color: #F97316;"></i></div><div class="q-label">Git Control</div></div>
-            </div>
-        </div>
-
-        <!-- CODE EDITOR -->
-        <div class="screen-view" id="view-editor">
-            <div class="top-nav"><div class="nav-left"><i class="fa-solid fa-chevron-left" onclick="showScreen('view-dashboard')"></i><span style="font-weight:700;">Code Editor</span></div></div>
-            <div class="code-box"># server.py live connected</div>
-        </div>
-
-        <!-- AI CHAT -->
-        <div class="screen-view" id="view-chat">
-            <div class="top-nav"><div class="nav-left"><div class="robot-avatar"><i class="fa-solid fa-robot" style="color:white;"></i></div><span style="font-weight:700;">AI Chat Assistant</span></div></div>
             <div id="chat-messages-container" style="flex:1; background:#080E1A; border:1px solid #162032; border-radius:12px; padding:12px; font-size:12px; overflow-y:auto; margin-bottom: 8px;">
-                <p style="color:#3B82F6;"><strong>AI Engineer:</strong> Hi Ramesh! Ask me anything or request a diagram.</p>
+                <p style="color:#3B82F6;"><strong>AI Engineer:</strong> Ask me any question or request a dynamic diagram.</p>
             </div>
             <div class="chat-input-area">
-                <input type="text" id="chat-tab-input" placeholder="Type your question here...">
+                <input type="text" id="chat-tab-input" placeholder="Type your message...">
                 <button class="chat-send-btn" onclick="handleChatSend()"><i class="fa-solid fa-paper-plane"></i></button>
             </div>
         </div>
 
-        <!-- OTHER SCREENS -->
-        <div class="screen-view" id="view-files"><div class="top-nav"><i class="fa-solid fa-chevron-left" onclick="showScreen('view-dashboard')"></i><span>Files</span></div></div>
-        <div class="screen-view" id="view-terminal"><div class="top-nav"><i class="fa-solid fa-chevron-left" onclick="showScreen('view-dashboard')"></i><span>Terminal</span></div></div>
-        <div class="screen-view" id="view-git"><div class="top-nav"><i class="fa-solid fa-chevron-left" onclick="showScreen('view-dashboard')"></i><span>Git</span></div></div>
-        <div class="screen-view" id="view-projects"><div class="top-nav"><i class="fa-solid fa-chevron-left" onclick="showScreen('view-dashboard')"></i><span>Projects</span></div></div>
-        <div class="screen-view" id="view-tools"><div class="top-nav"><i class="fa-solid fa-chevron-left" onclick="showScreen('view-dashboard')"></i><span>Tools</span></div></div>
-        <div class="screen-view" id="view-profile"><div class="top-nav"><i class="fa-solid fa-chevron-left" onclick="showScreen('view-dashboard')"></i><span>Profile</span></div></div>
-        <div class="screen-view" id="view-debugger"><div class="top-nav"><i class="fa-solid fa-chevron-left" onclick="showScreen('view-dashboard')"></i><span>Debugger</span></div></div>
-
         <!-- BOTTOM NAVIGATION -->
         <div class="bottom-nav">
             <div class="nav-tab active" onclick="showScreen('view-dashboard')" id="tab-dashboard"><i class="fa-solid fa-house"></i><span>Home</span></div>
-            <div class="nav-tab" onclick="showScreen('view-projects')" id="tab-projects"><i class="fa-regular fa-folder"></i><span>Projects</span></div>
             <div class="nav-tab" onclick="showScreen('view-chat')" id="tab-chat"><div class="chat-btn-glow"><i class="fa-solid fa-wand-magic-sparkles"></i></div></div>
-            <div class="nav-tab" onclick="showScreen('view-tools')" id="tab-tools"><i class="fa-solid fa-wrench"></i><span>Tools</span></div>
-            <div class="nav-tab" onclick="showScreen('view-profile')" id="tab-profile"><i class="fa-regular fa-user"></i><span>Profile</span></div>
         </div>
     </div>
 
@@ -153,23 +103,57 @@
 
             document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
             if (screenId === 'view-dashboard') document.getElementById('tab-dashboard')?.classList.add('active');
-            if (screenId === 'view-projects') document.getElementById('tab-projects')?.classList.add('active');
             if (screenId === 'view-chat') document.getElementById('tab-chat')?.classList.add('active');
-            if (screenId === 'view-tools') document.getElementById('tab-tools')?.classList.add('active');
-            if (screenId === 'view-profile') document.getElementById('tab-profile')?.classList.add('active');
         }
 
         const BACKEND_URL = "/api/chat";
 
-        function formatMessage(text) {
-            // Extract and prepare mermaid diagram elements
-            text = text.replace(/```mermaid([\s\S]*?)```/gi, (match, code) => {
-                return `<div class="mermaid">${code.trim()}</div>`;
-            });
-            // Format bold text
-            text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-            // Line breaks
-            return text.replace(/\n/g, '<br>');
+        function parseAndFormatResponse(rawText) {
+            let container = document.createElement('div');
+            
+            // Extract mermaid blocks first to prevent formatting interference
+            const mermaidRegex = /```mermaid([\s\S]*?)```/gi;
+            let lastIndex = 0;
+            let match;
+
+            while ((match = mermaidRegex.exec(rawText)) !== null) {
+                // Add text before mermaid block
+                const textBefore = rawText.substring(lastIndex, match.index);
+                if (textBefore.trim()) {
+                    container.appendChild(createFormattedTextNode(textBefore));
+                }
+
+                // Add mermaid node
+                const mermaidCode = match[1].trim();
+                const wrapper = document.createElement('div');
+                wrapper.className = 'mermaid-wrapper';
+                
+                const mermaidDiv = document.createElement('div');
+                mermaidDiv.className = 'mermaid';
+                mermaidDiv.textContent = mermaidCode; // Using textContent ensures HTML characters are escaped safely
+                
+                wrapper.appendChild(mermaidDiv);
+                container.appendChild(wrapper);
+
+                lastIndex = mermaidRegex.lastIndex;
+            }
+
+            // Add remaining text after last mermaid block
+            const remainingText = rawText.substring(lastIndex);
+            if (remainingText.trim()) {
+                container.appendChild(createFormattedTextNode(remainingText));
+            }
+
+            return container;
+        }
+
+        function createFormattedTextNode(text) {
+            const div = document.createElement('div');
+            let formatted = text
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\n/g, '<br>');
+            div.innerHTML = formatted;
+            return div;
         }
 
         async function sendPrompt(promptText) {
@@ -178,8 +162,18 @@
             showScreen('view-chat');
 
             const chatContainer = document.getElementById('chat-messages-container');
-            chatContainer.innerHTML += `<p style="color: #3B82F6; margin-top: 10px;"><strong>You:</strong> ${promptText}</p>`;
-            chatContainer.innerHTML += `<p style="color: #94A3B8; margin-top: 6px;" id="loading-msg"><em>AI Engineer thinking...</em></p>`;
+            
+            const userMsg = document.createElement('div');
+            userMsg.style.cssText = "color: #3B82F6; margin-top: 10px;";
+            userMsg.innerHTML = `<strong>You:</strong> ${escapeHtml(promptText)}`;
+            chatContainer.appendChild(userMsg);
+
+            const loadingMsg = document.createElement('div');
+            loadingMsg.id = 'loading-msg';
+            loadingMsg.style.cssText = "color: #94A3B8; margin-top: 6px;";
+            loadingMsg.innerHTML = `<em>AI Engineer thinking...</em>`;
+            chatContainer.appendChild(loadingMsg);
+            
             chatContainer.scrollTop = chatContainer.scrollHeight;
 
             try {
@@ -193,21 +187,37 @@
                 document.getElementById('loading-msg')?.remove();
 
                 if (data.response) {
-                    const formatted = formatMessage(data.response);
-                    chatContainer.innerHTML += `<div style="color: #E2E8F0; margin-top: 6px;"><strong>AI Engineer:</strong><br>${formatted}</div>`;
+                    const aiMsgContainer = document.createElement('div');
+                    aiMsgContainer.style.cssText = "color: #E2E8F0; margin-top: 10px;";
+                    aiMsgContainer.innerHTML = `<strong>AI Engineer:</strong>`;
                     
-                    setTimeout(() => {
-                        try { mermaid.run(); } catch(e){}
-                    }, 150);
+                    const parsedContent = parseAndFormatResponse(data.response);
+                    aiMsgContainer.appendChild(parsedContent);
+                    chatContainer.appendChild(aiMsgContainer);
+
+                    // Render mermaid diagrams dynamically
+                    setTimeout(async () => {
+                        try {
+                            await mermaid.run({
+                                nodes: aiMsgContainer.querySelectorAll('.mermaid')
+                            });
+                        } catch (e) {
+                            console.error("Mermaid Render Error:", e);
+                        }
+                    }, 50);
 
                 } else {
-                    chatContainer.innerHTML += `<p style="color: #EF4444; margin-top: 6px;"><strong>Error:</strong> Empty response received.</p>`;
+                    chatContainer.innerHTML += `<p style="color: #EF4444; margin-top: 6px;"><strong>Error:</strong> Empty response.</p>`;
                 }
             } catch (err) {
                 document.getElementById('loading-msg')?.remove();
-                chatContainer.innerHTML += `<p style="color: #EF4444; margin-top: 6px;"><strong>Error:</strong> Could not connect to backend.</p>`;
+                chatContainer.innerHTML += `<p style="color: #EF4444; margin-top: 6px;"><strong>Error:</strong> Failed to connect to backend.</p>`;
             }
             chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function escapeHtml(text) {
+            return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
         }
 
         function handleDashboardSend() {
