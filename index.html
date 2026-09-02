@@ -1,13 +1,19 @@
+
+---
+
+### File 2: `index.html`
+
+```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI Engineer</title>
+    <title>Engineer AI</title>
     <link href="[https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css](https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css)" rel="stylesheet">
     <script src="[https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js](https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js)"></script>
     <script>
-        mermaid.initialize({ startOnLoad: false, theme: 'dark', suppressErrorRendering: false });
+        mermaid.initialize({ startOnLoad: false, theme: 'dark' });
     </script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
@@ -53,8 +59,8 @@
                 <div class="nav-left">
                     <div class="robot-avatar"><i class="fa-solid fa-robot" style="color: white; font-size: 16px;"></i></div>
                     <div>
-                        <div style="font-size: 15px; font-weight: 700;">AI Engineer</div>
-                        <div style="font-size: 10px; color: #64748B;">Intelligent Assistant</div>
+                        <div style="font-size: 15px; font-weight: 700;">Engineer AI</div>
+                        <div style="font-size: 10px; color: #64748B;">Professional Engineering Assistant</div>
                     </div>
                 </div>
                 <div class="user-avatar">R<div class="status-dot"></div></div>
@@ -62,10 +68,10 @@
 
             <div class="hero-banner">
                 <h3 style="font-size: 18px;">Hello! 👋</h3>
-                <p style="font-size: 11px; color: #94A3B8; margin-top: 2px;">Ask any question or prompt for code and diagrams.</p>
+                <p style="font-size: 11px; color: #94A3B8; margin-top: 2px;">Ask any engineering question or request a circuit diagram.</p>
                 <div class="prompt-bar">
                     <i class="fa-solid fa-wand-magic-sparkles" style="color: #3B82F6;"></i>
-                    <input type="text" id="main-prompt-input" placeholder="Ask AI Engineer anything...">
+                    <input type="text" id="main-prompt-input" placeholder="Ask Engineer AI anything...">
                     <i class="fa-solid fa-paper-plane" style="color: #3B82F6; cursor: pointer;" onclick="handleDashboardSend()"></i>
                 </div>
             </div>
@@ -76,14 +82,14 @@
             <div class="top-nav">
                 <div class="nav-left">
                     <i class="fa-solid fa-chevron-left" style="cursor:pointer;" onclick="showScreen('view-dashboard')"></i>
-                    <span style="font-weight:700; margin-left: 8px;">AI Chat Assistant</span>
+                    <span style="font-weight:700; margin-left: 8px;">Engineer AI Chat</span>
                 </div>
             </div>
             <div id="chat-messages-container" style="flex:1; background:#080E1A; border:1px solid #162032; border-radius:12px; padding:12px; font-size:12px; overflow-y:auto; margin-bottom: 8px;">
-                <p style="color:#3B82F6;"><strong>AI Engineer:</strong> Ask me any question or request a dynamic diagram.</p>
+                <p style="color:#3B82F6;"><strong>Engineer AI:</strong> Ask me any engineering question or request a diagram.</p>
             </div>
             <div class="chat-input-area">
-                <input type="text" id="chat-tab-input" placeholder="Type your message...">
+                <input type="text" id="chat-tab-input" placeholder="Type your prompt...">
                 <button class="chat-send-btn" onclick="handleChatSend()"><i class="fa-solid fa-paper-plane"></i></button>
             </div>
         </div>
@@ -109,28 +115,43 @@
         const BACKEND_URL = "/api/chat";
 
         function parseAndFormatResponse(rawText) {
-            let container = document.createElement('div');
-            
-            // Extract mermaid blocks first to prevent formatting interference
+            let text = rawText;
+
+            // AUTO-REPAIR: Detect raw graph strings (like 'graph TD A["..."] B-->C') without backticks and convert them to mermaid blocks
+            if (!text.includes('```mermaid')) {
+                const graphMatch = text.match(/(graph\s+(?:TD|LR|TB|RL)[\s\S]*?)(?=\n\s*\n|\n[A-Z][a-z]+:|$)/i);
+                if (graphMatch) {
+                    text = text.replace(graphMatch[1], '\n```mermaid\n' + graphMatch[1].trim() + '\n```\n');
+                }
+            }
+
+            const container = document.createElement('div');
             const mermaidRegex = /```mermaid([\s\S]*?)```/gi;
             let lastIndex = 0;
             let match;
 
-            while ((match = mermaidRegex.exec(rawText)) !== null) {
-                // Add text before mermaid block
-                const textBefore = rawText.substring(lastIndex, match.index);
+            while ((match = mermaidRegex.exec(text)) !== null) {
+                const textBefore = text.substring(lastIndex, match.index);
                 if (textBefore.trim()) {
                     container.appendChild(createFormattedTextNode(textBefore));
                 }
 
-                // Add mermaid node
-                const mermaidCode = match[1].trim();
+                let mermaidCode = match[1].trim();
+
+                // Convert single-line diagram definitions into proper multi-line code for Mermaid
+                if (!mermaidCode.includes('\n')) {
+                    mermaidCode = mermaidCode
+                        .replace(/(graph\s+[A-Z]{2})/i, '$1\n')
+                        .replace(/\s+([A-Z0-9_-]+\[)/g, '\n$1')
+                        .replace(/\s+([A-Z0-9_-]+\s*-->)/g, '\n$1');
+                }
+
                 const wrapper = document.createElement('div');
                 wrapper.className = 'mermaid-wrapper';
                 
                 const mermaidDiv = document.createElement('div');
                 mermaidDiv.className = 'mermaid';
-                mermaidDiv.textContent = mermaidCode; // Using textContent ensures HTML characters are escaped safely
+                mermaidDiv.textContent = mermaidCode;
                 
                 wrapper.appendChild(mermaidDiv);
                 container.appendChild(wrapper);
@@ -138,8 +159,7 @@
                 lastIndex = mermaidRegex.lastIndex;
             }
 
-            // Add remaining text after last mermaid block
-            const remainingText = rawText.substring(lastIndex);
+            const remainingText = text.substring(lastIndex);
             if (remainingText.trim()) {
                 container.appendChild(createFormattedTextNode(remainingText));
             }
@@ -160,7 +180,6 @@
             if (!promptText.trim()) return;
 
             showScreen('view-chat');
-
             const chatContainer = document.getElementById('chat-messages-container');
             
             const userMsg = document.createElement('div');
@@ -171,7 +190,7 @@
             const loadingMsg = document.createElement('div');
             loadingMsg.id = 'loading-msg';
             loadingMsg.style.cssText = "color: #94A3B8; margin-top: 6px;";
-            loadingMsg.innerHTML = `<em>AI Engineer thinking...</em>`;
+            loadingMsg.innerHTML = `<em>Engineer AI generating response...</em>`;
             chatContainer.appendChild(loadingMsg);
             
             chatContainer.scrollTop = chatContainer.scrollHeight;
@@ -189,29 +208,29 @@
                 if (data.response) {
                     const aiMsgContainer = document.createElement('div');
                     aiMsgContainer.style.cssText = "color: #E2E8F0; margin-top: 10px;";
-                    aiMsgContainer.innerHTML = `<strong>AI Engineer:</strong>`;
+                    aiMsgContainer.innerHTML = `<strong>Engineer AI:</strong>`;
                     
                     const parsedContent = parseAndFormatResponse(data.response);
                     aiMsgContainer.appendChild(parsedContent);
                     chatContainer.appendChild(aiMsgContainer);
 
-                    // Render mermaid diagrams dynamically
                     setTimeout(async () => {
                         try {
-                            await mermaid.run({
-                                nodes: aiMsgContainer.querySelectorAll('.mermaid')
-                            });
+                            const elements = aiMsgContainer.querySelectorAll('.mermaid');
+                            if (elements.length > 0) {
+                                await mermaid.run({ nodes: elements });
+                            }
                         } catch (e) {
                             console.error("Mermaid Render Error:", e);
                         }
-                    }, 50);
+                    }, 100);
 
                 } else {
                     chatContainer.innerHTML += `<p style="color: #EF4444; margin-top: 6px;"><strong>Error:</strong> Empty response.</p>`;
                 }
             } catch (err) {
                 document.getElementById('loading-msg')?.remove();
-                chatContainer.innerHTML += `<p style="color: #EF4444; margin-top: 6px;"><strong>Error:</strong> Failed to connect to backend.</p>`;
+                chatContainer.innerHTML += `<p style="color: #EF4444; margin-top: 6px;"><strong>Error:</strong> Failed to connect to server.</p>`;
             }
             chatContainer.scrollTop = chatContainer.scrollHeight;
         }
