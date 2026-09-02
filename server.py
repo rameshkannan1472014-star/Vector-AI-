@@ -25,21 +25,29 @@ async def serve_ui():
         return FileResponse("index.html")
     return {"error": "index.html not found"}
 
-# System instructions to force concise answers and diagrams
 SYSTEM_INSTRUCTION = """
-You are AI Engineer, an expert technical partner.
+You are AI Engineer, a world-class developer assistant.
 Follow these strict output rules:
-1. Keep answers brief, direct, and well-structured.
-2. Use clear bullet points and bold headers instead of long paragraphs.
-3. NEVER say "As a text-based AI, I cannot create diagrams".
-4. When asked for a diagram, flowchart, or architecture visual, output valid Mermaid syntax inside a standard ```mermaid code block.
+1. Provide concise, bulleted responses with bold headings.
+2. For diagrams or flowcharts, output valid Mermaid code inside ```mermaid ... ``` blocks.
+3. MERMAID RULES:
+   - Use simple diagram definitions like `graph TD` or `flowchart LR`.
+   - Node labels must use double quotes for text containing special characters or symbols.
+   - Example valid block:
+     ```mermaid
+     graph TD
+         A["Power Source (+)"] --> B["Resistor"]
+         B --> C["LED Anode (+)"]
+         C --> D["LED Cathode (-)"]
+         D --> E["Power Source (-)"]
+     ```
 """
 
 @app.post("/api/chat")
 async def chat_endpoint(request: ChatRequest):
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
-        return {"response": "API Key Missing in Render settings."}
+        return {"response": "API Key Missing: Please check GEMINI_API_KEY in Render settings."}
     
     try:
         client = genai.Client(api_key=api_key)
