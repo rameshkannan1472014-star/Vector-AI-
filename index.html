@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Engineer AI Platform</title>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <link href="[https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css](https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css)" rel="stylesheet">
+    <script src="[https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js](https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js)"></script>
     <script>
         mermaid.initialize({ startOnLoad: false, theme: 'dark' });
     </script>
@@ -102,6 +102,7 @@
 </head>
 <body>
     <div class="app-container">
+        <!-- DASHBOARD VIEW -->
         <div class="screen-view active" id="view-dashboard">
             <div class="top-nav">
                 <div class="nav-left">
@@ -138,6 +139,7 @@
             </div>
         </div>
 
+        <!-- AI CHAT VIEW -->
         <div class="screen-view" id="view-chat">
             <div class="top-nav">
                 <div class="nav-left">
@@ -154,6 +156,7 @@
             </div>
         </div>
 
+        <!-- BOTTOM NAVIGATION -->
         <div class="bottom-nav">
             <div class="nav-tab active" onclick="showScreen('view-dashboard')" id="tab-dashboard"><i class="fa-solid fa-house"></i><span>Home</span></div>
             <div class="nav-tab" onclick="showScreen('view-chat')" id="tab-chat"><div class="chat-btn-glow"><i class="fa-solid fa-wand-magic-sparkles"></i></div></div>
@@ -176,6 +179,7 @@
         function parseAndFormatResponse(rawText) {
             let text = rawText;
 
+            // Handle cases where AI drops triple backticks around Mermaid diagrams
             if (!text.includes('```mermaid')) {
                 const graphMatch = text.match(/(graph\s+(?:TD|LR|TB|RL)[\s\S]*?)(?=\n\s*\n|\n[A-Z][a-z]+:|$)/i);
                 if (graphMatch) {
@@ -194,13 +198,8 @@
                     container.appendChild(createFormattedTextNode(textBefore));
                 }
 
+                // Preserve standard Mermaid layout strings safely without aggressive mutation
                 let mermaidCode = match[1].trim();
-                if (!mermaidCode.includes('\n')) {
-                    mermaidCode = mermaidCode
-                        .replace(/(graph\s+[A-Z]{2})/i, '$1\n')
-                        .replace(/\s+([A-Z0-9_-]+\[)/g, '\n$1')
-                        .replace(/\s+([A-Z0-9_-]+\s*-->)/g, '\n$1');
-                }
 
                 const wrapper = document.createElement('div');
                 wrapper.className = 'mermaid-wrapper';
