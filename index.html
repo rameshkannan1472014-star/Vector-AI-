@@ -2577,3 +2577,1239 @@ async function sendDirectChat(prompt) {
 
 
     t
+    const loadingId =
+        "direct-loading-" +
+        Date.now();
+
+    loading.id = loadingId;
+
+    container.appendChild(loading);
+
+    container.scrollTop =
+        container.scrollHeight;
+
+
+    try {
+
+        const data =
+            await apiRequest(
+                "/api/chat",
+                {
+                    method: "POST",
+
+                    body:
+                        JSON.stringify({
+                            prompt: prompt
+                        })
+                }
+            );
+
+
+        $(loadingId)?.remove();
+
+
+        const response =
+            data.response ||
+            data.output ||
+            data.message ||
+            "No response received.";
+
+
+        addMessage(
+            response,
+            "assistant"
+        );
+
+
+    } catch (error) {
+
+        $(loadingId)?.remove();
+
+        addMessage(
+            "⚠️ " +
+            error.message,
+            "assistant"
+        );
+
+        toast(
+            "AI request failed"
+        );
+
+    } finally {
+
+        chatBusy = false;
+
+    }
+
+}
+
+
+/* =========================================================
+   CLEAR CHAT
+========================================================= */
+
+function clearChat() {
+
+    const container =
+        $("messages");
+
+    if (!container) return;
+
+
+    container.innerHTML = `
+
+        <div class="msg">
+
+            <div class="avatar">
+                <i class="fa-solid fa-microchip"></i>
+            </div>
+
+            <div class="bubble">
+
+                <strong>
+                    Engineer AI
+                </strong>
+
+                <br>
+
+                Ready to help with engineering,
+                architecture, coding, debugging
+                and technical analysis. ⚡
+
+            </div>
+
+        </div>
+
+    `;
+
+    toast(
+        "Chat cleared"
+    );
+
+}
+
+
+/* =========================================================
+   ENTER KEY — CHAT
+========================================================= */
+
+$("chatInput")?.addEventListener(
+    "keydown",
+    event => {
+
+        if (
+            event.key === "Enter" &&
+            !event.shiftKey
+        ) {
+
+            event.preventDefault();
+
+            sendChat();
+
+        }
+
+    }
+);
+
+
+/* =========================================================
+   AUTO RESIZE CHAT TEXTAREA
+========================================================= */
+
+$("chatInput")?.addEventListener(
+    "input",
+    function () {
+
+        this.style.height =
+            "auto";
+
+        this.style.height =
+            Math.min(
+                this.scrollHeight,
+                110
+            ) + "px";
+
+    }
+);
+
+
+/* =========================================================
+   HOME INPUT
+========================================================= */
+
+$("homeInput")?.addEventListener(
+    "keydown",
+    event => {
+
+        if (
+            event.key === "Enter"
+        ) {
+
+            event.preventDefault();
+
+            sendHomePrompt();
+
+        }
+
+    }
+);
+
+
+$("homeSend")?.addEventListener(
+    "click",
+    sendHomePrompt
+);
+
+
+function sendHomePrompt() {
+
+    const input =
+        $("homeInput");
+
+    const prompt =
+        input?.value.trim();
+
+
+    if (!prompt) {
+
+        toast(
+            "Enter an engineering question"
+        );
+
+        return;
+
+    }
+
+
+    input.value = "";
+
+    showView("chat");
+
+
+    setTimeout(() => {
+
+        addMessage(
+            prompt,
+            "user"
+        );
+
+        sendDirectChat(
+            prompt
+        );
+
+    }, 120);
+
+}
+
+
+/* =========================================================
+   MULTI-AGENT WORKFLOW
+========================================================= */
+
+let agentBusy = false;
+
+
+function resetAgentStatuses() {
+
+    const ids = [
+        "statusPlanner",
+        "statusExecutor",
+        "statusTester",
+        "statusSecurity"
+    ];
+
+
+    ids.forEach(id => {
+
+        const element =
+            $(id);
+
+        if (!element) return;
+
+        element.style.background =
+            "var(--green)";
+
+        element.style.boxShadow =
+            "0 0 8px rgba(50,213,131,.5)";
+
+    });
+
+}
+
+
+function setAgentStatus(
+    id,
+    state
+) {
+
+    const element =
+        $(id);
+
+    if (!element) return;
+
+
+    if (state === "running") {
+
+        element.style.background =
+            "var(--yellow)";
+
+        element.style.boxShadow =
+            "0 0 10px rgba(253,176,34,.7)";
+
+    }
+
+
+    else if (state === "success") {
+
+        element.style.background =
+            "var(--green)";
+
+        element.style.boxShadow =
+            "0 0 10px rgba(50,213,131,.7)";
+
+    }
+
+
+    else if (state === "error") {
+
+        element.style.background =
+            "var(--red)";
+
+        element.style.boxShadow =
+            "0 0 10px rgba(255,92,122,.7)";
+
+    }
+
+}
+
+
+async function runAgentWorkflow() {
+
+    if (agentBusy) return;
+
+
+    const task =
+        $("agentTask")?.value.trim();
+
+
+    if (!task) {
+
+        toast(
+            "Enter an engineering task first"
+        );
+
+        $("agentTask")?.focus();
+
+        return;
+
+    }
+
+
+    agentBusy = true;
+
+
+    const button =
+        $("agentRun");
+
+
+    if (button) {
+
+        button.disabled = true;
+
+        button.innerHTML = `
+            <i class="fa-solid fa-spinner fa-spin"></i>
+            Running agents...
+        `;
+
+    }
+
+
+    const result =
+        $("agentResult");
+
+
+    if (result) {
+
+        result.style.display =
+            "block";
+
+        result.innerHTML = `
+            <span class="loading">
+                <i></i>
+                <i></i>
+                <i></i>
+            </span>
+
+            Starting multi-agent workflow...
+        `;
+
+    }
+
+
+    resetAgentStatuses();
+
+
+    setAgentStatus(
+        "statusPlanner",
+        "running"
+    );
+
+
+    try {
+
+        /*
+         * Milestone 1 backend endpoint
+         */
+
+        const data =
+            await apiRequest(
+                "/api/agent/execute",
+                {
+                    method: "POST",
+
+                    body:
+                        JSON.stringify({
+
+                            task: task,
+
+                            include_tests:
+                                Boolean(
+                                    $("includeTests")?.checked
+                                ),
+
+                            include_security:
+                                Boolean(
+                                    $("includeSecurity")?.checked
+                                )
+
+                        })
+                }
+            );
+
+
+        /*
+         * Mark agents based on
+         * returned backend results.
+         */
+
+        setAgentStatus(
+            "statusPlanner",
+            "success"
+        );
+
+        setAgentStatus(
+            "statusExecutor",
+            "success"
+        );
+
+
+        if (
+            $("includeTests")?.checked
+        ) {
+
+            setAgentStatus(
+                "statusTester",
+                "success"
+            );
+
+        }
+
+
+        if (
+            $("includeSecurity")?.checked
+        ) {
+
+            setAgentStatus(
+                "statusSecurity",
+                "success"
+            );
+
+        }
+
+
+        renderAgentResult(
+            data
+        );
+
+
+        toast(
+            "Multi-agent workflow completed"
+        );
+
+
+    } catch (error) {
+
+        setAgentStatus(
+            "statusPlanner",
+            "error"
+        );
+
+        setAgentStatus(
+            "statusExecutor",
+            "error"
+        );
+
+
+        if (
+            $("includeTests")?.checked
+        ) {
+
+            setAgentStatus(
+                "statusTester",
+                "error"
+            );
+
+        }
+
+
+        if (
+            $("includeSecurity")?.checked
+        ) {
+
+            setAgentStatus(
+                "statusSecurity",
+                "error"
+            );
+
+        }
+
+
+        if (result) {
+
+            result.style.display =
+                "block";
+
+            result.innerHTML = `
+                <strong>
+                    ⚠️ Workflow failed
+                </strong>
+
+                <br><br>
+
+                ${escapeHTML(
+                    error.message
+                )}
+            `;
+
+        }
+
+
+        toast(
+            "Multi-agent workflow failed"
+        );
+
+    } finally {
+
+        agentBusy = false;
+
+
+        if (button) {
+
+            button.disabled = false;
+
+            button.innerHTML = `
+                <i class="fa-solid fa-play"></i>
+                Run Multi-Agent Workflow
+            `;
+
+        }
+
+    }
+
+}
+
+
+/* =========================================================
+   AGENT RESULT RENDERER
+========================================================= */
+
+function renderAgentResult(data) {
+
+    const result =
+        $("agentResult");
+
+    if (!result) return;
+
+
+    const workflow =
+        data.workflow ||
+        {};
+
+
+    let html = "";
+
+
+    html += `
+        <strong>
+            Multi-Agent Result
+        </strong>
+
+        <br><br>
+    `;
+
+
+    if (
+        data.status
+    ) {
+
+        html += `
+            <div>
+                <b>Status:</b>
+                ${escapeHTML(
+                    String(data.status)
+                )}
+            </div>
+        `;
+
+    }
+
+
+    if (
+        workflow.planner
+    ) {
+
+        html += `
+            <details open
+                style="margin-top:10px">
+
+                <summary>
+                    🧠 Planner
+                </summary>
+
+                <div
+                    style="margin-top:7px"
+                >
+                    ${formatAIText(
+                        workflow.planner.output ||
+                        ""
+                    )}
+                </div>
+
+            </details>
+        `;
+
+    }
+
+
+    if (
+        workflow.executor
+    ) {
+
+        html += `
+            <details
+                style="margin-top:10px">
+
+                <summary>
+                    💻 Executor
+                </summary>
+
+                <div
+                    style="margin-top:7px"
+                >
+                    ${formatAIText(
+                        workflow.executor.output ||
+                        ""
+                    )}
+                </div>
+
+            </details>
+        `;
+
+    }
+
+
+    if (
+        workflow.tester
+    ) {
+
+        html += `
+            <details
+                style="margin-top:10px">
+
+                <summary>
+                    🧪 Tester
+                </summary>
+
+                <div
+                    style="margin-top:7px"
+                >
+                    ${formatAIText(
+                        workflow.tester.output ||
+                        ""
+                    )}
+                </div>
+
+            </details>
+        `;
+
+    }
+
+
+    if (
+        workflow.security
+    ) {
+
+        html += `
+            <details
+                style="margin-top:10px">
+
+                <summary>
+                    🛡️ Security
+                </summary>
+
+                <div
+                    style="margin-top:7px"
+                >
+                    ${formatAIText(
+                        workflow.security.output ||
+                        ""
+                    )}
+                </div>
+
+            </details>
+        `;
+
+    }
+
+
+    if (
+        workflow.debugger
+    ) {
+
+        html += `
+            <details
+                style="margin-top:10px">
+
+                <summary>
+                    🐞 Debugger
+                </summary>
+
+                <div
+                    style="margin-top:7px"
+                >
+                    ${formatAIText(
+                        workflow.debugger.output ||
+                        ""
+                    )}
+                </div>
+
+            </details>
+        `;
+
+    }
+
+
+    if (
+        workflow.verifier
+    ) {
+
+        html += `
+            <details
+                style="margin-top:10px">
+
+                <summary>
+                    ✅ Verifier
+                </summary>
+
+                <div
+                    style="margin-top:7px"
+                >
+                    ${formatAIText(
+                        workflow.verifier.output ||
+                        ""
+                    )}
+                </div>
+
+            </details>
+        `;
+
+    }
+
+
+    /*
+     * Milestone 1 does not execute
+     * arbitrary code on the host.
+     */
+
+    if (
+        data.execution
+    ) {
+
+        html += `
+            <details
+                style="margin-top:10px">
+
+                <summary>
+                    ⚙️ Execution
+                </summary>
+
+                <div
+                    style="margin-top:7px"
+                >
+                    ${formatAIText(
+                        JSON.stringify(
+                            data.execution,
+                            null,
+                            2
+                        )
+                    )}
+                </div>
+
+            </details>
+        `;
+
+    }
+
+
+    result.innerHTML =
+        html;
+
+
+    result.style.display =
+        "block";
+
+}
+
+
+/* =========================================================
+   CODE REVIEW
+========================================================= */
+
+let reviewBusy = false;
+
+
+async function runCodeReview() {
+
+    if (reviewBusy) return;
+
+
+    const code =
+        $("reviewCode")?.value.trim();
+
+
+    const language =
+        $("reviewLanguage")?.value ||
+        "other";
+
+
+    if (!code) {
+
+        toast(
+            "Paste some code first"
+        );
+
+        $("reviewCode")?.focus();
+
+        return;
+
+    }
+
+
+    reviewBusy = true;
+
+
+    const button =
+        $("reviewButton");
+
+
+    if (button) {
+
+        button.disabled = true;
+
+        button.innerHTML = `
+            <i class="fa-solid fa-spinner fa-spin"></i>
+            Reviewing...
+        `;
+
+    }
+
+
+    const result =
+        $("reviewResult");
+
+
+    if (result) {
+
+        result.style.display =
+            "block";
+
+        result.innerHTML = `
+            <span class="loading">
+                <i></i>
+                <i></i>
+                <i></i>
+            </span>
+
+            Analyzing code...
+        `;
+
+    }
+
+
+    try {
+
+        const data =
+            await apiRequest(
+                "/api/code/review",
+                {
+                    method: "POST",
+
+                    body:
+                        JSON.stringify({
+
+                            code_snippet:
+                                code,
+
+                            language:
+                                language
+
+                        })
+                }
+            );
+
+
+        const output =
+            data.review?.output ||
+            data.output ||
+            data.response ||
+            "No review returned.";
+
+
+        if (result) {
+
+            result.innerHTML = `
+                <strong>
+                    Code Review
+                </strong>
+
+                <br><br>
+
+                ${formatAIText(
+                    output
+                )}
+            `;
+
+        }
+
+
+        toast(
+            "Code review completed"
+        );
+
+
+    } catch (error) {
+
+        if (result) {
+
+            result.innerHTML = `
+                <strong>
+                    ⚠️ Review failed
+                </strong>
+
+                <br><br>
+
+                ${escapeHTML(
+                    error.message
+                )}
+            `;
+
+        }
+
+
+        toast(
+            "Code review failed"
+        );
+
+    } finally {
+
+        reviewBusy = false;
+
+
+        if (button) {
+
+            button.disabled = false;
+
+            button.innerHTML = `
+                <i class="fa-solid fa-magnifying-glass"></i>
+                Review Code
+            `;
+
+        }
+
+    }
+
+}
+
+
+/* =========================================================
+   ANALYTICS
+========================================================= */
+
+let analyticsBusy = false;
+
+
+async function loadAnalytics() {
+
+    if (analyticsBusy) return;
+
+
+    analyticsBusy = true;
+
+
+    const result =
+        $("analyticsResult");
+
+
+    if (result) {
+
+        result.innerHTML = `
+            <span class="loading">
+                <i></i>
+                <i></i>
+                <i></i>
+            </span>
+
+            Loading telemetry...
+        `;
+
+    }
+
+
+    try {
+
+        const data =
+            await apiRequest(
+                "/api/ops/analytics",
+                {
+                    method: "GET"
+                },
+                15000
+            );
+
+
+        const requests =
+            data.total_requests ??
+            0;
+
+
+        const success =
+            data.success_rate_percent ??
+            0;
+
+
+        const latency =
+            data.average_latency_seconds ??
+            0;
+
+
+        const agents =
+            data.agent_tasks_executed ??
+            0;
+
+
+        $("analyticsRequests").textContent =
+            requests;
+
+
+        $("analyticsSuccess").textContent =
+            Number(success).toFixed(1) +
+            "%";
+
+
+        $("analyticsLatency").textContent =
+            Number(latency).toFixed(2) +
+            "s";
+
+
+        $("analyticsAgents").textContent =
+            agents;
+
+
+        $("statRequests").textContent =
+            requests;
+
+
+        $("statSuccess").textContent =
+            Number(success).toFixed(1) +
+            "%";
+
+
+        $("statLatency").textContent =
+            Number(latency).toFixed(2) +
+            "s";
+
+
+        $("statAgents").textContent =
+            agents;
+
+
+        if (result) {
+
+            result.innerHTML = `
+
+                <strong>
+                    Backend telemetry
+                </strong>
+
+                <br><br>
+
+                Requests:
+                ${escapeHTML(
+                    String(requests)
+                )}
+
+                <br>
+
+                Success rate:
+                ${escapeHTML(
+                    String(success)
+                )}%
+
+                <br>
+
+                Average latency:
+                ${escapeHTML(
+                    String(latency)
+                )} seconds
+
+                <br>
+
+                Agent runs:
+                ${escapeHTML(
+                    String(agents)
+                )}
+
+            `;
+
+        }
+
+
+    } catch (error) {
+
+        if (result) {
+
+            result.innerHTML = `
+                ⚠️ Unable to load telemetry.
+
+                <br><br>
+
+                ${escapeHTML(
+                    error.message
+                )}
+            `;
+
+        }
+
+    } finally {
+
+        analyticsBusy = false;
+
+    }
+
+}
+
+
+/* =========================================================
+   HEALTH CHECK
+========================================================= */
+
+async function checkHealth() {
+
+    const pill =
+        $("healthPill");
+
+
+    try {
+
+        const data =
+            await apiRequest(
+                "/api/health",
+                {
+                    method: "GET"
+                },
+                10000
+            );
+
+
+        if (
+            data.status === "ok" ||
+            data.status === "healthy"
+        ) {
+
+            if (pill) {
+
+                pill.textContent =
+                    "● Online";
+
+                pill.classList.add(
+                    "online"
+                );
+
+            }
+
+            return;
+
+        }
+
+
+        throw new Error(
+            "Backend unavailable"
+        );
+
+
+    } catch {
+
+        if (pill) {
+
+            pill.textContent =
+                "● Offline";
+
+            pill.classList.remove(
+                "online"
+            );
+
+            pill.style.color =
+                "var(--red)";
+
+        }
+
+    }
+
+}
+
+
+/* =========================================================
+   MERMAID SUPPORT
+========================================================= */
+
+if (
+    typeof mermaid !==
+    "undefined"
+) {
+
+    mermaid.initialize({
+
+        startOnLoad: false,
+
+        securityLevel:
+            "strict",
+
+        theme:
+            "dark"
+
+    });
+
+}
+
+
+/* =========================================================
+   PAGE STARTUP
+========================================================= */
+
+document.addEventListener(
+    "DOMContentLoaded",
+    () => {
+
+        /*
+         * Check backend
+    
