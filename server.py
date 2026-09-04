@@ -1,5 +1,6 @@
 import os
 import time
+import asyncio
 import logging
 from typing import Dict, Any, Optional
 from fastapi import FastAPI, BackgroundTasks
@@ -9,7 +10,6 @@ from pydantic import BaseModel
 from google import genai
 from google.genai import types
 
-# Setup logging and internal telemetry analytics
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("EngineerAI")
 
@@ -23,7 +23,7 @@ analytics_data = {
     "tests_generated": 0
 }
 
-app = FastAPI(title="Engineer AI Core Engine")
+app = FastAPI(title="Engineer AI Engine")
 
 app.add_middleware(
     CORSMiddleware,
@@ -87,8 +87,8 @@ SYSTEM_INSTRUCTION = (
     "```\n"
 )
 
-async def execute_model_inference(prompt: str, provider: str = "gemini", custom_system_prompt: Optional[str] = None) -> str:
-    """Provider abstraction layer supporting Gemini and local CUDA model execution."""
+async def execute_model_inference_with_retry(prompt: str, provider: str = "gemini", custom_system_prompt: Optional[str] = None, max_retries: int = 3) -> str:
+    """Executes API inference with automatic retries for handling temporary 503 Unavailable spikes."""
     if provider == "gemini":
         api_key = os.getenv("GEMINI_API_KEY")
         if not api_key:
@@ -97,18 +97,29 @@ async def execute_model_inference(prompt: str, provider: str = "gemini", custom_
         client = genai.Client(api_key=api_key)
         instruction = custom_system_prompt if custom_system_prompt else SYSTEM_INSTRUCTION
         
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                system_instruction=instruction
-            )
-        )
-        return response.text if response.text else "Empty response received."
+        for attempt in range(1, max_retries + 1):
+            try:
+                response = client.models.generate_content(
+                    model="gemini-2.5-flash",
+                    contents=prompt,
+                    config=types.GenerateContentConfig(
+                        system_instruction=instruction
+                    )
+                )
+                if response.text:
+                    return response.text
+                return "Empty response received from model."
+            except Exception as e:
+                error_str = str(e)
+                if ("503" in error_str or "UNAVAILABLE" in error_str) and attempt < max_retries:
+                    logger.warning(f"503 Spike detected. Retrying attempt {attempt}/{max_retries} in 2 seconds...")
+                    await asyncio.sleep(2 * attempt)
+                    continue
+                else:
+                    raise e
     
     elif provider == "local_cuda":
         return "Local CUDA/TensorRT inference engine is not configured on this host."
-    
     else:
         raise ValueError(f"Unknown provider: {provider}")
 
@@ -125,7 +136,7 @@ def log_telemetry(start_time: float, success: bool):
 async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks):
     start_time = time.time()
     try:
-        response_text = await execute_model_inference(request.prompt, request.provider)
+        response_text = await execute_model_inference_with_retry(request.prompt, request.provider)
         background_tasks.add_task(log_telemetry, start_time, True)
         return {"response": response_text, "provider": request.provider}
     except Exception as e:
@@ -135,18 +146,15 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks)
 
 @app.post("/api/agent/execute")
 async def multi_agent_endpoint(request: MultiAgentRequest, background_tasks: BackgroundTasks):
-    """Executes multi-agent workflow: Planning -> Execution -> Test Generation -> Security Audit."""
     start_time = time.time()
     analytics_data["agent_tasks_executed"] += 1
     
     try:
-        # Agent 1: Planner
         planner_prompt = f"Planner Agent: Deconstruct this engineering request into clear technical steps: {request.task_description}"
-        plan = await execute_model_inference(planner_prompt)
+        plan = await execute_model_inference_with_retry(planner_prompt)
         
-        # Agent 2: Executor
         executor_prompt = f"Executor Agent: Provide complete technical execution, code, or schematics for: {request.task_description}"
-        implementation = await execute_model_inference(executor_prompt)
+        implementation = await execute_model_inference_with_retry(executor_prompt)
         
         result = {
             "plan": plan,
@@ -155,17 +163,15 @@ async def multi_agent_endpoint(request: MultiAgentRequest, background_tasks: Bac
             "security_scan": None
         }
         
-        # Agent 3: Test Generator
         if request.include_tests:
             analytics_data["tests_generated"] += 1
             test_prompt = f"Test Agent: Generate unit tests, assertion checks, and validation logic for:\n{implementation}"
-            result["tests"] = await execute_model_inference(test_prompt)
+            result["tests"] = await execute_model_inference_with_retry(test_prompt)
             
-        # Agent 4: Security & Safety Auditor
         if request.include_security_scan:
             analytics_data["security_scans_completed"] += 1
             security_prompt = f"Security & Safety Agent: Conduct a safety, current limit, thermal, and security audit on:\n{implementation}"
-            result["security_scan"] = await execute_model_inference(security_prompt)
+            result["security_scan"] = await execute_model_inference_with_retry(security_prompt)
             
         background_tasks.add_task(log_telemetry, start_time, True)
         return {"status": "success", "agent_outputs": result}
@@ -176,17 +182,15 @@ async def multi_agent_endpoint(request: MultiAgentRequest, background_tasks: Bac
 
 @app.post("/api/code/review")
 async def code_review_endpoint(request: CodeReviewRequest):
-    """Automated PR/Code Reviewer."""
     review_prompt = f"Review the following {request.language} code for bugs, performance optimizations, thermal/electrical limits, and style:\n\n{request.code_snippet}"
     try:
-        review_result = await execute_model_inference(review_prompt)
+        review_result = await execute_model_inference_with_retry(review_prompt)
         return {"status": "success", "review": review_result}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
 @app.get("/api/ops/analytics")
 async def get_analytics():
-    """Returns telemetry and ops performance metrics."""
     avg_latency = (
         analytics_data["total_latency_seconds"] / analytics_data["total_requests"]
         if analytics_data["total_requests"] > 0 else 0.0
