@@ -3812,4 +3812,112 @@ document.addEventListener(
 
         /*
          * Check backend
-    
+                  checkHealth();
+
+        /*
+         * Load analytics after a short delay
+         * so the UI becomes responsive first.
+         */
+
+        setTimeout(() => {
+            loadAnalytics();
+        }, 300);
+
+
+        /*
+         * Refresh backend health periodically.
+         */
+
+        setInterval(() => {
+            checkHealth();
+        }, 30000);
+
+
+        /*
+         * Refresh analytics periodically.
+         */
+
+        setInterval(() => {
+            loadAnalytics();
+        }, 60000);
+
+
+        /*
+         * Initialize default view.
+         */
+
+        showView("home");
+
+
+        /*
+         * Keyboard shortcut:
+         * Ctrl + K / Cmd + K
+         * focuses the main chat input.
+         */
+
+        document.addEventListener(
+            "keydown",
+            event => {
+
+                if (
+                    (event.ctrlKey ||
+                     event.metaKey) &&
+                    event.key.toLowerCase() === "k"
+                ) {
+
+                    event.preventDefault();
+
+                    showView("chat");
+
+                    setTimeout(() => {
+
+                        $("chatInput")?.focus();
+
+                    }, 100);
+
+                }
+
+            }
+        );
+
+    }
+);
+
+
+/* =========================================================
+   GLOBAL ERROR HANDLER
+========================================================= */
+
+window.addEventListener(
+    "error",
+    event => {
+
+        console.error(
+            "Engineer AI UI error:",
+            event.error || event.message
+        );
+
+    }
+);
+
+
+/* =========================================================
+   UNHANDLED PROMISE ERRORS
+========================================================= */
+
+window.addEventListener(
+    "unhandledrejection",
+    event => {
+
+        console.error(
+            "Unhandled promise rejection:",
+            event.reason
+        );
+
+    }
+);
+
+</script>
+
+</body>
+</html>
