@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Engineer AI Platform</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
@@ -11,36 +11,83 @@
     </script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
-        html, body { width: 100%; height: 100%; background-color: #03060D; color: #FFFFFF; overflow: hidden; }
-        .app-container { width: 100vw; height: 100vh; background-color: #050914; display: flex; flex-direction: column; position: relative; overflow: hidden; }
+        
+        html, body {
+            width: 100%;
+            height: 100%;
+            height: 100dvh;
+            background-color: #03060D;
+            color: #FFFFFF;
+            overflow: hidden;
+        }
+
+        .app-container {
+            width: 100vw;
+            height: 100%;
+            height: 100dvh;
+            background-color: #050914;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+        }
 
         .screen-view {
-            position: absolute; top: 0; left: 0; right: 0; bottom: 60px; padding: 16px; overflow-y: auto; -webkit-overflow-scrolling: touch;
-            display: flex; flex-direction: column; opacity: 0; visibility: hidden; transform: translate3d(0, 12px, 0);
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 60px;
+            padding: 16px;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            display: flex;
+            flex-direction: column;
+            opacity: 0;
+            visibility: hidden;
+            transform: translate3d(0, 12px, 0);
             transition: opacity 0.22s ease, transform 0.22s ease, visibility 0.22s;
         }
-        .screen-view.active { opacity: 1; visibility: visible; transform: translate3d(0, 0, 0); }
 
-        .top-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .screen-view.active {
+            opacity: 1;
+            visibility: visible;
+            transform: translate3d(0, 0, 0);
+        }
+
+        .top-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-shrink: 0; }
         .nav-left { display: flex; align-items: center; gap: 10px; }
-        .robot-avatar { width: 36px; height: 36px; border-radius: 10px; background: linear-gradient(135deg, #1D4ED8, #3B82F6); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 12px rgba(59, 130, 246, 0.4); }
-        .user-avatar { width: 32px; height: 32px; border-radius: 50%; background: #0F172A; border: 1.5px solid #3B82F6; color: #3B82F6; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 12px; position: relative; }
+        .robot-avatar { width: 34px; height: 34px; border-radius: 10px; background: linear-gradient(135deg, #1D4ED8, #3B82F6); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 12px rgba(59, 130, 246, 0.4); }
+        .user-avatar { width: 30px; height: 30px; border-radius: 50%; background: #0F172A; border: 1.5px solid #3B82F6; color: #3B82F6; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 11px; position: relative; }
         .status-dot { width: 8px; height: 8px; background-color: #10B981; border-radius: 50%; position: absolute; bottom: -1px; right: -1px; border: 2px solid #050914; }
 
-        .hero-banner { background: radial-gradient(circle at 80% 20%, #1E1B4B 0%, #0B1120 70%); border-radius: 18px; padding: 16px; margin-bottom: 18px; border: 1px solid #1E293B; }
+        .hero-banner { background: radial-gradient(circle at 80% 20%, #1E1B4B 0%, #0B1120 70%); border-radius: 16px; padding: 14px; margin-bottom: 14px; border: 1px solid #1E293B; flex-shrink: 0; }
         .prompt-bar { background-color: #090E1A; border: 1px solid #1E293B; border-radius: 12px; display: flex; align-items: center; padding: 10px 12px; gap: 8px; margin-top: 10px; }
         .prompt-bar input { background: transparent; border: none; color: #FFF; width: 100%; outline: none; font-size: 12px; }
 
-        .action-card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+        .action-card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; flex-shrink: 0; }
         .action-card { background: #0A101D; border: 1px solid #162032; border-radius: 12px; padding: 12px; cursor: pointer; transition: background 0.2s; }
         .action-card:hover { background: #111A2E; }
-        .action-card i { font-size: 18px; color: #3B82F6; margin-bottom: 6px; }
+        .action-card i { font-size: 16px; color: #3B82F6; margin-bottom: 6px; }
         .action-card h4 { font-size: 12px; font-weight: 600; color: #E2E8F0; }
         .action-card p { font-size: 10px; color: #64748B; margin-top: 2px; }
 
-        .chat-input-area { display: flex; gap: 8px; margin-top: 10px; }
+        #chat-messages-container {
+            flex: 1;
+            min-height: 0;
+            background: #080E1A;
+            border: 1px solid #162032;
+            border-radius: 12px;
+            padding: 12px;
+            font-size: 12px;
+            overflow-y: auto;
+            margin-bottom: 8px;
+            word-wrap: break-word;
+        }
+
+        .chat-input-area { display: flex; gap: 8px; margin-top: auto; flex-shrink: 0; }
         .chat-input-area input { flex: 1; background: #0A101D; border: 1px solid #162032; border-radius: 10px; padding: 10px 12px; color: #FFF; font-size: 12px; outline: none; }
-        .chat-send-btn { background: #2563EB; border: none; border-radius: 10px; width: 40px; display: flex; align-items: center; justify-content: center; color: white; cursor: pointer; }
+        .chat-send-btn { background: #2563EB; border: none; border-radius: 10px; width: 40px; height: 38px; display: flex; align-items: center; justify-content: center; color: white; cursor: pointer; flex-shrink: 0; }
 
         .bottom-nav { position: absolute; bottom: 0; left: 0; right: 0; height: 60px; background-color: #050914; border-top: 1px solid #162032; display: flex; justify-content: space-around; align-items: center; z-index: 100; }
         .nav-tab { display: flex; flex-direction: column; align-items: center; gap: 3px; color: #64748B; font-size: 10px; cursor: pointer; width: 25%; }
@@ -48,29 +95,28 @@
         .nav-tab i { font-size: 16px; }
         .chat-btn-glow { width: 42px; height: 42px; background: linear-gradient(135deg, #2563EB, #7C3AED); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-top: -16px; box-shadow: 0 0 12px rgba(59, 130, 246, 0.6); color: white !important; }
 
-        .mermaid-wrapper { background: #080E1A; border: 1px solid #162032; border-radius: 8px; padding: 12px; margin: 10px 0; overflow-x: auto; text-align: center; }
+        .mermaid-wrapper { background: #080E1A; border: 1px solid #162032; border-radius: 8px; padding: 10px; margin: 10px 0; overflow-x: auto; text-align: center; }
         .mermaid { display: block; margin: 0 auto; }
         .metrics-box { background: #080E1A; border: 1px solid #162032; border-radius: 10px; padding: 12px; margin-bottom: 10px; font-size: 11px; color: #94A3B8; }
     </style>
 </head>
 <body>
     <div class="app-container">
-        <!-- DASHBOARD VIEW -->
         <div class="screen-view active" id="view-dashboard">
             <div class="top-nav">
                 <div class="nav-left">
-                    <div class="robot-avatar"><i class="fa-solid fa-robot" style="color: white; font-size: 16px;"></i></div>
+                    <div class="robot-avatar"><i class="fa-solid fa-robot" style="color: white; font-size: 15px;"></i></div>
                     <div>
-                        <div style="font-size: 15px; font-weight: 700;">Engineer AI</div>
-                        <div style="font-size: 10px; color: #64748B;">Advanced System & Hardware Assistant</div>
+                        <div style="font-size: 14px; font-weight: 700;">Engineer AI</div>
+                        <div style="font-size: 10px; color: #64748B;">Advanced Hardware & System Engine</div>
                     </div>
                 </div>
                 <div class="user-avatar">R<div class="status-dot"></div></div>
             </div>
 
             <div class="hero-banner">
-                <h3 style="font-size: 18px;">Engineering Hub 👋</h3>
-                <p style="font-size: 11px; color: #94A3B8; margin-top: 2px;">Design schematics, execute multi-agent tasks, or run safety reviews.</p>
+                <h3 style="font-size: 16px;">Engineering Hub 👋</h3>
+                <p style="font-size: 11px; color: #94A3B8; margin-top: 2px;">Design schematics, execute multi-agent workflows, or audit code.</p>
                 <div class="prompt-bar">
                     <i class="fa-solid fa-wand-magic-sparkles" style="color: #3B82F6;"></i>
                     <input type="text" id="main-prompt-input" placeholder="Ask Engineer AI anything...">
@@ -92,7 +138,6 @@
             </div>
         </div>
 
-        <!-- AI CHAT VIEW -->
         <div class="screen-view" id="view-chat">
             <div class="top-nav">
                 <div class="nav-left">
@@ -100,7 +145,7 @@
                     <span style="font-weight:700; margin-left: 8px;">Engineer AI Terminal</span>
                 </div>
             </div>
-            <div id="chat-messages-container" style="flex:1; background:#080E1A; border:1px solid #162032; border-radius:12px; padding:12px; font-size:12px; overflow-y:auto; margin-bottom: 8px;">
+            <div id="chat-messages-container">
                 <p style="color:#3B82F6;"><strong>Engineer AI:</strong> Ready for calculations, code generation, and circuit diagrams.</p>
             </div>
             <div class="chat-input-area">
@@ -109,7 +154,6 @@
             </div>
         </div>
 
-        <!-- BOTTOM NAVIGATION -->
         <div class="bottom-nav">
             <div class="nav-tab active" onclick="showScreen('view-dashboard')" id="tab-dashboard"><i class="fa-solid fa-house"></i><span>Home</span></div>
             <div class="nav-tab" onclick="showScreen('view-chat')" id="tab-chat"><div class="chat-btn-glow"><i class="fa-solid fa-wand-magic-sparkles"></i></div></div>
@@ -132,7 +176,6 @@
         function parseAndFormatResponse(rawText) {
             let text = rawText;
 
-            // Auto-repair plain text Mermaid output missing triple backticks
             if (!text.includes('```mermaid')) {
                 const graphMatch = text.match(/(graph\s+(?:TD|LR|TB|RL)[\s\S]*?)(?=\n\s*\n|\n[A-Z][a-z]+:|$)/i);
                 if (graphMatch) {
@@ -203,7 +246,7 @@
             const loadingMsg = document.createElement('div');
             loadingMsg.id = 'loading-msg';
             loadingMsg.style.cssText = "color: #94A3B8; margin-top: 6px;";
-            loadingMsg.innerHTML = `<em>Engineer AI running task...</em>`;
+            loadingMsg.innerHTML = `<em>Engineer AI generating response...</em>`;
             chatContainer.appendChild(loadingMsg);
             
             chatContainer.scrollTop = chatContainer.scrollHeight;
@@ -275,7 +318,7 @@
         }
 
         function triggerMultiAgentPrompt() {
-            const prompt = prompt("Enter engineering task for Multi-Agent workflow:");
+            const prompt = window.prompt("Enter engineering task for Multi-Agent workflow:");
             if (prompt) sendPrompt("Execute multi-agent workflow for: " + prompt);
         }
 
