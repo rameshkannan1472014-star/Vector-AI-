@@ -1,354 +1,2579 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Engineer AI Platform</title>
-    <link href="[https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css](https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css)" rel="stylesheet">
-    <script src="[https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js](https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js)"></script>
-    <script>
-        mermaid.initialize({ startOnLoad: false, theme: 'dark' });
-    </script>
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
-        
-        html, body {
-            width: 100%;
-            height: 100%;
-            height: 100dvh;
-            background-color: #03060D;
-            color: #FFFFFF;
-            overflow: hidden;
-        }
+<meta charset="UTF-8">
+<meta name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 
-        .app-container {
-            width: 100vw;
-            height: 100%;
-            height: 100dvh;
-            background-color: #050914;
-            display: flex;
-            flex-direction: column;
-            position: relative;
-            overflow: hidden;
-        }
+<meta name="theme-color" content="#060912">
 
-        .screen-view {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 60px;
-            padding: 16px;
-            overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
-            display: flex;
-            flex-direction: column;
-            opacity: 0;
-            visibility: hidden;
-            transform: translate3d(0, 12px, 0);
-            transition: opacity 0.22s ease, transform 0.22s ease, visibility 0.22s;
-        }
+<title>Engineer AI</title>
 
-        .screen-view.active {
-            opacity: 1;
-            visibility: visible;
-            transform: translate3d(0, 0, 0);
-        }
+<link rel="preconnect" href="https://cdnjs.cloudflare.com">
+<link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
 
-        .top-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-shrink: 0; }
-        .nav-left { display: flex; align-items: center; gap: 10px; }
-        .robot-avatar { width: 34px; height: 34px; border-radius: 10px; background: linear-gradient(135deg, #1D4ED8, #3B82F6); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 12px rgba(59, 130, 246, 0.4); }
-        .user-avatar { width: 30px; height: 30px; border-radius: 50%; background: #0F172A; border: 1.5px solid #3B82F6; color: #3B82F6; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 11px; position: relative; }
-        .status-dot { width: 8px; height: 8px; background-color: #10B981; border-radius: 50%; position: absolute; bottom: -1px; right: -1px; border: 2px solid #050914; }
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
 
-        .hero-banner { background: radial-gradient(circle at 80% 20%, #1E1B4B 0%, #0B1120 70%); border-radius: 16px; padding: 14px; margin-bottom: 14px; border: 1px solid #1E293B; flex-shrink: 0; }
-        .prompt-bar { background-color: #090E1A; border: 1px solid #1E293B; border-radius: 12px; display: flex; align-items: center; padding: 10px 12px; gap: 8px; margin-top: 10px; }
-        .prompt-bar input { background: transparent; border: none; color: #FFF; width: 100%; outline: none; font-size: 12px; }
+<style>
 
-        .action-card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; flex-shrink: 0; }
-        .action-card { background: #0A101D; border: 1px solid #162032; border-radius: 12px; padding: 12px; cursor: pointer; transition: background 0.2s; }
-        .action-card:hover { background: #111A2E; }
-        .action-card i { font-size: 16px; color: #3B82F6; margin-bottom: 6px; }
-        .action-card h4 { font-size: 12px; font-weight: 600; color: #E2E8F0; }
-        .action-card p { font-size: 10px; color: #64748B; margin-top: 2px; }
+:root {
+    --bg: #050811;
+    --panel: #0a1020;
+    --panel2: #0d1527;
+    --card: #101a2e;
+    --line: #1b2942;
 
-        #chat-messages-container {
-            flex: 1;
-            min-height: 0;
-            background: #080E1A;
-            border: 1px solid #162032;
-            border-radius: 12px;
-            padding: 12px;
-            font-size: 12px;
-            overflow-y: auto;
-            margin-bottom: 8px;
-            word-wrap: break-word;
-        }
+    --text: #f7f9ff;
+    --muted: #8290a8;
 
-        .chat-input-area { display: flex; gap: 8px; margin-top: auto; flex-shrink: 0; }
-        .chat-input-area input { flex: 1; background: #0A101D; border: 1px solid #162032; border-radius: 10px; padding: 10px 12px; color: #FFF; font-size: 12px; outline: none; }
-        .chat-send-btn { background: #2563EB; border: none; border-radius: 10px; width: 40px; height: 38px; display: flex; align-items: center; justify-content: center; color: white; cursor: pointer; flex-shrink: 0; }
+    --accent: #4f8cff;
+    --accent2: #7c5cff;
 
-        .bottom-nav { position: absolute; bottom: 0; left: 0; right: 0; height: 60px; background-color: #050914; border-top: 1px solid #162032; display: flex; justify-content: space-around; align-items: center; z-index: 100; }
-        .nav-tab { display: flex; flex-direction: column; align-items: center; gap: 3px; color: #64748B; font-size: 10px; cursor: pointer; width: 25%; }
-        .nav-tab.active { color: #3B82F6; }
-        .nav-tab i { font-size: 16px; }
-        .chat-btn-glow { width: 42px; height: 42px; background: linear-gradient(135deg, #2563EB, #7C3AED); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-top: -16px; box-shadow: 0 0 12px rgba(59, 130, 246, 0.6); color: white !important; }
+    --green: #32d583;
+    --yellow: #fdb022;
+    --red: #ff5c7a;
 
-        .mermaid-wrapper { background: #080E1A; border: 1px solid #162032; border-radius: 8px; padding: 10px; margin: 10px 0; overflow-x: auto; text-align: center; }
-        .mermaid { display: block; margin: 0 auto; }
-        .metrics-box { background: #080E1A; border: 1px solid #162032; border-radius: 10px; padding: 12px; margin-bottom: 10px; font-size: 11px; color: #94A3B8; }
-    </style>
+    --nav-height: 72px;
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html,
+body {
+    width: 100%;
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+
+    font-family:
+        Inter,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        Roboto,
+        sans-serif;
+
+    -webkit-tap-highlight-color: transparent;
+}
+
+body {
+    overflow: hidden;
+}
+
+button,
+input,
+textarea {
+    font: inherit;
+}
+
+button {
+    border: none;
+}
+
+.app {
+    width: 100%;
+    height: 100dvh;
+
+    display: flex;
+    flex-direction: column;
+
+    overflow: hidden;
+
+    background:
+        radial-gradient(
+            700px 400px at 80% -10%,
+            rgba(79,140,255,.13),
+            transparent 60%
+        ),
+        var(--bg);
+}
+
+main {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+
+    overflow: hidden;
+}
+
+
+/* =========================================================
+   VIEWS
+========================================================= */
+
+.view {
+    position: absolute;
+
+    inset: 0;
+
+    overflow-y: auto;
+    overflow-x: hidden;
+
+    padding:
+        16px
+        16px
+        calc(var(--nav-height) + 18px);
+
+    opacity: 0;
+    visibility: hidden;
+
+    transform: translate3d(12px, 0, 0);
+
+    pointer-events: none;
+
+    transition:
+        opacity .18s ease,
+        transform .18s ease,
+        visibility .18s;
+}
+
+.view.active {
+    opacity: 1;
+    visibility: visible;
+
+    transform: translate3d(0, 0, 0);
+
+    pointer-events: auto;
+}
+
+.view::-webkit-scrollbar,
+.messages::-webkit-scrollbar {
+    width: 4px;
+}
+
+.view::-webkit-scrollbar-thumb,
+.messages::-webkit-scrollbar-thumb {
+    background: #263652;
+    border-radius: 10px;
+}
+
+
+/* =========================================================
+   HEADER
+========================================================= */
+
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    margin-bottom: 16px;
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+
+    gap: 10px;
+}
+
+.logo {
+    width: 40px;
+    height: 40px;
+
+    border-radius: 13px;
+
+    display: grid;
+    place-items: center;
+
+    background:
+        linear-gradient(
+            135deg,
+            var(--accent),
+            var(--accent2)
+        );
+
+    box-shadow:
+        0 8px 28px rgba(79,140,255,.22);
+}
+
+.logo i {
+    font-size: 18px;
+}
+
+.title {
+    font-size: 15px;
+    font-weight: 800;
+}
+
+.subtitle {
+    margin-top: 2px;
+
+    font-size: 10px;
+    color: var(--muted);
+}
+
+.pill {
+    padding: 6px 9px;
+
+    border-radius: 999px;
+
+    font-size: 10px;
+
+    color: var(--muted);
+
+    background: #09101e;
+
+    border: 1px solid var(--line);
+}
+
+.pill.online {
+    color: var(--green);
+
+    border-color:
+        rgba(50,213,131,.25);
+}
+
+
+/* =========================================================
+   HERO
+========================================================= */
+
+.hero {
+    padding: 18px;
+
+    border-radius: 20px;
+
+    border: 1px solid var(--line);
+
+    background:
+        linear-gradient(
+            145deg,
+            #0e1930,
+            #080e1a
+        );
+
+    margin-bottom: 14px;
+}
+
+.hero h1 {
+    font-size: 25px;
+
+    letter-spacing: -.6px;
+}
+
+.hero p {
+    margin: 7px 0 15px;
+
+    font-size: 12px;
+
+    line-height: 1.5;
+
+    color: var(--muted);
+}
+
+
+/* =========================================================
+   INPUT
+========================================================= */
+
+.composer {
+    display: flex;
+    align-items: center;
+
+    gap: 8px;
+
+    padding: 8px;
+
+    background: #070d19;
+
+    border: 1px solid var(--line);
+
+    border-radius: 14px;
+}
+
+.composer input {
+    flex: 1;
+
+    min-width: 0;
+
+    padding: 7px;
+
+    color: var(--text);
+
+    background: transparent;
+
+    border: none;
+    outline: none;
+
+    font-size: 12px;
+}
+
+.icon-btn,
+.send {
+    width: 38px;
+    height: 38px;
+
+    border-radius: 11px;
+
+    display: grid;
+    place-items: center;
+
+    cursor: pointer;
+}
+
+.icon-btn {
+    color: var(--muted);
+
+    background: #101a2d;
+
+    border: 1px solid var(--line);
+}
+
+.send {
+    color: white;
+
+    background:
+        linear-gradient(
+            135deg,
+            var(--accent),
+            #6b62ff
+        );
+
+    box-shadow:
+        0 5px 18px rgba(79,140,255,.22);
+}
+
+.send:disabled {
+    opacity: .45;
+
+    box-shadow: none;
+}
+
+
+/* =========================================================
+   DASHBOARD CARDS
+========================================================= */
+
+.grid {
+    display: grid;
+
+    grid-template-columns:
+        repeat(2, 1fr);
+
+    gap: 10px;
+}
+
+.card {
+    padding: 14px;
+
+    border-radius: 16px;
+
+    background:
+        linear-gradient(
+            145deg,
+            #0c1424,
+            #09101d
+        );
+
+    border: 1px solid var(--line);
+
+    cursor: pointer;
+
+    transition:
+        transform .12s ease,
+        border-color .12s ease;
+}
+
+.card:active {
+    transform: scale(.98);
+}
+
+.card:hover {
+    border-color: #294268;
+}
+
+.card i {
+    margin-bottom: 10px;
+
+    font-size: 16px;
+
+    color: var(--accent);
+}
+
+.card h3 {
+    font-size: 12px;
+}
+
+.card p {
+    margin-top: 4px;
+
+    font-size: 10px;
+
+    line-height: 1.4;
+
+    color: var(--muted);
+}
+
+
+/* =========================================================
+   SECTION
+========================================================= */
+
+.section-title {
+    display: flex;
+
+    align-items: center;
+    justify-content: space-between;
+
+    margin:
+        18px 2px 9px;
+}
+
+.section-title h2 {
+    font-size: 13px;
+}
+
+.section-title span {
+    font-size: 10px;
+
+    color: var(--muted);
+}
+
+
+/* =========================================================
+   STATS
+========================================================= */
+
+.stats {
+    display: grid;
+
+    grid-template-columns:
+        repeat(2, 1fr);
+
+    gap: 10px;
+}
+
+.stat {
+    padding: 13px;
+
+    border-radius: 14px;
+
+    background: #0a1221;
+
+    border: 1px solid var(--line);
+}
+
+.stat b {
+    display: block;
+
+    font-size: 19px;
+}
+
+.stat span {
+    font-size: 9px;
+
+    color: var(--muted);
+}
+
+
+/* =========================================================
+   CHAT
+========================================================= */
+
+.chat-wrap {
+    height: 100%;
+
+    display: flex;
+
+    flex-direction: column;
+}
+
+.chat-header {
+    display: flex;
+
+    align-items: center;
+
+    gap: 10px;
+
+    padding:
+        2px 0 12px;
+}
+
+.chat-header .title {
+    flex: 1;
+}
+
+.messages {
+    flex: 1;
+
+    min-height: 0;
+
+    overflow-y: auto;
+
+    padding:
+        4px 0 12px;
+
+    scroll-behavior: smooth;
+}
+
+.msg {
+    max-width: 92%;
+
+    margin-bottom: 12px;
+
+    display: flex;
+
+    align-items: flex-start;
+
+    gap: 8px;
+}
+
+.msg.user {
+    margin-left: auto;
+
+    flex-direction: row-reverse;
+}
+
+.avatar {
+    width: 30px;
+    height: 30px;
+
+    flex: 0 0 30px;
+
+    display: grid;
+    place-items: center;
+
+    border-radius: 10px;
+
+    background: #111d33;
+
+    color: var(--accent);
+}
+
+.user .avatar {
+    color: white;
+
+    background:
+        linear-gradient(
+            135deg,
+            var(--accent),
+            var(--accent2)
+        );
+}
+
+.bubble {
+    padding:
+        11px 12px;
+
+    border-radius: 14px;
+
+    background: #0c1526;
+
+    border: 1px solid var(--line);
+
+    font-size: 12px;
+
+    line-height: 1.55;
+
+    overflow-wrap: anywhere;
+}
+
+.user .bubble {
+    background: #12244a;
+
+    border-color: #24457e;
+}
+
+.bubble strong {
+    color: white;
+}
+
+.bubble code {
+    padding:
+        2px 5px;
+
+    border-radius: 5px;
+
+    background: #060b14;
+}
+
+.bubble pre {
+    margin-top: 8px;
+
+    padding: 10px;
+
+    overflow: auto;
+
+    white-space: pre-wrap;
+
+    border-radius: 10px;
+
+    background: #050a12;
+
+    border: 1px solid #18253b;
+
+    font-size: 10px;
+}
+
+.chat-composer {
+    display: flex;
+
+    gap: 8px;
+
+    padding-top: 7px;
+
+    border-top:
+        1px solid #101a2a;
+}
+
+.chat-composer textarea {
+    flex: 1;
+
+    min-height: 42px;
+    max-height: 110px;
+
+    resize: none;
+
+    padding: 11px;
+
+    color: var(--text);
+
+    background: #0a1221;
+
+    border:
+        1px solid var(--line);
+
+    border-radius: 13px;
+
+    outline: none;
+
+    font-size: 12px;
+}
+
+
+/* =========================================================
+   AGENTS
+========================================================= */
+
+.agent-list {
+    display: grid;
+
+    gap: 9px;
+}
+
+.agent-row {
+    display: flex;
+
+    align-items: center;
+
+    gap: 11px;
+
+    padding: 12px;
+
+    border-radius: 14px;
+
+    background: #0a1220;
+
+    border: 1px solid var(--line);
+}
+
+.agent-icon {
+    width: 34px;
+    height: 34px;
+
+    border-radius: 10px;
+
+    display: grid;
+    place-items: center;
+
+    color: var(--accent);
+
+    background: #111d32;
+}
+
+.agent-row .info {
+    flex: 1;
+}
+
+.agent-row b {
+    font-size: 12px;
+}
+
+.agent-row small {
+    display: block;
+
+    margin-top: 2px;
+
+    font-size: 9px;
+
+    color: var(--muted);
+}
+
+.status {
+    width: 7px;
+    height: 7px;
+
+    border-radius: 50%;
+
+    background: var(--green);
+
+    box-shadow:
+        0 0 8px rgba(50,213,131,.5);
+}
+
+
+/* =========================================================
+   FORMS
+========================================================= */
+
+.form {
+    display: grid;
+
+    gap: 10px;
+}
+
+.label {
+    margin:
+        2px 2px -4px;
+
+    font-size: 10px;
+
+    color: var(--muted);
+}
+
+.field {
+    width: 100%;
+
+    padding: 11px;
+
+    color: var(--text);
+
+    background: #09111f;
+
+    border:
+        1px solid var(--line);
+
+    border-radius: 13px;
+
+    outline: none;
+
+    font-size: 12px;
+}
+
+textarea.field {
+    min-height: 130px;
+
+    resize: vertical;
+}
+
+.primary {
+    height: 44px;
+
+    border-radius: 13px;
+
+    color: white;
+
+    background:
+        linear-gradient(
+            135deg,
+            var(--accent),
+            var(--accent2)
+        );
+
+    font-weight: 700;
+
+    cursor: pointer;
+}
+
+.primary:disabled {
+    opacity: .55;
+}
+
+.secondary {
+    height: 40px;
+
+    border-radius: 12px;
+
+    color: var(--text);
+
+    background: #101a2d;
+
+    border: 1px solid var(--line);
+
+    cursor: pointer;
+}
+
+
+/* =========================================================
+   RESULTS
+========================================================= */
+
+.result {
+    margin-top: 12px;
+
+    padding: 12px;
+
+    border-radius: 14px;
+
+    background: #080f1b;
+
+    border: 1px solid var(--line);
+
+    font-size: 11px;
+
+    line-height: 1.5;
+}
+
+.result summary {
+    list-style: none;
+}
+
+.result summary::-webkit-details-marker {
+    display: none;
+}
+
+.mermaid-wrap {
+    margin-top: 10px;
+
+    padding: 10px;
+
+    overflow: auto;
+
+    border-radius: 12px;
+
+    background: #060b14;
+
+    border: 1px solid var(--line);
+}
+
+
+/* =========================================================
+   LOADING
+========================================================= */
+
+.loading {
+    display: inline-flex;
+
+    align-items: center;
+
+    gap: 4px;
+
+    color: var(--muted);
+}
+
+.loading i {
+    width: 5px;
+    height: 5px;
+
+    border-radius: 50%;
+
+    background: currentColor;
+
+    animation:
+        bounce .9s infinite
+        ease-in-out;
+}
+
+.loading i:nth-child(2) {
+    animation-delay: .12s;
+}
+
+.loading i:nth-child(3) {
+    animation-delay: .24s;
+}
+
+@keyframes bounce {
+
+    0%,
+    70%,
+    100% {
+        transform: translateY(0);
+        opacity: .45;
+    }
+
+    35% {
+        transform: translateY(-4px);
+        opacity: 1;
+    }
+}
+
+
+/* =========================================================
+   BOTTOM NAV
+========================================================= */
+
+.bottom {
+    position: absolute;
+
+    left: 0;
+    right: 0;
+    bottom: 0;
+
+    z-index: 50;
+
+    height: var(--nav-height);
+
+    padding-bottom:
+        var(--safe-bottom);
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-around;
+
+    background:
+        rgba(5,8,17,.92);
+
+    backdrop-filter:
+        blur(16px);
+
+    border-top:
+        1px solid var(--line);
+}
+
+.tab {
+    width: 62px;
+    height: 52px;
+
+    display: flex;
+
+    flex-direction: column;
+
+    align-items: center;
+    justify-content: center;
+
+    gap: 4px;
+
+    color: #64728a;
+
+    font-size: 9px;
+
+    cursor: pointer;
+}
+
+.tab i {
+    font-size: 15px;
+}
+
+.tab.active {
+    color: #73a5ff;
+}
+
+.center-tab {
+    width: 46px;
+    height: 46px;
+
+    margin-top: -18px;
+
+    border-radius: 15px;
+
+    display: grid;
+
+    place-items: center;
+
+    color: white !important;
+
+    background:
+        linear-gradient(
+            135deg,
+            var(--accent),
+            var(--accent2)
+        );
+
+    box-shadow:
+        0 10px 28px
+        rgba(79,140,255,.28);
+}
+
+
+/* =========================================================
+   TOAST
+========================================================= */
+
+.toast {
+    position: fixed;
+
+    left: 50%;
+
+    bottom:
+        calc(
+            var(--nav-height)
+            + 14px
+        );
+
+    z-index: 100;
+
+    padding:
+        9px 13px;
+
+    border-radius: 10px;
+
+    background: #101a2d;
+
+    border: 1px solid var(--line);
+
+    font-size: 10px;
+
+    opacity: 0;
+
+    pointer-events: none;
+
+    transform:
+        translate(-50%, 10px);
+
+    transition:
+        .18s ease;
+}
+
+.toast.show {
+    opacity: 1;
+
+    transform:
+        translate(-50%, 0);
+}
+
+
+/* =========================================================
+   DESKTOP
+========================================================= */
+
+@media (min-width: 700px) {
+
+    .view {
+        width:
+            min(820px, 100%);
+
+        left: 50%;
+        right: auto;
+
+        transform:
+            translate3d(
+                calc(-50% + 12px),
+                0,
+                0
+            );
+    }
+
+    .view.active {
+        transform:
+            translate3d(
+                -50%,
+                0,
+                0
+            );
+    }
+
+    .grid {
+        grid-template-columns:
+            repeat(4, 1fr);
+    }
+
+    .stats {
+        grid-template-columns:
+            repeat(4, 1fr);
+    }
+}
+
+</style>
 </head>
+
+
 <body>
-    <div class="app-container">
-        <!-- DASHBOARD VIEW -->
-        <div class="screen-view active" id="view-dashboard">
-            <div class="top-nav">
-                <div class="nav-left">
-                    <div class="robot-avatar"><i class="fa-solid fa-robot" style="color: white; font-size: 15px;"></i></div>
-                    <div>
-                        <div style="font-size: 14px; font-weight: 700;">Engineer AI</div>
-                        <div style="font-size: 10px; color: #64748B;">Advanced Hardware & System Engine</div>
-                    </div>
-                </div>
-                <div class="user-avatar">R<div class="status-dot"></div></div>
+
+<div class="app">
+
+<main>
+
+
+<!-- =====================================================
+     HOME
+===================================================== -->
+
+<section
+    class="view active"
+    id="home"
+>
+
+    <div class="header">
+
+        <div class="brand">
+
+            <div class="logo">
+                <i class="fa-solid fa-microchip"></i>
             </div>
 
-            <div class="hero-banner">
-                <h3 style="font-size: 16px;">Engineering Hub 👋</h3>
-                <p style="font-size: 11px; color: #94A3B8; margin-top: 2px;">Design schematics, execute multi-agent workflows, or audit code.</p>
-                <div class="prompt-bar">
-                    <i class="fa-solid fa-wand-magic-sparkles" style="color: #3B82F6;"></i>
-                    <input type="text" id="main-prompt-input" placeholder="Ask Engineer AI anything...">
-                    <i class="fa-solid fa-paper-plane" style="color: #3B82F6; cursor: pointer;" onclick="handleDashboardSend()"></i>
+            <div>
+
+                <div class="title">
+                    Engineer AI
                 </div>
+
+                <div class="subtitle">
+                    Engineering intelligence engine
+                </div>
+
             </div>
 
-            <div class="action-card-grid">
-                <div class="action-card" onclick="triggerMultiAgentPrompt()">
-                    <i class="fa-solid fa-network-wired"></i>
-                    <h4>Multi-Agent Mode</h4>
-                    <p>Plan, execute, test, & audit</p>
-                </div>
-                <div class="action-card" onclick="fetchOpsAnalytics()">
-                    <i class="fa-solid fa-chart-line"></i>
-                    <h4>Ops Telemetry</h4>
-                    <p>Performance & latency</p>
-                </div>
-            </div>
         </div>
 
-        <!-- AI CHAT VIEW -->
-        <div class="screen-view" id="view-chat">
-            <div class="top-nav">
-                <div class="nav-left">
-                    <i class="fa-solid fa-chevron-left" style="cursor:pointer;" onclick="showScreen('view-dashboard')"></i>
-                    <span style="font-weight:700; margin-left: 8px;">Engineer AI Terminal</span>
-                </div>
-            </div>
-            <div id="chat-messages-container">
-                <p style="color:#3B82F6;"><strong>Engineer AI:</strong> Ready for calculations, code generation, and circuit diagrams.</p>
-            </div>
-            <div class="chat-input-area">
-                <input type="text" id="chat-tab-input" placeholder="Type prompt or engineering query...">
-                <button class="chat-send-btn" onclick="handleChatSend()"><i class="fa-solid fa-paper-plane"></i></button>
-            </div>
+        <div
+            class="pill online"
+            id="healthPill"
+        >
+            ● Online
         </div>
 
-        <!-- BOTTOM NAVIGATION -->
-        <div class="bottom-nav">
-            <div class="nav-tab active" onclick="showScreen('view-dashboard')" id="tab-dashboard"><i class="fa-solid fa-house"></i><span>Home</span></div>
-            <div class="nav-tab" onclick="showScreen('view-chat')" id="tab-chat"><div class="chat-btn-glow"><i class="fa-solid fa-wand-magic-sparkles"></i></div></div>
-        </div>
     </div>
 
-    <script>
-        function showScreen(screenId) {
-            document.querySelectorAll('.screen-view').forEach(s => s.classList.remove('active'));
-            const target = document.getElementById(screenId);
-            if (target) target.classList.add('active');
 
-            document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-            if (screenId === 'view-dashboard') document.getElementById('tab-dashboard')?.classList.add('active');
-            if (screenId === 'view-chat') document.getElementById('tab-chat')?.classList.add('active');
-        }
+    <div class="hero">
 
-        const BACKEND_URL = "/api/chat";
+        <h1>
+            Build smarter. ⚡
+        </h1>
 
-        function parseAndFormatResponse(rawText) {
-            let text = rawText;
+        <p>
+            Ask engineering questions, design systems,
+            review code, and run multi-agent reasoning.
+        </p>
 
-            // Handle cases where AI drops triple backticks around Mermaid diagrams
-            if (!text.includes('```mermaid')) {
-                const graphMatch = text.match(/(graph\s+(?:TD|LR|TB|RL)[\s\S]*?)(?=\n\s*\n|\n[A-Z][a-z]+:|$)/i);
-                if (graphMatch) {
-                    text = text.replace(graphMatch[1], '\n```mermaid\n' + graphMatch[1].trim() + '\n```\n');
-                }
-            }
 
-            const container = document.createElement('div');
-            const mermaidRegex = /```mermaid([\s\S]*?)```/gi;
-            let lastIndex = 0;
-            let match;
+        <div class="composer">
 
-            while ((match = mermaidRegex.exec(text)) !== null) {
-                const textBefore = text.substring(lastIndex, match.index);
-                if (textBefore.trim()) {
-                    container.appendChild(createFormattedTextNode(textBefore));
-                }
+            <i
+                class="fa-solid fa-sparkles"
+                style="color:var(--accent)"
+            ></i>
 
-                // Preserve standard Mermaid layout strings safely without aggressive mutation
-                let mermaidCode = match[1].trim();
+            <input
+                id="homeInput"
+                autocomplete="off"
+                placeholder="Ask Engineer AI anything…"
+            >
 
-                const wrapper = document.createElement('div');
-                wrapper.className = 'mermaid-wrapper';
-                
-                const mermaidDiv = document.createElement('div');
-                mermaidDiv.className = 'mermaid';
-                mermaidDiv.textContent = mermaidCode;
-                
-                wrapper.appendChild(mermaidDiv);
-                container.appendChild(wrapper);
+            <button
+                class="send"
+                id="homeSend"
+            >
+                <i class="fa-solid fa-arrow-up"></i>
+            </button>
 
-                lastIndex = mermaidRegex.lastIndex;
-            }
+        </div>
 
-            const remainingText = text.substring(lastIndex);
-            if (remainingText.trim()) {
-                container.appendChild(createFormattedTextNode(remainingText));
-            }
+    </div>
 
-            return container;
-        }
 
-        function createFormattedTextNode(text) {
-            const div = document.createElement('div');
-            let formatted = text
-                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                .replace(/\n/g, '<br>');
-            div.innerHTML = formatted;
-            return div;
-        }
+    <div class="grid">
 
-        async function sendPrompt(promptText) {
-            if (!promptText.trim()) return;
+        <div
+            class="card"
+            onclick="openAgent()"
+        >
 
-            showScreen('view-chat');
-            const chatContainer = document.getElementById('chat-messages-container');
-            
-            const userMsg = document.createElement('div');
-            userMsg.style.cssText = "color: #3B82F6; margin-top: 10px;";
-            userMsg.innerHTML = `<strong>You:</strong> ${escapeHtml(promptText)}`;
-            chatContainer.appendChild(userMsg);
+            <i class="fa-solid fa-diagram-project"></i>
 
-            const loadingMsg = document.createElement('div');
-            loadingMsg.id = 'loading-msg';
-            loadingMsg.style.cssText = "color: #94A3B8; margin-top: 6px;";
-            loadingMsg.innerHTML = `<em>Engineer AI generating response...</em>`;
-            chatContainer.appendChild(loadingMsg);
-            
-            chatContainer.scrollTop = chatContainer.scrollHeight;
+            <h3>
+                Multi-Agent
+            </h3>
 
-            try {
-                const response = await fetch(BACKEND_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ prompt: promptText })
-                });
+            <p>
+                Plan → build → test → audit → verify.
+            </p>
 
-                const data = await response.json();
-                document.getElementById('loading-msg')?.remove();
+        </div>
 
-                if (data.response) {
-                    const aiMsgContainer = document.createElement('div');
-                    aiMsgContainer.style.cssText = "color: #E2E8F0; margin-top: 10px;";
-                    aiMsgContainer.innerHTML = `<strong>Engineer AI:</strong>`;
-                    
-                    const parsedContent = parseAndFormatResponse(data.response);
-                    aiMsgContainer.appendChild(parsedContent);
-                    chatContainer.appendChild(aiMsgContainer);
 
-                    setTimeout(async () => {
-                        try {
-                            const elements = aiMsgContainer.querySelectorAll('.mermaid');
-                            if (elements.length > 0) {
-                                await mermaid.run({ nodes: elements });
-                            }
-                        } catch (e) {
-                            console.error("Mermaid Render Error:", e);
-                        }
-                    }, 100);
+        <div
+            class="card"
+            onclick="showView('review')"
+        >
 
-                } else {
-                    chatContainer.innerHTML += `<p style="color: #EF4444; margin-top: 6px;"><strong>Error:</strong> Empty response.</p>`;
-                }
-            } catch (err) {
-                document.getElementById('loading-msg')?.remove();
-                chatContainer.innerHTML += `<p style="color: #EF4444; margin-top: 6px;"><strong>Error:</strong> Connection error.</p>`;
-            }
-            chatContainer.scrollTop = chatContainer.scrollHeight;
-        }
+            <i class="fa-solid fa-code"></i>
 
-        async function fetchOpsAnalytics() {
-            showScreen('view-chat');
-            const chatContainer = document.getElementById('chat-messages-container');
-            try {
-                const res = await fetch('/api/ops/analytics');
-                const data = await res.json();
-                
-                const box = document.createElement('div');
-                box.className = 'metrics-box';
-                box.innerHTML = `
-                    <strong style="color:#3B82F6;">📊 System Telemetry Metrics:</strong><br>
-                    • Status: <strong>${data.system_status}</strong><br>
-                    • Total Requests: ${data.metrics.total_requests}<br>
-                    • Successful Responses: ${data.metrics.successful_responses}<br>
-                    • Avg Latency: ${data.average_latency_seconds}s<br>
-                    • Agent Tasks Executed: ${data.metrics.agent_tasks_executed}<br>
-                    • Tests Generated: ${data.metrics.tests_generated}<br>
-                    • Security Audits: ${data.metrics.security_scans_completed}
-                `;
-                chatContainer.appendChild(box);
-            } catch (e) {
-                chatContainer.innerHTML += `<p style="color:#EF4444;">Failed to fetch telemetry.</p>`;
-            }
-            chatContainer.scrollTop = chatContainer.scrollHeight;
-        }
+            <h3>
+                Code Review
+            </h3>
 
-        function triggerMultiAgentPrompt() {
-            const prompt = window.prompt("Enter engineering task for Multi-Agent workflow:");
-            if (prompt) sendPrompt("Execute multi-agent workflow for: " + prompt);
-        }
+            <p>
+                Find bugs, security issues and improvements.
+            </p>
 
-        function escapeHtml(text) {
-            return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-        }
+        </div>
 
-        function handleDashboardSend() {
-            const input = document.getElementById('main-prompt-input');
-            if (input && input.value.trim()) {
-                sendPrompt(input.value);
-                input.value = '';
-            }
-        }
 
-        function handleChatSend() {
-            const input = document.getElementById('chat-tab-input');
-            if (input && input.value.trim()) {
-                sendPrompt(input.value);
-                input.value = '';
-            }
-        }
+        <div
+            class="card"
+            onclick="showView('analytics');loadAnalytics()"
+        >
 
-        document.addEventListener('DOMContentLoaded', () => {
-            document.getElementById('main-prompt-input')?.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') handleDashboardSend();
-            });
-            document.getElementById('chat-tab-input')?.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') handleChatSend();
-            });
+            <i class="fa-solid fa-chart-line"></i>
+
+            <h3>
+                Telemetry
+            </h3>
+
+            <p>
+                Monitor latency and agent activity.
+            </p>
+
+        </div>
+
+
+        <div
+            class="card"
+            onclick="quickAsk(
+                'Explain the architecture of a modern engineering AI platform.'
+            )"
+        >
+
+            <i class="fa-solid fa-brain"></i>
+
+            <h3>
+                Architecture
+            </h3>
+
+            <p>
+                Design systems with clear trade-offs.
+            </p>
+
+        </div>
+
+    </div>
+
+
+    <div class="section-title">
+
+        <h2>
+            System snapshot
+        </h2>
+
+        <span>
+            Live backend
+        </span>
+
+    </div>
+
+
+    <div class="stats">
+
+        <div class="stat">
+
+            <b id="statRequests">
+                —
+            </b>
+
+            <span>
+                Requests
+            </span>
+
+        </div>
+
+
+        <div class="stat">
+
+            <b id="statSuccess">
+                —
+            </b>
+
+            <span>
+                Success rate
+            </span>
+
+        </div>
+
+
+        <div class="stat">
+
+            <b id="statLatency">
+                —
+            </b>
+
+            <span>
+                Avg latency
+            </span>
+
+        </div>
+
+
+        <div class="stat">
+
+            <b id="statAgents">
+                —
+            </b>
+
+            <span>
+                Agent runs
+            </span>
+
+        </div>
+
+    </div>
+
+</section>
+
+
+
+<!-- =====================================================
+     CHAT
+===================================================== -->
+
+<section
+    class="view"
+    id="chat"
+>
+
+    <div class="chat-wrap">
+
+
+        <div class="chat-header">
+
+            <button
+                class="icon-btn"
+                onclick="showView('home')"
+            >
+                <i class="fa-solid fa-chevron-left"></i>
+            </button>
+
+
+            <div
+                class="brand"
+                style="gap:8px"
+            >
+
+                <div
+                    class="logo"
+                    style="
+                        width:34px;
+                        height:34px;
+                        border-radius:10px
+                    "
+                >
+
+                    <i
+                        class="fa-solid fa-microchip"
+                        style="font-size:14px"
+                    ></i>
+
+                </div>
+
+
+                <div>
+
+                    <div class="title">
+                        Engineer AI
+                    </div>
+
+                    <div class="subtitle">
+                        Ready
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <button
+                class="icon-btn"
+                onclick="clearChat()"
+            >
+
+                <i class="fa-solid fa-trash-can"></i>
+
+            </button>
+
+        </div>
+
+
+        <div
+        <div class="messages" id="messages">
+
+    <!-- Initial AI message -->
+    <div class="msg">
+
+        <div class="avatar">
+            <i class="fa-solid fa-microchip"></i>
+        </div>
+
+        <div class="bubble">
+            <strong>Engineer AI</strong><br>
+            Ready to help with engineering, architecture,
+            coding, debugging and technical analysis. ⚡
+        </div>
+
+    </div>
+
+</div>
+
+
+<div class="chat-composer">
+
+    <textarea
+        id="chatInput"
+        placeholder="Ask an engineering question..."
+        rows="1"
+    ></textarea>
+
+    <button
+        class="send"
+        id="chatSend"
+        onclick="sendChat()"
+    >
+        <i class="fa-solid fa-arrow-up"></i>
+    </button>
+
+</div>
+
+</div>
+
+</section>
+
+
+<!-- =====================================================
+     MULTI AGENT
+===================================================== -->
+
+<section
+    class="view"
+    id="agent"
+>
+
+    <div class="header">
+
+        <div class="brand">
+
+            <button
+                class="icon-btn"
+                onclick="showView('home')"
+            >
+                <i class="fa-solid fa-chevron-left"></i>
+            </button>
+
+            <div
+                class="logo"
+                style="
+                    width:38px;
+                    height:38px;
+                    border-radius:12px
+                "
+            >
+                <i class="fa-solid fa-diagram-project"></i>
+            </div>
+
+            <div>
+
+                <div class="title">
+                    Multi-Agent
+                </div>
+
+                <div class="subtitle">
+                    Engineering workflow
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <div class="hero">
+
+        <h1 style="font-size:20px;">
+            Agent workflow 🧠
+        </h1>
+
+        <p>
+            Give Engineer AI a technical task and let the
+            specialized agents analyze it step by step.
+        </p>
+
+    </div>
+
+
+    <div class="form">
+
+        <div class="label">
+            ENGINEERING TASK
+        </div>
+
+        <textarea
+            class="field"
+            id="agentTask"
+            placeholder="Example: Design a scalable AI coding platform..."
+        ></textarea>
+
+
+        <div class="label">
+            OPTIONS
+        </div>
+
+
+        <label class="agent-row">
+
+            <div class="agent-icon">
+                <i class="fa-solid fa-flask"></i>
+            </div>
+
+            <div class="info">
+
+                <b>
+                    Generate tests
+                </b>
+
+                <small>
+                    Create validation and test suggestions
+                </small>
+
+            </div>
+
+            <input
+                type="checkbox"
+                id="includeTests"
+                checked
+            >
+
+        </label>
+
+
+        <label class="agent-row">
+
+            <div class="agent-icon">
+                <i class="fa-solid fa-shield-halved"></i>
+            </div>
+
+            <div class="info">
+
+                <b>
+                    Security audit
+                </b>
+
+                <small>
+                    Analyze security and engineering risks
+                </small>
+
+            </div>
+
+            <input
+                type="checkbox"
+                id="includeSecurity"
+                checked
+            >
+
+        </label>
+
+
+        <button
+            class="primary"
+            id="agentRun"
+            onclick="runAgentWorkflow()"
+        >
+
+            <i class="fa-solid fa-play"></i>
+            Run Multi-Agent Workflow
+
+        </button>
+
+    </div>
+
+
+    <div
+        class="section-title"
+        style="margin-top:22px;"
+    >
+
+        <h2>
+            Agents
+        </h2>
+
+        <span>
+            Milestone 1
+        </span>
+
+    </div>
+
+
+    <div class="agent-list">
+
+        <div class="agent-row">
+
+            <div class="agent-icon">
+                <i class="fa-solid fa-map"></i>
+            </div>
+
+            <div class="info">
+
+                <b>
+                    Planner
+                </b>
+
+                <small>
+                    Breaks the engineering problem into steps
+                </small>
+
+            </div>
+
+            <span
+                class="status"
+                id="statusPlanner"
+            ></span>
+
+        </div>
+
+
+        <div class="agent-row">
+
+            <div class="agent-icon">
+                <i class="fa-solid fa-code"></i>
+            </div>
+
+            <div class="info">
+
+                <b>
+                    Executor
+                </b>
+
+                <small>
+                    Produces implementation and technical output
+                </small>
+
+            </div>
+
+            <span
+                class="status"
+                id="statusExecutor"
+            ></span>
+
+        </div>
+
+
+        <div class="agent-row">
+
+            <div class="agent-icon">
+                <i class="fa-solid fa-vial"></i>
+            </div>
+
+            <div class="info">
+
+                <b>
+                    Tester
+                </b>
+
+                <small>
+                    Generates validation and test logic
+                </small>
+
+            </div>
+
+            <span
+                class="status"
+                id="statusTester"
+            ></span>
+
+        </div>
+
+
+        <div class="agent-row">
+
+            <div class="agent-icon">
+                <i class="fa-solid fa-shield"></i>
+            </div>
+
+            <div class="info">
+
+                <b>
+                    Security
+                </b>
+
+                <small>
+                    Reviews security and engineering risks
+                </small>
+
+            </div>
+
+            <span
+                class="status"
+                id="statusSecurity"
+            ></span>
+
+        </div>
+
+    </div>
+
+
+    <div
+        id="agentResult"
+        class="result"
+        style="display:none;"
+    ></div>
+
+</section>
+
+
+<!-- =====================================================
+     ANALYTICS
+===================================================== -->
+
+<section
+    class="view"
+    id="analytics"
+>
+
+    <div class="header">
+
+        <div class="brand">
+
+            <button
+                class="icon-btn"
+                onclick="showView('home')"
+            >
+                <i class="fa-solid fa-chevron-left"></i>
+            </button>
+
+            <div>
+
+                <div class="title">
+                    Telemetry
+                </div>
+
+                <div class="subtitle">
+                    Engineer AI system metrics
+                </div>
+
+            </div>
+
+        </div>
+
+        <button
+            class="icon-btn"
+            onclick="loadAnalytics()"
+        >
+            <i class="fa-solid fa-rotate"></i>
+        </button>
+
+    </div>
+
+
+    <div class="stats">
+
+        <div class="stat">
+
+            <b id="analyticsRequests">
+                —
+            </b>
+
+            <span>
+                Total requests
+            </span>
+
+        </div>
+
+
+        <div class="stat">
+
+            <b id="analyticsSuccess">
+                —
+            </b>
+
+            <span>
+                Successful
+            </span>
+
+        </div>
+
+
+        <div class="stat">
+
+            <b id="analyticsLatency">
+                —
+            </b>
+
+            <span>
+                Avg latency
+            </span>
+
+        </div>
+
+
+        <div class="stat">
+
+            <b id="analyticsAgents">
+                —
+            </b>
+
+            <span>
+                Agent runs
+            </span>
+
+        </div>
+
+    </div>
+
+
+    <div class="section-title">
+
+        <h2>
+            Backend status
+        </h2>
+
+    </div>
+
+
+    <div
+        class="result"
+        id="analyticsResult"
+    >
+        Loading telemetry...
+    </div>
+
+</section>
+
+
+<!-- =====================================================
+     CODE REVIEW
+===================================================== -->
+
+<section
+    class="view"
+    id="review"
+>
+
+    <div class="header">
+
+        <div class="brand">
+
+            <button
+                class="icon-btn"
+                onclick="showView('home')"
+            >
+                <i class="fa-solid fa-chevron-left"></i>
+            </button>
+
+            <div>
+
+                <div class="title">
+                    Code Review
+                </div>
+
+                <div class="subtitle">
+                    Analyze engineering code
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <div class="form">
+
+        <div class="label">
+            LANGUAGE
+        </div>
+
+        <select
+            class="field"
+            id="reviewLanguage"
+        >
+
+            <option value="python">
+                Python
+            </option>
+
+            <option value="javascript">
+                JavaScript
+            </option>
+
+            <option value="typescript">
+                TypeScript
+            </option>
+
+            <option value="java">
+                Java
+            </option>
+
+            <option value="cpp">
+                C++
+            </option>
+
+            <option value="c">
+                C
+            </option>
+
+            <option value="html">
+                HTML
+            </option>
+
+            <option value="css">
+                CSS
+            </option>
+
+            <option value="other">
+                Other
+            </option>
+
+        </select>
+
+
+        <div class="label">
+            CODE
+        </div>
+
+        <textarea
+            class="field"
+            id="reviewCode"
+            placeholder="Paste your code here..."
+            style="min-height:260px;"
+        ></textarea>
+
+
+        <button
+            class="primary"
+            id="reviewButton"
+            onclick="runCodeReview()"
+        >
+
+            <i class="fa-solid fa-magnifying-glass"></i>
+
+            Review Code
+
+        </button>
+
+    </div>
+
+
+    <div
+        class="result"
+        id="reviewResult"
+        style="display:none;"
+    ></div>
+
+</section>
+
+
+<!-- =====================================================
+     BOTTOM NAV
+===================================================== -->
+
+<nav class="bottom">
+
+    <button
+        class="tab active"
+        data-view="home"
+        onclick="showView('home')"
+    >
+
+        <i class="fa-solid fa-house"></i>
+
+        <span>
+            Home
+        </span>
+
+    </button>
+
+
+    <button
+        class="tab"
+        data-view="analytics"
+        onclick="
+            showView('analytics');
+            loadAnalytics();
+        "
+    >
+
+        <i class="fa-solid fa-chart-line"></i>
+
+        <span>
+            Stats
+        </span>
+
+    </button>
+
+
+    <button
+        class="tab center-tab"
+        data-view="chat"
+        onclick="showView('chat')"
+    >
+
+        <i class="fa-solid fa-microchip"></i>
+
+    </button>
+
+
+    <button
+        class="tab"
+        data-view="agent"
+        onclick="showView('agent')"
+    >
+
+        <i class="fa-solid fa-diagram-project"></i>
+
+        <span>
+            Agents
+        </span>
+
+    </button>
+
+
+    <button
+        class="tab"
+        data-view="review"
+        onclick="showView('review')"
+    >
+
+        <i class="fa-solid fa-code"></i>
+
+        <span>
+            Review
+        </span>
+
+    </button>
+
+</nav>
+
+
+<!-- =====================================================
+     TOAST
+===================================================== -->
+
+<div
+    class="toast"
+    id="toast"
+></div>
+
+
+</main>
+
+</div>
+
+
+<script>
+
+/* =========================================================
+   CONFIGURATION
+========================================================= */
+
+const API_BASE = "";
+
+
+/* =========================================================
+   DOM HELPERS
+========================================================= */
+
+const $ = (id) =>
+    document.getElementById(id);
+
+
+/* =========================================================
+   TOAST
+========================================================= */
+
+let toastTimer;
+
+function toast(message) {
+
+    const element = $("toast");
+
+    if (!element) return;
+
+    element.textContent = message;
+
+    element.classList.add("show");
+
+    clearTimeout(toastTimer);
+
+    toastTimer = setTimeout(() => {
+
+        element.classList.remove("show");
+
+    }, 2400);
+}
+
+
+/* =========================================================
+   VIEW SYSTEM
+========================================================= */
+
+function showView(viewName) {
+
+    document
+        .querySelectorAll(".view")
+        .forEach(view => {
+
+            view.classList.toggle(
+                "active",
+                view.id === viewName
+            );
+
         });
-    </script>
-</body>
-</html>
+
+
+    document
+        .querySelectorAll(".tab")
+        .forEach(tab => {
+
+            tab.classList.toggle(
+                "active",
+                tab.dataset.view === viewName
+            );
+
+        });
+
+}
+
+
+/* =========================================================
+   AGENT NAVIGATION
+========================================================= */
+
+function openAgent() {
+
+    showView("agent");
+
+    $("agentTask")?.focus();
+
+}
+
+
+/* =========================================================
+   API REQUEST
+========================================================= */
+
+async function apiRequest(
+    endpoint,
+    options = {},
+    timeout = 90000
+) {
+
+    const controller =
+        new AbortController();
+
+    const timer =
+        setTimeout(
+            () => controller.abort(),
+            timeout
+        );
+
+
+    try {
+
+        const response =
+            await fetch(
+                API_BASE + endpoint,
+                {
+                    ...options,
+
+                    signal:
+                        controller.signal,
+
+                    headers: {
+                        "Content-Type":
+                            "application/json",
+
+                        ...(options.headers || {})
+                    }
+                }
+            );
+
+
+        const text =
+            await response.text();
+
+        let data = {};
+
+        try {
+
+            data =
+                text
+                    ? JSON.parse(text)
+                    : {};
+
+        } catch {
+
+            data = {
+                raw: text
+            };
+
+        }
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.detail ||
+                data.message ||
+                data.raw ||
+                `HTTP ${response.status}`
+            );
+
+        }
+
+
+        return data;
+
+    } catch (error) {
+
+        if (
+            error.name ===
+            "AbortError"
+        ) {
+
+            throw new Error(
+                "Request timed out. The AI engine may still be processing."
+            );
+
+        }
+
+        throw error;
+
+    } finally {
+
+        clearTimeout(timer);
+
+    }
+
+}
+
+
+/* =========================================================
+   CHAT
+========================================================= */
+
+function addMessage(
+    text,
+    role = "assistant"
+) {
+
+    const container =
+        $("messages");
+
+    if (!container) return;
+
+
+    const message =
+        document.createElement("div");
+
+    message.className =
+        "msg " +
+        (role === "user"
+            ? "user"
+            : "");
+
+
+    const avatar =
+        document.createElement("div");
+
+    avatar.className =
+        "avatar";
+
+    avatar.innerHTML =
+        role === "user"
+            ? '<i class="fa-solid fa-user"></i>'
+            : '<i class="fa-solid fa-microchip"></i>';
+
+
+    const bubble =
+        document.createElement("div");
+
+    bubble.className =
+        "bubble";
+
+
+    bubble.innerHTML =
+        formatAIText(text);
+
+
+    message.appendChild(avatar);
+
+    message.appendChild(bubble);
+
+    container.appendChild(message);
+
+
+    container.scrollTop =
+        container.scrollHeight;
+
+}
+
+
+/* =========================================================
+   AI TEXT FORMATTER
+========================================================= */
+
+function escapeHTML(text) {
+
+    return String(text)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+
+}
+
+
+function formatAIText(text) {
+
+    if (!text) return "";
+
+    let output =
+        escapeHTML(text);
+
+
+    /*
+       Code blocks
+    */
+
+    output =
+        output.replace(
+            /```([\s\S]*?)```/g,
+            "<pre>$1</pre>"
+        );
+
+
+    /*
+       Inline code
+    */
+
+    output =
+        output.replace(
+            /`([^`]+)`/g,
+            "<code>$1</code>"
+        );
+
+
+    /*
+       Basic markdown
+    */
+
+    output =
+        output.replace(
+            /\*\*(.*?)\*\*/g,
+            "<strong>$1</strong>"
+        );
+
+
+    output =
+        output.replace(
+            /\n/g,
+            "<br>"
+        );
+
+
+    return output;
+
+}
+
+
+/* =========================================================
+   CHAT SEND
+========================================================= */
+
+let chatBusy = false;
+
+
+async function sendChat() {
+
+    if (chatBusy) return;
+
+
+    const input =
+        $("chatInput");
+
+    const text =
+        input?.value.trim();
+
+
+    if (!text) return;
+
+
+    input.value = "";
+
+    addMessage(
+        text,
+        "user"
+    );
+
+
+    chatBusy = true;
+
+
+    const button =
+        $("chatSend");
+
+    if (button) {
+
+        button.disabled = true;
+
+        button.innerHTML =
+            '<i class="fa-solid fa-spinner fa-spin"></i>';
+
+    }
+
+
+    const loadingId =
+        "chat-loading-" +
+        Date.now();
+
+
+    const container =
+        $("messages");
+
+
+    const loading =
+        document.createElement("div");
+
+    loading.id =
+        loadingId;
+
+    loading.className =
+        "msg";
+
+
+    loading.innerHTML = `
+        <div class="avatar">
+            <i class="fa-solid fa-microchip"></i>
+        </div>
+
+        <div class="bubble">
+
+            <span class="loading">
+                <i></i>
+                <i></i>
+                <i></i>
+            </span>
+
+        </div>
+    `;
+
+
+    container.appendChild(loading);
+
+    container.scrollTop =
+        container.scrollHeight;
+
+
+    try {
+
+        const data =
+            await apiRequest(
+                "/api/chat",
+                {
+                    method: "POST",
+
+                    body:
+                        JSON.stringify({
+                            prompt: text
+                        })
+                }
+            );
+
+
+        $(loadingId)?.remove();
+
+
+        const response =
+            data.response ||
+            data.output ||
+            data.message ||
+            "No response received.";
+
+
+        addMessage(
+            response,
+            "assistant"
+        );
+
+
+    } catch (error) {
+
+        $(loadingId)?.remove();
+
+        addMessage(
+            "⚠️ " +
+            error.message,
+            "assistant"
+        );
+
+        toast(
+            "AI request failed"
+        );
+
+    } finally {
+
+        chatBusy = false;
+
+        if (button) {
+
+            button.disabled = false;
+
+            button.innerHTML =
+                '<i class="fa-solid fa-arrow-up"></i>';
+
+        }
+
+    }
+
+}
+
+
+/* =========================================================
+   HOME QUICK ASK
+========================================================= */
+
+function quickAsk(prompt) {
+
+    showView("chat");
+
+    setTimeout(() => {
+
+        addMessage(
+            prompt,
+            "user"
+        );
+
+        sendDirectChat(prompt);
+
+    }, 120);
+
+}
+
+
+async function sendDirectChat(prompt) {
+
+    if (chatBusy) return;
+
+    chatBusy = true;
+
+
+    const container =
+        $("messages");
+
+
+    const loading =
+        document.createElement("div");
+
+    loading.className =
+        "msg";
+
+
+    loading.innerHTML = `
+        <div class="avatar">
+            <i class="fa-solid fa-microchip"></i>
+        </div>
+
+        <div class="bubble">
+
+            <span class="loading">
+                <i></i>
+                <i></i>
+                <i></i>
+            </span>
+
+        </div>
+    `;
+
+
+    container.appendChild(loading);
+
+
+    t
