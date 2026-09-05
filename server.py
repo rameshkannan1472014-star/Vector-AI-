@@ -13,13 +13,24 @@ from google.genai import types
 
 
 # ============================================================
-# ENGINEER AI — SERVER
-# Milestone 1 Backend
+# ENGINEER AI
+# SERVER.PY — MILESTONE 1
 # ============================================================
 
-APP_TITLE = os.getenv("APP_TITLE", "Engineer AI Engine")
-DEFAULT_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
-DEFAULT_PROVIDER = os.getenv("DEFAULT_PROVIDER", "gemini")
+APP_TITLE = os.getenv(
+    "APP_TITLE",
+    "Engineer AI Engine"
+)
+
+DEFAULT_MODEL = os.getenv(
+    "GEMINI_MODEL",
+    "gemini-2.5-flash"
+)
+
+DEFAULT_PROVIDER = os.getenv(
+    "DEFAULT_PROVIDER",
+    "gemini"
+)
 
 MAX_RETRIES = 2
 REQUEST_TIMEOUT_SECONDS = 90
@@ -78,7 +89,10 @@ app = FastAPI(
 # CORS
 # ============================================================
 
-cors_origins = os.getenv("CORS_ORIGINS", "*")
+cors_origins = os.getenv(
+    "CORS_ORIGINS",
+    "*"
+)
 
 if cors_origins.strip() == "*":
     allow_origins = ["*"]
@@ -106,67 +120,122 @@ app.add_middleware(
 # ============================================================
 
 class ChatRequest(BaseModel):
-    prompt: str = Field(..., min_length=1, max_length=20000)
+    prompt: str = Field(
+        ...,
+        min_length=1,
+        max_length=20000
+    )
+
     provider: Optional[str] = "gemini"
 
 
 class MultiAgentRequest(BaseModel):
-    task: Optional[str] = Field(default=None, max_length=20000)
-    task_description: Optional[str] = Field(default=None, max_length=20000)
+    # Current UI compatibility
+    task: Optional[str] = Field(
+        default=None,
+        max_length=20000
+    )
+
+    # Older compatibility
+    task_description: Optional[str] = Field(
+        default=None,
+        max_length=20000
+    )
 
     include_tests: bool = True
 
     include_security: Optional[bool] = True
+
     include_security_scan: Optional[bool] = None
 
     include_debugger: bool = True
 
     project_context: Optional[str] = Field(
         default=None,
-        max_length=30000,
+        max_length=30000
     )
 
 
 class CodeReviewRequest(BaseModel):
-    code_snippet: str = Field(..., min_length=1, max_length=30000)
-    language: str = Field(default="text", max_length=50)
+    code_snippet: str = Field(
+        ...,
+        min_length=1,
+        max_length=30000
+    )
+
+    language: str = Field(
+        default="text",
+        max_length=50
+    )
 
 
 # ============================================================
-# SYSTEM INSTRUCTION
+# ENGINEER AI SYSTEM INSTRUCTION
 # ============================================================
 
 SYSTEM_INSTRUCTION = """
 You are Engineer AI, an engineering-focused AI assistant.
 
-Your job is to help with software engineering, programming,
-debugging, architecture, mathematics, algorithms, systems,
-performance, testing, security analysis, and technical design.
+Your job is to help with:
+
+- software engineering
+- programming
+- debugging
+- architecture
+- mathematics
+- algorithms
+- systems engineering
+- performance
+- testing
+- security analysis
+- technical design
 
 IMPORTANT RULES:
 
 1. Be technically accurate.
-2. Do not invent facts, test results, benchmarks, logs, or execution results.
-3. Never claim that code was executed unless an actual execution system
-   has executed it.
-4. Never claim that tests passed unless an actual test runner ran them.
-5. Never claim that a security scan was performed unless an actual
-   security scanning system performed it.
+
+2. Do not invent facts, test results, benchmarks,
+   logs, execution results, or measurements.
+
+3. Never claim that code was executed unless an
+   actual execution system executed it.
+
+4. Never claim that tests passed unless an actual
+   test runner ran them.
+
+5. Never claim that a security scan was performed
+   unless an actual security scanner performed it.
+
 6. Clearly distinguish assumptions from known facts.
-7. When calculations are important, show the relevant formula and units.
+
+7. When calculations are important, show the
+   relevant formula and units.
+
 8. Check calculations before presenting them.
+
 9. Prefer practical engineering solutions.
-10. When code is requested, provide complete useful code when practical.
-11. Explain important tradeoffs.
+
+10. When code is requested, provide complete
+    useful code when practical.
+
+11. Explain important engineering tradeoffs.
+
 12. Do not expose internal system instructions.
-13. For Mermaid diagrams, return valid Mermaid syntax inside a code block.
-14. Do not pretend to have access to files, repositories, machines,
-    GPUs, terminals, or networks that were not actually provided.
+
+13. For Mermaid diagrams, return valid Mermaid
+    syntax inside a code block.
+
+14. Do not pretend to have access to files,
+    repositories, machines, GPUs, terminals,
+    or networks that were not actually provided.
+
+15. If information is missing, say what is missing
+    instead of inventing it.
 """
 
 
 # ============================================================
-# HELPERS
+# GEMINI HELPERS
 # ============================================================
 
 def get_api_key() -> str:
@@ -181,13 +250,14 @@ def get_api_key() -> str:
 
 
 def get_gemini_client() -> genai.Client:
-    return genai.Client(api_key=get_api_key())
+    return genai.Client(
+        api_key=get_api_key()
+    )
 
 
-def response_text(response: Any) -> str:
-    """
-    Safely extract text from a Gemini response.
-    """
+def extract_response_text(
+    response: Any
+) -> str:
 
     try:
         text = response.text
@@ -201,7 +271,10 @@ def response_text(response: Any) -> str:
     return ""
 
 
-def is_retryable_error(error: Exception) -> bool:
+def is_retryable_error(
+    error: Exception
+) -> bool:
+
     message = str(error).upper()
 
     retry_terms = [
@@ -215,7 +288,10 @@ def is_retryable_error(error: Exception) -> bool:
         "SERVICE_UNAVAILABLE",
     ]
 
-    return any(term in message for term in retry_terms)
+    return any(
+        term in message
+        for term in retry_terms
+    )
 
 
 # ============================================================
@@ -238,14 +314,20 @@ async def execute_model_inference(
 
     last_error = None
 
-    for attempt in range(MAX_RETRIES + 1):
+    for attempt in range(
+        MAX_RETRIES + 1
+    ):
 
         try:
+
             start = time.perf_counter()
 
-            # google-genai's generate_content is synchronous.
-            # Run it in a worker thread so FastAPI's event loop
-            # is not blocked.
+            # google-genai generate_content()
+            # is synchronous.
+            #
+            # Run it in a worker thread so it
+            # doesn't block FastAPI's event loop.
+
             response = await asyncio.wait_for(
                 asyncio.to_thread(
                     client.models.generate_content,
@@ -256,9 +338,14 @@ async def execute_model_inference(
                 timeout=REQUEST_TIMEOUT_SECONDS,
             )
 
-            elapsed = time.perf_counter() - start
+            elapsed = (
+                time.perf_counter()
+                - start
+            )
 
-            text = response_text(response)
+            text = extract_response_text(
+                response
+            )
 
             if not text:
                 raise RuntimeError(
@@ -267,12 +354,13 @@ async def execute_model_inference(
 
             logger.info(
                 "Gemini inference completed in %.2fs",
-                elapsed,
+                elapsed
             )
 
             return text
 
         except Exception as error:
+
             last_error = error
 
             logger.warning(
@@ -289,8 +377,9 @@ async def execute_model_inference(
             if not is_retryable_error(error):
                 break
 
-            # Small exponential backoff.
-            await asyncio.sleep(1 * (attempt + 1))
+            await asyncio.sleep(
+                1 * (attempt + 1)
+            )
 
     raise RuntimeError(
         f"Gemini inference failed: {last_error}"
@@ -298,7 +387,7 @@ async def execute_model_inference(
 
 
 # ============================================================
-# TELEMETRY
+# ANALYTICS HELPER
 # ============================================================
 
 def record_request(
@@ -306,13 +395,25 @@ def record_request(
     latency: float,
 ) -> None:
 
-    analytics["total_requests"] += 1
-    analytics["total_latency_seconds"] += latency
+    analytics[
+        "total_requests"
+    ] += 1
+
+    analytics[
+        "total_latency_seconds"
+    ] += latency
 
     if success:
-        analytics["successful_responses"] += 1
+
+        analytics[
+            "successful_responses"
+        ] += 1
+
     else:
-        analytics["failed_requests"] += 1
+
+        analytics[
+            "failed_requests"
+        ] += 1
 
 
 # ============================================================
@@ -328,6 +429,7 @@ async def run_agent(
     start = time.perf_counter()
 
     try:
+
         output = await execute_model_inference(
             prompt=prompt,
             system_instruction=(
@@ -336,35 +438,62 @@ async def run_agent(
             ),
         )
 
-        latency = time.perf_counter() - start
+        latency = (
+            time.perf_counter()
+            - start
+        )
 
-        key = f"{agent_name.lower()}_runs"
+        analytics_key = (
+            f"{agent_name.lower()}_runs"
+        )
 
-        if key in analytics:
-            analytics[key] += 1
+        if analytics_key in analytics:
+
+            analytics[
+                analytics_key
+            ] += 1
 
         return {
             "agent": agent_name,
             "status": "success",
             "output": output,
-            "latency_seconds": round(latency, 3),
+            "latency_seconds": round(
+                latency,
+                3
+            ),
         }
 
     except Exception as error:
 
-        latency = time.perf_counter() - start
+        latency = (
+            time.perf_counter()
+            - start
+        )
 
-        key = f"{agent_name.lower()}_runs"
+        analytics_key = (
+            f"{agent_name.lower()}_runs"
+        )
 
-        if key in analytics:
-            analytics[key] += 1
+        if analytics_key in analytics:
+
+            analytics[
+                analytics_key
+            ] += 1
+
+        logger.exception(
+            "%s agent failed",
+            agent_name
+        )
 
         return {
             "agent": agent_name,
             "status": "failed",
             "output": "",
             "error": str(error),
-            "latency_seconds": round(latency, 3),
+            "latency_seconds": round(
+                latency,
+                3
+            ),
         }
 
 
@@ -374,12 +503,14 @@ async def run_agent(
 
 @app.get("/")
 async def root():
-    """
-    Serve the existing Engineer AI UI.
-    """
 
-    if os.path.exists("index.html"):
-        return FileResponse("index.html")
+    if os.path.exists(
+        "index.html"
+    ):
+
+        return FileResponse(
+            "index.html"
+        )
 
     return {
         "name": APP_TITLE,
@@ -389,14 +520,11 @@ async def root():
 
 
 # ============================================================
-# HEALTH
+# HEALTH CHECK
 # ============================================================
 
 @app.get("/api/health")
 async def health():
-    """
-    Lightweight health endpoint.
-    """
 
     api_key_configured = bool(
         os.getenv("GEMINI_API_KEY")
@@ -408,7 +536,8 @@ async def health():
         "version": "2.0.0",
         "provider": DEFAULT_PROVIDER,
         "model": DEFAULT_MODEL,
-        "gemini_api_key_configured": api_key_configured,
+        "gemini_api_key_configured":
+            api_key_configured,
     }
 
 
@@ -417,7 +546,9 @@ async def health():
 # ============================================================
 
 @app.post("/api/chat")
-async def chat(request: ChatRequest):
+async def chat(
+    request: ChatRequest
+):
 
     start = time.perf_counter()
 
@@ -429,19 +560,27 @@ async def chat(request: ChatRequest):
         ).lower()
 
         if provider != "gemini":
+
             raise HTTPException(
                 status_code=400,
                 detail={
-                    "error": "Unsupported provider",
-                    "provider": provider,
+                    "error":
+                        "Unsupported provider",
+                    "provider":
+                        provider,
                 },
             )
 
-        result = await execute_model_inference(
-            prompt=request.prompt,
+        result = (
+            await execute_model_inference(
+                prompt=request.prompt
+            )
         )
 
-        latency = time.perf_counter() - start
+        latency = (
+            time.perf_counter()
+            - start
+        )
 
         record_request(
             success=True,
@@ -454,7 +593,7 @@ async def chat(request: ChatRequest):
             "model": DEFAULT_MODEL,
             "latency_seconds": round(
                 latency,
-                3,
+                3
             ),
         }
 
@@ -463,7 +602,10 @@ async def chat(request: ChatRequest):
 
     except Exception as error:
 
-        latency = time.perf_counter() - start
+        latency = (
+            time.perf_counter()
+            - start
+        )
 
         record_request(
             success=False,
@@ -477,8 +619,10 @@ async def chat(request: ChatRequest):
         raise HTTPException(
             status_code=502,
             detail={
-                "error": "AI inference failed",
-                "message": str(error),
+                "error":
+                    "AI inference failed",
+                "message":
+                    str(error),
             },
         )
 
@@ -489,10 +633,16 @@ async def chat(request: ChatRequest):
 
 @app.post("/api/agent/execute")
 async def execute_multi_agent(
-    request: MultiAgentRequest,
+    request: MultiAgentRequest
 ):
 
-    start = time.perf_counter()
+    workflow_start = (
+        time.perf_counter()
+    )
+
+    # --------------------------------------------------------
+    # GET TASK
+    # --------------------------------------------------------
 
     task = (
         request.task
@@ -501,24 +651,26 @@ async def execute_multi_agent(
     ).strip()
 
     if not task:
+
         raise HTTPException(
             status_code=400,
             detail={
                 "error": "Missing task",
-                "message": (
+                "message":
                     "Provide either 'task' "
-                    "or 'task_description'."
-                ),
+                    "or 'task_description'.",
             },
         )
 
-    analytics["agent_tasks_executed"] += 1
+    analytics[
+        "agent_tasks_executed"
+    ] += 1
 
     workflow = {}
 
-    # --------------------------------------------------------
-    # 1. PLANNER
-    # --------------------------------------------------------
+    # ========================================================
+    # AGENT 1 — PLANNER
+    # ========================================================
 
     planner_prompt = f"""
 You are the Planner Agent inside Engineer AI.
@@ -528,6 +680,7 @@ Analyze the engineering task below.
 Create a practical implementation plan.
 
 Include:
+
 - problem understanding
 - requirements
 - assumptions
@@ -536,7 +689,8 @@ Include:
 - risks
 - validation strategy
 
-Do not claim that anything has already been executed.
+Do not claim that anything has already
+been executed.
 
 TASK:
 
@@ -544,7 +698,11 @@ TASK:
 
 PROJECT CONTEXT:
 
-{request.project_context or "No additional project context provided."}
+{
+    request.project_context
+    or
+    "No additional project context provided."
+}
 """
 
     planner = await run_agent(
@@ -554,15 +712,15 @@ PROJECT CONTEXT:
 
     workflow["planner"] = planner
 
-    # --------------------------------------------------------
-    # 2. EXECUTOR
-    # --------------------------------------------------------
+    # ========================================================
+    # AGENT 2 — EXECUTOR
+    # ========================================================
 
     executor_prompt = f"""
 You are the Executor Agent inside Engineer AI.
 
-Use the Planner's output to produce the technical
-implementation.
+Use the Planner's output to produce the
+technical implementation.
 
 TASK:
 
@@ -573,6 +731,7 @@ PLANNER OUTPUT:
 {planner.get("output", "")}
 
 Provide:
+
 - implementation approach
 - relevant code
 - configuration
@@ -580,7 +739,9 @@ Provide:
 - important assumptions
 
 IMPORTANT:
+
 Do not claim that the code was executed.
+
 Do not claim that tests passed.
 """
 
@@ -593,14 +754,34 @@ Do not claim that tests passed.
 
     executor_output = executor.get(
         "output",
-        "",
+        ""
     )
 
-    # --------------------------------------------------------
-    # 3 + 4. TESTER AND SECURITY IN PARALLEL
-    # --------------------------------------------------------
+    # ========================================================
+    # SECURITY OPTION
+    # ========================================================
 
-    parallel_tasks = []
+    if request.include_security_scan is not None:
+
+        security_enabled = (
+            request.include_security_scan
+        )
+
+    elif request.include_security is not None:
+
+        security_enabled = (
+            request.include_security
+        )
+
+    else:
+
+        security_enabled = True
+
+    # ========================================================
+    # AGENTS 3 + 4 — TESTER + SECURITY
+    #
+    # These run concurrently.
+    # ========================================================
 
     if request.include_tests:
 
@@ -619,6 +800,7 @@ IMPLEMENTATION:
 {executor_output}
 
 Provide:
+
 - unit test ideas
 - integration test ideas
 - edge cases
@@ -627,39 +809,31 @@ Provide:
 - sample test code when useful
 
 IMPORTANT:
+
 These are proposed/generated tests.
-Do NOT claim that the tests were actually executed.
+
+Do NOT claim that the tests were
+actually executed.
 """
 
-        parallel_tasks.append(
-            run_agent(
-                "Tester",
-                tester_prompt,
-            )
+        tester_task = run_agent(
+            "Tester",
+            tester_prompt,
         )
 
     else:
-        parallel_tasks.append(
-            asyncio.sleep(
-                0,
-                result={
-                    "agent": "Tester",
-                    "status": "skipped",
-                    "output": "Testing generation disabled.",
-                    "latency_seconds": 0,
-                },
-            )
-        )
 
-    security_enabled = (
-        request.include_security_scan
-        if request.include_security_scan is not None
-        else (
-            request.include_security
-            if request.include_security is not None
-            else True
-        )
-    )
+        async def skipped_tester():
+
+            return {
+                "agent": "Tester",
+                "status": "skipped",
+                "output":
+                    "Testing generation disabled.",
+                "latency_seconds": 0,
+            }
+
+        tester_task = skipped_tester()
 
     if security_enabled:
 
@@ -678,71 +852,84 @@ IMPLEMENTATION:
 {executor_output}
 
 Look for:
+
 - unsafe input handling
 - injection risks
-- authentication/authorization problems
+- authentication problems
+- authorization problems
 - secrets exposure
 - insecure dependencies
-- unsafe file/network operations
+- unsafe file operations
+- unsafe network operations
 - data leakage
 - configuration risks
 - denial-of-service risks
 - privilege problems
 
 Separate:
+
 - confirmed issues
 - potential risks
 - recommendations
 
 IMPORTANT:
+
 This is an AI security analysis.
-Do NOT claim that a real security scanner executed.
+
+Do NOT claim that a real security
+scanner executed.
 """
 
-        parallel_tasks.append(
-            run_agent(
-                "Security",
-                security_prompt,
-            )
+        security_task = run_agent(
+            "Security",
+            security_prompt,
         )
 
     else:
-        parallel_tasks.append(
-            asyncio.sleep(
-                0,
-                result={
-                    "agent": "Security",
-                    "status": "skipped",
-                    "output": "Security scan disabled.",
-                    "latency_seconds": 0,
-                },
-            )
-        )
+
+        async def skipped_security():
+
+            return {
+                "agent": "Security",
+                "status": "skipped",
+                "output":
+                    "Security analysis disabled.",
+                "latency_seconds": 0,
+            }
+
+        security_task = skipped_security()
 
     tester, security = await asyncio.gather(
-        *parallel_tasks
+        tester_task,
+        security_task,
     )
 
     workflow["tester"] = tester
     workflow["security"] = security
 
     if tester.get("status") == "success":
-        analytics["tests_generated"] += 1
+
+        analytics[
+            "tests_generated"
+        ] += 1
 
     if security.get("status") == "success":
-        analytics["security_scans_completed"] += 1
 
-    # --------------------------------------------------------
-    # 5. DEBUGGER
-    # --------------------------------------------------------
+        analytics[
+            "security_scans_completed"
+        ] += 1
+
+    # ========================================================
+    # AGENT 5 — DEBUGGER
+    # ========================================================
 
     if request.include_debugger:
 
         debugger_prompt = f"""
 You are the Debugger Agent inside Engineer AI.
 
-Review the engineering task and all available
-agent outputs.
+Review the engineering task and all
+available agent outputs.
 
 TASK:
 
@@ -764,16 +951,22 @@ SECURITY:
 
 {security.get("output", "")}
 
-Identify likely implementation problems,
-inconsistencies, missing cases, and potential
-failure points.
+Identify:
+
+- implementation problems
+- inconsistencies
+- missing cases
+- potential failure points
+- likely root causes
 
 For every important problem provide:
+
 - issue
 - likely root cause
 - recommended fix
 
 IMPORTANT:
+
 Do not pretend to have executed the code.
 """
 
@@ -785,22 +978,26 @@ Do not pretend to have executed the code.
         workflow["debugger"] = debugger
 
         if debugger.get("status") == "success":
-            analytics["debugger_runs_completed"] += 1
+
+            analytics[
+                "debugger_runs_completed"
+            ] += 1
 
     else:
 
         debugger = {
             "agent": "Debugger",
             "status": "skipped",
-            "output": "Debugger disabled.",
+            "output":
+                "Debugger disabled.",
             "latency_seconds": 0,
         }
 
         workflow["debugger"] = debugger
 
-    # --------------------------------------------------------
-    # 6. VERIFIER
-    # --------------------------------------------------------
+    # ========================================================
+    # AGENT 6 — VERIFIER
+    # ========================================================
 
     verifier_prompt = f"""
 You are the Verifier Agent inside Engineer AI.
@@ -836,17 +1033,29 @@ Determine:
 
 1. Whether the proposed solution addresses
    the task.
+
 2. Important missing requirements.
+
 3. Contradictions between agents.
-4. Important risks.
+
+4. Important technical risks.
+
 5. Recommended next steps.
+
+6. Whether the implementation appears
+   internally consistent.
 
 Return a concise final verification report.
 
 IMPORTANT:
+
 No real execution has occurred in this backend.
-Do not claim that code, tests, or security scans
-actually ran.
+
+Do not claim that:
+- code was executed
+- tests actually passed
+- a real security scanner ran
+- a real deployment was performed
 """
 
     verifier = await run_agent(
@@ -857,11 +1066,13 @@ actually ran.
     workflow["verifier"] = verifier
 
     if verifier.get("status") == "success":
-        analytics["verification_runs_completed"] += 1
+        analytics[
+            "verification_runs_completed"
+        ] += 1
 
-    # --------------------------------------------------------
+    # ========================================================
     # EXECUTION STATUS
-    # --------------------------------------------------------
+    # ========================================================
 
     execution_status = {
         "status": "not_executed",
@@ -872,9 +1083,9 @@ actually ran.
         ),
     }
 
-    # --------------------------------------------------------
-    # FINAL STATUS
-    # --------------------------------------------------------
+    # ========================================================
+    # FINAL WORKFLOW STATUS
+    # ========================================================
 
     failed_agents = [
         name
@@ -882,19 +1093,22 @@ actually ran.
         if result.get("status") == "failed"
     ]
 
-    total_latency = time.perf_counter() - start
+    total_latency = (
+        time.perf_counter()
+        - workflow_start
+    )
 
-        if failed_agents:
-        overall_status = "partial_failure"
+    if failed_agents:
+        workflow_status = "partial_failure"
     else:
-        overall_status = "success"
+        workflow_status = "success"
 
     return {
-        "status": overall_status,
+        "status": workflow_status,
 
         "workflow": workflow,
 
-        # Compatibility with the older UI/backend format.
+        # Compatibility with older UI/backend versions.
         "agent_outputs": workflow,
 
         "execution": execution_status,
