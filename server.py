@@ -3021,4 +3021,129 @@ async def operations_analytics():
             success_rate,
 
         "average_latency_seconds":
-        
+                    average_latency,
+
+        "agent_tasks_executed":
+            analytics_data[
+                "agent_tasks_executed"
+            ],
+
+        "project_analysis_runs":
+            analytics_data[
+                "project_analysis_runs"
+            ],
+
+        "architecture_runs":
+            analytics_data[
+                "architecture_runs"
+            ],
+
+        "dependency_analysis_runs":
+            analytics_data[
+                "dependency_analysis_runs"
+            ],
+
+        "debugger_runs":
+            analytics_data[
+                "debugger_runs"
+            ],
+
+        "tests_generated":
+            analytics_data[
+                "tests_generated"
+            ],
+
+        "security_scans_completed":
+            analytics_data[
+                "security_scans_completed"
+            ],
+
+        "performance_analyses":
+            analytics_data[
+                "performance_analyses"
+            ],
+
+        "benchmark_runs":
+            analytics_data[
+                "benchmark_runs"
+            ],
+
+        "benchmark_cases":
+            analytics_data[
+                "benchmark_cases"
+            ],
+
+        "benchmark_bugs_found":
+            analytics_data[
+                "benchmark_bugs_found"
+            ],
+
+        "benchmark_bugs_missed":
+            analytics_data[
+                "benchmark_bugs_missed"
+            ],
+    }
+
+
+# ============================================================
+# APPLICATION STARTUP
+# ============================================================
+
+@app.on_event("startup")
+async def startup_event():
+
+    logger.info(
+        "%s v%s starting",
+        APP_TITLE,
+        APP_VERSION
+    )
+
+    logger.info(
+        "AI provider: %s",
+        DEFAULT_PROVIDER
+    )
+
+    logger.info(
+        "AI model: %s",
+        DEFAULT_MODEL
+    )
+
+
+# ============================================================
+# APPLICATION SHUTDOWN
+# ============================================================
+
+@app.on_event("shutdown")
+async def shutdown_event():
+
+    logger.info(
+        "%s shutting down",
+        APP_TITLE
+    )
+
+
+# ============================================================
+# LOCAL SERVER
+# ============================================================
+
+if __name__ == "__main__":
+
+    import uvicorn
+
+    host = os.getenv(
+        "HOST",
+        "0.0.0.0"
+    )
+
+    port = int(
+        os.getenv(
+            "PORT",
+            "8000"
+        )
+    )
+
+    uvicorn.run(
+        app,
+        host=host,
+        port=port,
+)
