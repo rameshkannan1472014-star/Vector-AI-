@@ -1,681 +1,767 @@
 # ============================================================
-# ENGINEER AI ENGINE
-# Backend Version 2.4.0
+# ENGINEER AI BACKEND
+# MILESTONE 3
+# PART 2/5
 # ============================================================
-
-import os
-import time
-import asyncio
-import logging
-
-from typing import (
-    Dict,
-    Any,
-    Optional,
-    List,
-)
-
-from fastapi import (
-    FastAPI,
-    HTTPException,
-)
-
-from fastapi.responses import FileResponse
-
-from fastapi.middleware.cors import CORSMiddleware
-
-from pydantic import (
-    BaseModel,
-    Field,
-)
-
-from google import genai
-from google.genai import types
 
 
 # ============================================================
-# CONFIGURATION
+# COMMAND SECURITY
 # ============================================================
 
-APP_TITLE = os.getenv(
-    "APP_TITLE",
-    "Engineer AI Engine"
-)
-
-APP_VERSION = "2.4.0"
-
-DEFAULT_MODEL = os.getenv(
-    "GEMINI_MODEL",
-    "gemini-2.5-flash"
-)
-
-DEFAULT_PROVIDER = os.getenv(
-    "AI_PROVIDER",
-    "gemini"
-)
-
-MAX_RETRIES = int(
-    os.getenv(
-        "GEMINI_MAX_RETRIES",
-        "2"
-    )
-)
-
-RETRY_BASE_SECONDS = float(
-    os.getenv(
-        "GEMINI_RETRY_BASE_SECONDS",
-        "0.8"
-    )
-)
-
-CHAT_MAX_OUTPUT_TOKENS = int(
-    os.getenv(
-        "CHAT_MAX_OUTPUT_TOKENS",
-        "1536"
-    )
-)
-
-AGENT_MAX_OUTPUT_TOKENS = int(
-    os.getenv(
-        "AGENT_MAX_OUTPUT_TOKENS",
-        "1400"
-    )
-)
-
-REVIEW_MAX_OUTPUT_TOKENS = int(
-    os.getenv(
-        "REVIEW_MAX_OUTPUT_TOKENS",
-        "1200"
-    )
-)
-
-MAX_PROMPT_CHARS = int(
-    os.getenv(
-        "MAX_PROMPT_CHARS",
-        "24000"
-    )
-)
-
-MAX_CODE_CHARS = int(
-    os.getenv(
-        "MAX_CODE_CHARS",
-        "100000"
-    )
-)
-
-MAX_PROJECT_FILES = int(
-    os.getenv(
-        "MAX_PROJECT_FILES",
-        "100"
-    )
-)
-
-MAX_FILE_SIZE = int(
-    os.getenv(
-        "MAX_FILE_SIZE",
-        "300000"
-    )
-)
-
-MAX_PROJECT_CONTEXT_CHARS = int(
-    os.getenv(
-        "MAX_PROJECT_CONTEXT_CHARS",
-        "120000"
-    )
-)
-
-
-# ============================================================
-# LOGGING
-# ============================================================
-
-logging.basicConfig(
-    level=os.getenv(
-        "LOG_LEVEL",
-        "INFO"
-    ).upper(),
-    format=(
-        "%(asctime)s | "
-        "%(levelname)s | "
-        "%(message)s"
-    ),
-)
-
-logger = logging.getLogger(
-    "EngineerAI"
-)
-
-
-# ============================================================
-# ANALYTICS
-# ============================================================
-
-analytics_data = {
-
-    "total_requests": 0,
-
-    "successful_responses": 0,
-
-    "failed_requests": 0,
-
-    "total_latency_seconds": 0.0,
-
-    "agent_tasks_executed": 0,
-
-    "project_analysis_runs": 0,
-
-    "architecture_runs": 0,
-
-    "dependency_analysis_runs": 0,
-
-    "debugger_runs": 0,
-
-    "tests_generated": 0,
-
-    "security_scans_completed": 0,
-
-    "performance_analyses": 0,
-
-    "benchmark_runs": 0,
-
-    "benchmark_cases": 0,
-
-    "benchmark_bugs_found": 0,
-
-    "benchmark_bugs_missed": 0,
+SAFE_COMMANDS = {
+    "python",
+    "python3",
+    "pytest",
+    "node",
+    "npm",
 }
 
 
-# ============================================================
-# FASTAPI APPLICATION
-# ============================================================
-
-app = FastAPI(
-    title=APP_TITLE,
-    version=APP_VERSION,
-)
-
-
-# ============================================================
-# CORS
-# ============================================================
-
-def get_origins():
-
-    raw = os.getenv(
-        "CORS_ORIGINS",
-        "*"
-    ).strip()
-
-    if raw == "*":
-        return ["*"]
-
-    return [
-        item.strip()
-        for item in raw.split(",")
-        if item.strip()
-    ]
-
-
-origins = get_origins()
-
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=(
-        False
-        if "*" in origins
-        else True
-    ),
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-
-# ============================================================
-# REQUEST MODELS
-# ============================================================
-
-class ChatRequest(BaseModel):
-
-    prompt: str = Field(
-        ...,
-        min_length=1,
-        max_length=MAX_PROMPT_CHARS,
-    )
-
-    provider: Optional[str] = Field(
-        default=DEFAULT_PROVIDER,
-        max_length=50,
-    )
-
-
-class MultiAgentRequest(BaseModel):
-
-    task_description: Optional[str] = Field(
-        default=None,
-        max_length=MAX_PROMPT_CHARS,
-    )
-
-    task: Optional[str] = Field(
-        default=None,
-        max_length=MAX_PROMPT_CHARS,
-    )
-
-    include_tests: bool = True
-
-    include_security_scan: bool = True
-
-    include_debugger: bool = True
-
-    project_context: Optional[str] = Field(
-        default=None,
-        max_length=MAX_PROMPT_CHARS,
-    )
-
-    def get_task(self):
-
-        value = (
-            self.task_description
-            or self.task
-        )
-
-        if not value or not value.strip():
-
-            raise ValueError(
-                "task or task_description is required"
-            )
-
-        return value.strip()
-
-
-class CodeReviewRequest(BaseModel):
-
-    code_snippet: str = Field(
-        ...,
-        min_length=1,
-        max_length=MAX_CODE_CHARS,
-    )
-
-    language: str = Field(
-        default="text",
-        min_length=1,
-        max_length=50,
-    )
-
-
-class ProjectFile(BaseModel):
-
-    path: str = Field(
-        ...,
-        min_length=1,
-        max_length=500,
-    )
-
-    content: str = Field(
-        ...,
-        max_length=MAX_FILE_SIZE,
-    )
-
-
-class ProjectRequest(BaseModel):
-
-    project_name: Optional[str] = Field(
-        default="Engineer AI Project",
-        max_length=200,
-    )
-
-    files: List[ProjectFile] = Field(
-        ...,
-        min_length=1,
-        max_length=MAX_PROJECT_FILES,
-    )
-
-
-class ProjectAgentRequest(ProjectRequest):
-
-    task: str = Field(
-        ...,
-        min_length=1,
-        max_length=MAX_PROMPT_CHARS,
-    )
-
-    include_tests: bool = True
-
-    include_security: bool = True
-
-    include_performance: bool = True
-
-
-# ============================================================
-# BENCHMARK MODELS
-# ============================================================
-
-class BenchmarkCase(BaseModel):
-
-    name: str = Field(
-        ...,
-        min_length=1,
-        max_length=200,
-    )
-
-    language: str = Field(
-        default="python",
-        min_length=1,
-        max_length=50,
-    )
-
-    broken_code: str = Field(
-        ...,
-        min_length=1,
-        max_length=MAX_CODE_CHARS,
-    )
-
-    expected_issues: List[str] = Field(
-        default_factory=list
-    )
-
-
-class BenchmarkRequest(BaseModel):
-
-    cases: List[BenchmarkCase] = Field(
-        ...,
-        min_length=1,
-        max_length=20,
-    )
-
-    run_tests: bool = True
-    # ============================================================
-# TEXT UTILITIES
-# ============================================================
-
-def clamp_text(
-    value: Optional[str],
-    limit: int
+def validate_command(
+    command: str,
 ) -> str:
 
-    value = value or ""
+    command = (command or "").strip()
 
-    if len(value) <= limit:
-        return value
+    if not command:
+        raise ValueError(
+            "Command is required."
+        )
 
-    return (
-        value[:limit]
-        + "\n\n"
-        "[Input truncated by Engineer AI backend.]"
+    if "/" in command or "\\" in command:
+        raise ValueError(
+            "Command paths are not allowed."
+        )
+
+    command_name = Path(command).name.lower()
+
+    if command_name not in SAFE_COMMANDS:
+        raise ValueError(
+            f"Command is not allowed: {command_name}"
+        )
+
+    return command_name
+
+
+def clamp_execution_output(
+    value: bytes,
+) -> str:
+
+    text = value.decode(
+        "utf-8",
+        errors="replace",
+    )
+
+    return clamp_text(
+        text,
+        MAX_EXECUTION_OUTPUT_CHARS,
     )
 
 
-def record(
-    start: float,
-    success: bool
+def create_execution_workspace() -> str:
+
+    base = Path(
+        os.getenv(
+            "EXECUTION_TMP_DIR",
+            "/tmp",
+        )
+    )
+
+    base.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    workspace = base / (
+        "engineer-ai-"
+        + uuid.uuid4().hex
+    )
+
+    workspace.mkdir(
+        parents=True,
+        exist_ok=False,
+    )
+
+    return str(workspace)
+
+
+def cleanup_execution_workspace(
+    workspace: str,
 ) -> None:
 
-    analytics_data[
-        "total_requests"
-    ] += 1
-
-    analytics_data[
-        "total_latency_seconds"
-    ] += (
-        time.perf_counter()
-        - start
-    )
-
-    if success:
-
-        analytics_data[
-            "successful_responses"
-        ] += 1
-
-    else:
-
-        analytics_data[
-            "failed_requests"
-        ] += 1
-
-
-def is_retryable_error(
-    exc: Exception
-) -> bool:
-
-    message = str(exc).upper()
-
-    retryable_terms = (
-        "503",
-        "UNAVAILABLE",
-        "429",
-        "RESOURCE_EXHAUSTED",
-        "DEADLINE",
-        "TIMEOUT",
-        "INTERNAL",
-        "SERVICE_UNAVAILABLE",
-    )
-
-    return any(
-        term in message
-        for term in retryable_terms
-    )
-
-
-# ============================================================
-# ENGINEER AI SYSTEM INSTRUCTION
-# ============================================================
-
-SYSTEM_INSTRUCTION = (
-    "You are Engineer AI, an advanced engineering "
-    "and software engineering assistant.\n\n"
-
-    "Your purpose is to help users understand, "
-    "design, calculate, troubleshoot, analyze, "
-    "architect, test, and implement engineering "
-    "and software systems.\n\n"
-
-    "CORE RULES:\n"
-    "1. Answer the user's exact request.\n"
-    "2. Be technically accurate.\n"
-    "3. Explain concepts clearly and logically.\n"
-    "4. Never invent facts, specifications, "
-    "measurements, test results, or sources.\n"
-    "5. Clearly distinguish assumptions from "
-    "confirmed information.\n"
-    "6. For calculations, show formulas, known "
-    "values, calculations, results, and units.\n"
-    "7. Check calculations before giving results.\n"
-    "8. Explain important trade-offs when multiple "
-    "solutions exist.\n"
-    "9. Never claim code was executed unless the "
-    "backend actually executed it.\n"
-    "10. Never claim tests passed unless tests "
-    "were actually executed.\n"
-    "11. Never claim a live security scan occurred "
-    "unless one actually occurred.\n\n"
-
-    "SOFTWARE ENGINEERING:\n"
-    "Provide complete runnable code when practical.\n"
-    "Consider architecture, maintainability, "
-    "error handling, security, testing, and "
-    "performance.\n\n"
-
-    "ENGINEERING SAFETY:\n"
-    "When relevant, consider electrical, thermal, "
-    "mechanical, reliability, and operational "
-    "constraints.\n\n"
-
-    "DIAGRAMS:\n"
-    "When generating Mermaid diagrams, use a fenced "
-    "```mermaid block.\n"
-    "Use simple node IDs without spaces or special "
-    "characters.\n"
-    "Put human-readable labels inside quotes.\n"
-    "Prefer graph TD or graph LR.\n"
-)
-
-
-# ============================================================
-# GEMINI CLIENT
-# ============================================================
-
-def get_client():
-
-    api_key = os.getenv(
-        "GEMINI_API_KEY"
-    )
-
-    if not api_key:
-
-        raise RuntimeError(
-            "GEMINI_API_KEY is not configured."
+    try:
+        shutil.rmtree(
+            workspace,
+            ignore_errors=True,
+        )
+    except Exception:
+        logger.exception(
+            "Workspace cleanup failed."
         )
 
-    return genai.Client(
-        api_key=api_key
-    )
+
+def write_execution_files(
+    workspace: str,
+    files: List[ExecutionFile],
+) -> None:
+
+    total_size = 0
+
+    for item in files:
+
+        relative = safe_relative_path(
+            item.path
+        )
+
+        target = (
+            Path(workspace)
+            / relative
+        )
+
+        target.parent.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
+
+        content = item.content
+
+        total_size += len(content)
+
+        if total_size > MAX_EXECUTION_PROJECT_SIZE:
+            raise ValueError(
+                "Execution project exceeds size limit."
+            )
+
+        target.write_text(
+            content,
+            encoding="utf-8",
+        )
 
 
-def generate_sync(
-    prompt: str,
-    max_output_tokens: int
-) -> str:
+def build_execution_environment() -> Dict[str, str]:
 
-    client = get_client()
-
-    response = client.models.generate_content(
-
-        model=DEFAULT_MODEL,
-
-        contents=prompt,
-
-        config=types.GenerateContentConfig(
-
-            system_instruction=(
-                SYSTEM_INSTRUCTION
-            ),
-
-            temperature=0.2,
-
-            max_output_tokens=(
-                max_output_tokens
-            ),
+    # Do NOT copy the complete server environment.
+    # This intentionally avoids exposing API keys and secrets.
+    return {
+        "PATH": os.getenv(
+            "PATH",
+            "/usr/local/bin:/usr/bin:/bin",
         ),
-    )
-
-    text = getattr(
-        response,
-        "text",
-        None
-    )
-
-    if not text:
-
-        raise RuntimeError(
-            "Gemini returned an empty response."
-        )
-
-    return text.strip()
+        "HOME": "/tmp",
+        "PYTHONUNBUFFERED": "1",
+        "PYTHONDONTWRITEBYTECODE": "1",
+        "NODE_ENV": "test",
+        "CI": "1",
+    }
 
 
-async def infer(
-    prompt: str,
-    max_output_tokens: int
+def execution_image_for_language(
+    language: str,
 ) -> str:
 
-    prompt = clamp_text(
-        prompt,
-        MAX_PROMPT_CHARS
+    lang = (language or "python").lower()
+
+    if lang in {
+        "javascript",
+        "js",
+        "typescript",
+        "ts",
+        "node",
+    }:
+        return DEFAULT_NODE_IMAGE
+
+    return DEFAULT_PYTHON_IMAGE
+
+
+def normalize_command_for_language(
+    command: str,
+) -> str:
+
+    command = validate_command(
+        command
     )
 
-    for attempt in range(
-        MAX_RETRIES + 1
-    ):
+    if command == "python3":
+        return "python"
 
-        try:
-
-            return await asyncio.to_thread(
-                generate_sync,
-                prompt,
-                max_output_tokens
-            )
-
-        except Exception as exc:
-
-            if (
-                not is_retryable_error(exc)
-                or attempt >= MAX_RETRIES
-            ):
-
-                raise
-
-            delay = (
-                RETRY_BASE_SECONDS
-                * (attempt + 1)
-            )
-
-            logger.warning(
-                "Temporary Gemini error. "
-                "Retrying in %.1fs: %s",
-                delay,
-                exc,
-            )
-
-            await asyncio.sleep(
-                delay
-            )
-
-    raise RuntimeError(
-        "Gemini inference failed."
-    )
+    return command
 
 
 # ============================================================
-# AGENT RUNNER
+# HOST PROCESS EXECUTION
 # ============================================================
 
-async def run_agent(
-    name: str,
-    prompt: str,
-    max_tokens: int = AGENT_MAX_OUTPUT_TOKENS
+async def run_host_process(
+    workspace: str,
+    command: str,
+    args: List[str],
+    timeout_seconds: int,
 ) -> Dict[str, Any]:
+
+    executable = normalize_command_for_language(
+        command
+    )
+
+    env = build_execution_environment()
+
+    full_command = [
+        executable,
+        *args,
+    ]
 
     start = time.perf_counter()
 
+    process = await asyncio.create_subprocess_exec(
+        *full_command,
+        cwd=workspace,
+        env=env,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+        start_new_session=True,
+    )
+
     try:
 
-        output = await infer(
-            prompt,
-            max_tokens
+        stdout, stderr = await asyncio.wait_for(
+            process.communicate(),
+            timeout=timeout_seconds,
+        )
+
+        latency = (
+            time.perf_counter()
+            - start
         )
 
         return {
-            "agent": name,
-            "status": "success",
-            "output": output,
+            "status": (
+                "success"
+                if process.returncode == 0
+                else "failed"
+            ),
+            "exit_code": process.returncode,
+            "stdout": clamp_execution_output(stdout),
+            "stderr": clamp_execution_output(stderr),
+            "timed_out": False,
             "latency_seconds": round(
-                time.perf_counter()
-                - start,
-                3
+                latency,
+                3,
             ),
         }
+
+    except asyncio.TimeoutError:
+
+        try:
+            os.killpg(
+                os.getpgid(process.pid),
+                signal.SIGKILL,
+            )
+        except Exception:
+            try:
+                process.kill()
+            except Exception:
+                pass
+
+        await process.communicate()
+
+        latency = (
+            time.perf_counter()
+            - start
+        )
+
+        return {
+            "status": "timeout",
+            "exit_code": None,
+            "stdout": "",
+            "stderr": (
+                "Execution timed out after "
+                f"{timeout_seconds} seconds."
+            ),
+            "timed_out": True,
+            "latency_seconds": round(
+                latency,
+                3,
+            ),
+        }
+
+
+# ============================================================
+# DOCKER EXECUTION
+# ============================================================
+
+async def run_docker_process(
+    workspace: str,
+    command: str,
+    args: List[str],
+    timeout_seconds: int,
+    language: str,
+) -> Dict[str, Any]:
+
+    docker = shutil.which(
+        "docker"
+    )
+
+    if not docker:
+        raise RuntimeError(
+            "Docker is not available on this server. "
+            "Use a deployment environment with Docker "
+            "or configure a dedicated sandbox service."
+        )
+
+    command = normalize_command_for_language(
+        command
+    )
+
+    image = execution_image_for_language(
+        language
+    )
+
+    container_name = (
+        "engineer-ai-"
+        + uuid.uuid4().hex[:20]
+    )
+
+    docker_command = [
+        docker,
+        "run",
+        "--rm",
+        "--name",
+        container_name,
+
+        "--network",
+        "none",
+
+        "--cpus",
+        "0.5",
+
+        "--memory",
+        "256m",
+
+        "--pids-limit",
+        "64",
+
+        "--read-only",
+
+        "--tmpfs",
+        "/tmp:rw,nosuid,size=64m",
+
+        "-v",
+        f"{workspace}:/workspace:rw",
+
+        "-w",
+        "/workspace",
+
+        "--security-opt",
+        "no-new-privileges",
+
+        image,
+        command,
+        *args,
+    ]
+
+    env = build_execution_environment()
+
+    start = time.perf_counter()
+
+    process = await asyncio.create_subprocess_exec(
+        *docker_command,
+        env=env,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+
+    try:
+
+        stdout, stderr = await asyncio.wait_for(
+            process.communicate(),
+            timeout=timeout_seconds,
+        )
+
+        latency = (
+            time.perf_counter()
+            - start
+        )
+
+        return {
+            "status": (
+                "success"
+                if process.returncode == 0
+                else "failed"
+            ),
+            "exit_code": process.returncode,
+            "stdout": clamp_execution_output(stdout),
+            "stderr": clamp_execution_output(stderr),
+            "timed_out": False,
+            "latency_seconds": round(
+                latency,
+                3,
+            ),
+        }
+
+    except asyncio.TimeoutError:
+
+        # Try to remove the container if it is still alive.
+        try:
+            cleanup = await asyncio.create_subprocess_exec(
+                docker,
+                "rm",
+                "-f",
+                container_name,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+
+            await asyncio.wait_for(
+                cleanup.communicate(),
+                timeout=5,
+            )
+
+        except Exception:
+            logger.exception(
+                "Failed to clean timed-out Docker container."
+            )
+
+        try:
+            process.kill()
+        except Exception:
+            pass
+
+        await process.communicate()
+
+        latency = (
+            time.perf_counter()
+            - start
+        )
+
+        return {
+            "status": "timeout",
+            "exit_code": None,
+            "stdout": "",
+            "stderr": (
+                "Sandbox execution timed out after "
+                f"{timeout_seconds} seconds."
+            ),
+            "timed_out": True,
+            "latency_seconds": round(
+                latency,
+                3,
+            ),
+        }
+
+
+# ============================================================
+# MAIN EXECUTION ENGINE
+# ============================================================
+
+async def execute_files(
+    files: List[ExecutionFile],
+    command: str,
+    args: List[str],
+    timeout_seconds: int,
+    language: str,
+) -> Dict[str, Any]:
+
+    validate_execution_files(
+        files
+    )
+
+    command = validate_command(
+        command
+    )
+
+    workspace = create_execution_workspace()
+
+    try:
+
+        write_execution_files(
+            workspace,
+            files,
+        )
+
+        if EXECUTION_MODE == "docker":
+
+            result = await run_docker_process(
+                workspace=workspace,
+                command=command,
+                args=args,
+                timeout_seconds=timeout_seconds,
+                language=language,
+            )
+
+        elif EXECUTION_MODE == "host":
+
+            # Host execution is intentionally opt-in.
+            if os.getenv(
+                "ALLOW_UNSANDBOXED_EXECUTION",
+                "false",
+            ).lower() != "true":
+                raise RuntimeError(
+                    "Host execution is disabled. "
+                    "Set ALLOW_UNSANDBOXED_EXECUTION=true "
+                    "only on a trusted isolated machine."
+                )
+
+            result = await run_host_process(
+                workspace=workspace,
+                command=command,
+                args=args,
+                timeout_seconds=timeout_seconds,
+            )
+
+        else:
+
+            raise RuntimeError(
+                "Unsupported EXECUTION_MODE. "
+                "Use 'docker' or 'host'."
+            )
+
+        return result
+
+    finally:
+
+        cleanup_execution_workspace(
+            workspace
+        )
+
+
+# ============================================================
+# DEFAULT TEST COMMANDS
+# ============================================================
+
+def default_test_command(
+    language: str,
+) -> Dict[str, Any]:
+
+    lang = (
+        language or "python"
+    ).lower()
+
+    if lang in {
+        "javascript",
+        "js",
+        "typescript",
+        "ts",
+        "node",
+    }:
+        return {
+            "command": "npm",
+            "args": ["test"],
+        }
+
+    return {
+        "command": "python",
+        "args": [
+            "-m",
+            "unittest",
+            "discover",
+            "-v",
+        ],
+    }
+
+
+# ============================================================
+# EXECUTION ENDPOINT
+# ============================================================
+
+@app.post("/api/execute")
+async def execute_code(
+    request: ExecuteRequest,
+):
+
+    start = time.perf_counter()
+
+    analytics_data[
+        "execution_runs"
+    ] += 1
+
+    try:
+
+        result = await execute_files(
+            files=request.files,
+            command=request.command,
+            args=request.args,
+            timeout_seconds=request.timeout_seconds,
+            language=request.language,
+        )
+
+        latency = (
+            time.perf_counter()
+            - start
+        )
+
+        analytics_data[
+            "total_execution_latency_seconds"
+        ] += latency
+
+        if result["status"] == "success":
+
+            analytics_data[
+                "execution_successes"
+            ] += 1
+
+        elif result["timed_out"]:
+
+            analytics_data[
+                "execution_timeouts"
+            ] += 1
+
+        else:
+
+            analytics_data[
+                "execution_failures"
+            ] += 1
+
+        record(
+            start,
+            result["status"] == "success",
+        )
+
+        return {
+            "status": result["status"],
+            "execution": result,
+            "executed": True,
+            "sandbox": EXECUTION_MODE,
+        }
+
+    except ValueError as exc:
+
+        record(
+            start,
+            False,
+        )
+
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        )
 
     except Exception as exc:
 
+        record(
+            start,
+            False,
+        )
+
         logger.exception(
-            "%s agent failed",
-            name
+            "Execution failed."
+        )
+
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "error": "Execution unavailable",
+                "message": str(exc),
+            },
+        )
+
+
+# ============================================================
+# TEST ENDPOINT
+# ============================================================
+
+@app.post("/api/test/run")
+async def run_tests(
+    request: TestRequest,
+):
+
+    start = time.perf_counter()
+
+    analytics_data[
+        "test_runs"
+    ] += 1
+
+    try:
+
+        selected = default_test_command(
+            request.language
+        )
+
+        command = (
+            request.test_command
+            or selected["command"]
+        )
+
+        args = (
+            request.test_args
+            if request.test_args
+            else selected["args"]
+        )
+
+        result = await execute_files(
+            files=request.files,
+            command=command,
+            args=args,
+            timeout_seconds=request.timeout_seconds,
+            language=request.language,
+        )
+
+        latency = (
+            time.perf_counter()
+            - start
+        )
+
+        analytics_data[
+            "total_test_latency_seconds"
+        ] += latency
+
+        if result["status"] == "success":
+            analytics_data[
+                "test_successes"
+            ] += 1
+        else:
+            analytics_data[
+                "test_failures"
+            ] += 1
+
+        record(
+            start,
+            result["status"] == "success",
         )
 
         return {
-            "agent": name,
-            "status": "error",
-            "output": "",
-            "message": str(exc),
-            "latency_seconds": round(
-                time.perf_counter()
-                - start,
-                3
-            ),
+            "status": result["status"],
+            "tests": result,
+            "executed": True,
+            "command": command,
+            "args": args,
+            "sandbox": EXECUTION_MODE,
         }
+
+    except ValueError as exc:
+
+        record(
+            start,
+            False,
+        )
+
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        )
+
+    except Exception as exc:
+
+        record(
+            start,
+            False,
+        )
+
+        logger.exception(
+            "Test execution failed."
+        )
+
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "error": "Test execution unavailable",
+                "message": str(exc),
+            },
+        )
+# ============================================================
+# ENGINEER AI BACKEND
+# MILESTONE 3
+# PART 3/5
+# ============================================================
 
 
 # ============================================================
@@ -685,16 +771,21 @@ async def run_agent(
 @app.get("/")
 async def root():
 
-    if os.path.exists(
-        "index.html"
-    ):
+    index_path = Path(
+        os.getenv(
+            "FRONTEND_INDEX",
+            "index.html",
+        )
+    )
+
+    if index_path.exists():
 
         return FileResponse(
-            "index.html"
+            index_path
         )
 
     return {
-        "name": "Engineer AI",
+        "name": APP_TITLE,
         "version": APP_VERSION,
         "status": "online",
     }
@@ -711,12 +802,11 @@ async def health():
         "status": "healthy",
         "service": APP_TITLE,
         "version": APP_VERSION,
-        "model": DEFAULT_MODEL,
         "provider": DEFAULT_PROVIDER,
-        "api_key_configured": bool(
-            os.getenv(
-                "GEMINI_API_KEY"
-            )
+        "model": DEFAULT_MODEL,
+        "execution_mode": EXECUTION_MODE,
+        "docker_available": bool(
+            shutil.which("docker")
         ),
     }
 
@@ -727,403 +817,240 @@ async def health():
 
 @app.post("/api/chat")
 async def chat(
-    request: ChatRequest
+    request: ChatRequest,
 ):
 
     start = time.perf_counter()
 
     try:
 
-        provider = (
-            request.provider
-            or DEFAULT_PROVIDER
-        ).lower()
-
-        if provider != "gemini":
-
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    f"Unsupported provider: "
-                    f"{provider}"
-                ),
-            )
-
-        response = await infer(
+        prompt = clamp_text(
             request.prompt,
-            CHAT_MAX_OUTPUT_TOKENS
+            MAX_PROMPT_CHARS,
+        )
+
+        output = await infer(
+            prompt,
+            CHAT_MAX_OUTPUT_TOKENS,
         )
 
         record(
             start,
-            True
+            True,
         )
 
         return {
             "status": "success",
-            "response": response,
-            "provider": "gemini",
+            "provider": request.provider,
             "model": DEFAULT_MODEL,
+            "response": output,
+            "output": output,
             "latency_seconds": round(
-                time.perf_counter()
-                - start,
-                3
+                time.perf_counter() - start,
+                3,
             ),
         }
-
-    except HTTPException:
-
-        record(
-            start,
-            False
-        )
-
-        raise
 
     except Exception as exc:
 
         record(
             start,
-            False
+            False,
         )
 
         logger.exception(
-            "Chat failed"
+            "Chat failed."
         )
 
         raise HTTPException(
             status_code=502,
             detail={
-                "error": (
-                    "AI engine request failed"
-                ),
+                "error": "Chat request failed",
                 "message": str(exc),
             },
         )
-         # ============================================================
-# MULTI-AGENT ENGINEERING WORKFLOW
+
+
+# ============================================================
+# STANDARD MULTI-AGENT
 # ============================================================
 
 @app.post("/api/agent/execute")
-async def multi_agent_endpoint(
-    request: MultiAgentRequest
+async def execute_multi_agent(
+    request: MultiAgentRequest,
 ):
 
     start = time.perf_counter()
-
-    analytics_data[
-        "agent_tasks_executed"
-    ] += 1
 
     try:
 
         task = request.get_task()
 
-        project_context = ""
+        analytics_data[
+            "agent_tasks_executed"
+        ] += 1
 
-        if request.project_context:
-
-            project_context = (
-                "\n\nPROJECT CONTEXT:\n"
-                + clamp_text(
-                    request.project_context,
-                    MAX_PROMPT_CHARS
-                )
-            )
-
-        # ----------------------------------------------------
-        # PLANNER
-        # ----------------------------------------------------
+        context = request.project_context or ""
 
         planner = await run_agent(
-
-            "Planner",
-
+            "Planner Agent",
             (
-                "You are the Planner Agent.\n\n"
-
-                "Deconstruct the engineering task "
-                "into a clear implementation plan.\n\n"
-
-                "Include:\n"
-                "- requirements\n"
-                "- assumptions\n"
-                "- architecture\n"
-                "- dependencies\n"
-                "- implementation steps\n"
-                "- risks\n"
-                "- validation strategy\n\n"
-
-                f"TASK:\n{task}"
-
-                f"{project_context}"
-            )
+                "Create a clear implementation plan for "
+                f"this task:\n{task}"
+            ),
+            context,
         )
-
-        # ----------------------------------------------------
-        # EXECUTOR
-        # ----------------------------------------------------
 
         executor = await run_agent(
-
-            "Executor",
-
+            "Executor Agent",
             (
-                "You are the Executor Agent.\n\n"
-
-                "Act as the implementation engineer.\n\n"
-
-                f"TASK:\n{task}\n\n"
-
-                "PLANNER OUTPUT:\n"
-                f"{planner['output']}\n\n"
-
-                "Provide the implementation, "
-                "code, architecture, technical "
-                "design, or engineering solution "
-                "required by the task.\n\n"
-
-                "Do not claim that code was executed."
-                f"{project_context}"
-            )
+                "Design the implementation for this task:\n"
+                f"{task}\n\n"
+                "Provide the important code changes and explain "
+                "how they should be integrated."
+            ),
+            context,
         )
 
-        # ----------------------------------------------------
-        # TESTER
-        # ----------------------------------------------------
+        tester = ""
+        security = ""
+
+        async def test_agent():
+
+            return await run_agent(
+                "Testing Agent",
+                (
+                    "Design comprehensive tests for:\n"
+                    f"{task}\n\n"
+                    "Include unit tests, integration tests, "
+                    "edge cases, invalid inputs, regression "
+                    "cases, and expected results."
+                ),
+                context,
+            )
+
+        async def security_agent():
+
+            return await run_agent(
+                "Security Agent",
+                (
+                    "Perform a static security review for:\n"
+                    f"{task}\n\n"
+                    "Check authentication, authorization, "
+                    "injection, secrets, unsafe input, "
+                    "resource abuse, configuration, and "
+                    "data leakage."
+                ),
+                context,
+            )
+
+        tasks = []
 
         if request.include_tests:
-
-            analytics_data[
-                "tests_generated"
-            ] += 1
-
-            tester_job = run_agent(
-
-                "Tester",
-
-                (
-                    "You are the Tester Agent.\n"
-
-                    "Create a rigorous testing strategy "
-                    "for the proposed implementation.\n\n"
-
-                    "Include:\n"
-                    "- unit tests\n"
-                    "- integration tests\n"
-                    "- edge cases\n"
-                    "- invalid inputs\n"
-                    "- regression cases\n"
-                    "- expected results\n\n"
-
-                    f"TASK:\n{task}\n\n"
-
-                    "IMPLEMENTATION:\n"
-                    f"{executor['output']}"
-                )
+            tasks.append(
+                test_agent()
             )
-
-        else:
-
-            tester_job = asyncio.sleep(
-
-                0,
-
-                result={
-                    "agent": "Tester",
-                    "status": "skipped",
-                    "output": "",
-                    "latency_seconds": 0.0,
-                }
-            )
-
-        # ----------------------------------------------------
-        # SECURITY
-        # ----------------------------------------------------
 
         if request.include_security_scan:
-
-            analytics_data[
-                "security_scans_completed"
-            ] += 1
-
-            security_job = run_agent(
-
-                "Security",
-
-                (
-                    "You are the Security Agent.\n"
-
-                    "Perform a static security review "
-                    "of the proposed implementation.\n\n"
-
-                    f"TASK:\n{task}\n\n"
-
-                    "IMPLEMENTATION:\n"
-                    f"{executor['output']}\n\n"
-
-                    "Look for:\n"
-                    "- injection risks\n"
-                    "- authentication problems\n"
-                    "- authorization problems\n"
-                    "- secret exposure\n"
-                    "- unsafe input handling\n"
-                    "- resource abuse\n"
-                    "- insecure configuration\n"
-                    "- data leakage\n\n"
-
-                    "Do not claim a live security scan."
-                )
+            tasks.append(
+                security_agent()
             )
 
-        else:
+        results = []
 
-            security_job = asyncio.sleep(
-
-                0,
-
-                result={
-                    "agent": "Security",
-                    "status": "skipped",
-                    "output": "",
-                    "latency_seconds": 0.0,
-                }
+        if tasks:
+            results = await asyncio.gather(
+                *tasks
             )
 
-        # Run tester and security concurrently
+        index = 0
 
-        tester, security = await asyncio.gather(
+        if request.include_tests:
+            tester = results[index]
+            index += 1
 
-            tester_job,
-            security_job
-        )
+        if request.include_security_scan:
+            security = results[index]
 
-        # ----------------------------------------------------
-        # DEBUGGER
-        # ----------------------------------------------------
-
-        debugger = {
-
-            "agent": "Debugger",
-
-            "status": "skipped",
-
-            "output": "",
-
-            "latency_seconds": 0.0,
-        }
+        debugger = ""
 
         if request.include_debugger:
 
-            analytics_data[
-                "debugger_runs"
-            ] += 1
-
             debugger = await run_agent(
-
-                "Debugger",
-
+                "Debugger Agent",
                 (
-                    "You are the Debugger Agent.\n\n"
-
-                    "Review the Planner, Executor, "
-                    "Tester, and Security outputs.\n\n"
-
+                    "Review the planner, implementation, "
+                    "tests, and security analysis for this task. "
+                    "Find inconsistencies, missing cases, "
+                    "likely bugs, and recommended fixes."
+                ),
+                (
                     f"TASK:\n{task}\n\n"
-
-                    "PLANNER:\n"
-                    f"{planner['output']}\n\n"
-
-                    "EXECUTOR:\n"
-                    f"{executor['output']}\n\n"
-
-                    "TESTER:\n"
-                    f"{tester['output']}\n\n"
-
-                    "SECURITY:\n"
-                    f"{security['output']}\n\n"
-
-                    "Find contradictions, bugs, "
-                    "missing requirements, test gaps, "
-                    "security problems, and incorrect "
-                    "assumptions.\n\n"
-
-                    "Give concrete fixes."
-                )
+                    f"PLAN:\n{planner}\n\n"
+                    f"IMPLEMENTATION:\n{executor}\n\n"
+                    f"TESTS:\n{tester}\n\n"
+                    f"SECURITY:\n{security}"
+                ),
             )
-
-        workflow = {
-
-            "task": task,
-
-            "planner": planner,
-
-            "executor": executor,
-
-            "tester": tester,
-
-            "security": security,
-
-            "debugger": debugger,
-        }
 
         record(
             start,
-            True
+            True,
         )
 
         return {
-
             "status": "success",
 
-            "workflow": workflow,
+            "workflow": {
+                "task": task,
+                "planner": planner,
+                "executor": executor,
+                "tester": tester,
+                "security": security,
+                "debugger": debugger,
+            },
 
             "agent_outputs": {
-
                 "plan": planner,
-
                 "implementation": executor,
-
                 "tests": tester,
-
                 "security_scan": security,
-
                 "debugger": debugger,
             },
 
             "latency_seconds": round(
-                time.perf_counter()
-                - start,
-                3
+                time.perf_counter() - start,
+                3,
             ),
         }
 
-    except HTTPException:
+    except ValueError as exc:
 
         record(
             start,
-            False
+            False,
         )
 
-        raise
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        )
 
     except Exception as exc:
 
         record(
             start,
-            False
+            False,
         )
 
         logger.exception(
-            "Multi-agent workflow failed"
+            "Multi-agent execution failed."
         )
 
         raise HTTPException(
             status_code=502,
             detail={
-                "error": (
-                    "Multi-agent workflow failed"
-                ),
+                "error": "Multi-agent execution failed",
                 "message": str(exc),
             },
         )
@@ -1135,35 +1062,21 @@ async def multi_agent_endpoint(
 
 @app.post("/api/code/review")
 async def code_review(
-    request: CodeReviewRequest
+    request: CodeReviewRequest,
 ):
 
     start = time.perf_counter()
 
     try:
 
-        language = (
-            request.language.strip()
-        )
-
-        code = clamp_text(
-            request.code_snippet,
-            MAX_CODE_CHARS
-        )
-
         prompt = (
-
             "You are Engineer AI Code Review Agent.\n\n"
-
-            f"LANGUAGE:\n{language}\n\n"
-
-            "Review this code carefully.\n\n"
-
+            f"LANGUAGE: {request.language}\n\n"
+            "Review the following code carefully.\n\n"
             f"CODE:\n"
-            f"```{language}\n"
-            f"{code}\n"
+            f"```{request.language}\n"
+            f"{request.code_snippet}\n"
             "```\n\n"
-
             "Analyze:\n"
             "1. Syntax errors\n"
             "2. Logic bugs\n"
@@ -1172,53 +1085,34 @@ async def code_review(
             "5. Performance problems\n"
             "6. Maintainability issues\n"
             "7. Edge cases\n\n"
-
             "For every important problem provide:\n"
             "- problem\n"
             "- root cause\n"
             "- corrected code\n"
             "- explanation\n\n"
-
             "Do not claim that the code was executed."
         )
 
         output = await infer(
             prompt,
-            REVIEW_MAX_OUTPUT_TOKENS
+            REVIEW_MAX_OUTPUT_TOKENS,
         )
 
         record(
             start,
-            True
+            True,
         )
 
         return {
-
             "status": "success",
-
             "review": {
-
-                "agent": "Code Reviewer",
-
-                "status": "success",
-
-                "language": language,
-
+                "language": request.language,
                 "output": output,
-
-                "executed": False,
             },
-
-            "output": output,
-
-            "response": output,
-
             "executed": False,
-
             "latency_seconds": round(
-                time.perf_counter()
-                - start,
-                3
+                time.perf_counter() - start,
+                3,
             ),
         }
 
@@ -1226,11 +1120,11 @@ async def code_review(
 
         record(
             start,
-            False
+            False,
         )
 
         logger.exception(
-            "Code review failed"
+            "Code review failed."
         )
 
         raise HTTPException(
@@ -1243,300 +1137,110 @@ async def code_review(
 
 
 # ============================================================
-# PROJECT FILE VALIDATION
-# ============================================================
-
-ALLOWED_PROJECT_SUFFIXES = {
-
-    ".py",
-    ".js",
-    ".jsx",
-    ".ts",
-    ".tsx",
-    ".html",
-    ".css",
-    ".json",
-    ".yaml",
-    ".yml",
-    ".md",
-    ".txt",
-    ".java",
-    ".cpp",
-    ".c",
-    ".h",
-    ".hpp",
-    ".go",
-    ".rs",
-    ".php",
-    ".rb",
-    ".swift",
-    ".kt",
-    ".sql",
-    ".sh",
-    ".xml",
-    ".vue",
-}
-
-
-def validate_project_files(
-    files: List[ProjectFile]
-) -> List[ProjectFile]:
-
-    if not files:
-
-        raise HTTPException(
-            status_code=400,
-            detail="No project files supplied."
-        )
-
-    validated = []
-
-    total_chars = 0
-
-    for file in files:
-
-        path = file.path.strip()
-
-        if not path:
-
-            raise HTTPException(
-                status_code=400,
-                detail="Project file path is empty."
-            )
-
-        if ".." in path:
-
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    f"Unsafe project path: {path}"
-                ),
-            )
-
-        extension = os.path.splitext(
-            path.lower()
-        )[1]
-
-        if (
-            extension
-            and extension not in ALLOWED_PROJECT_SUFFIXES
-        ):
-
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    f"Unsupported project file type: "
-                    f"{path}"
-                ),
-            )
-
-        if len(file.content) > MAX_FILE_SIZE:
-
-            raise HTTPException(
-                status_code=413,
-                detail=(
-                    f"Project file too large: "
-                    f"{path}"
-                ),
-            )
-
-        total_chars += len(
-            file.content
-        )
-
-        if total_chars > MAX_PROJECT_CONTEXT_CHARS:
-
-            raise HTTPException(
-                status_code=413,
-                detail=(
-                    "Combined project context is too large."
-                ),
-            )
-
-        validated.append(
-            ProjectFile(
-                path=path,
-                content=file.content
-            )
-        )
-
-    return validated
-
-
-# ============================================================
-# BUILD PROJECT CONTEXT
-# ============================================================
-
-def build_project_context(
-    files: List[ProjectFile]
-) -> str:
-
-    sections = []
-
-    total = 0
-
-    for file in files:
-
-        section = (
-            "\n"
-            "================================================\n"
-            f"FILE: {file.path}\n"
-            "================================================\n"
-            f"{file.content}\n"
-        )
-
-        remaining = (
-            MAX_PROJECT_CONTEXT_CHARS
-            - total
-        )
-
-        if remaining <= 0:
-            break
-
-        section = section[:remaining]
-
-        sections.append(
-            section
-        )
-
-        total += len(section)
-
-    return "".join(
-        sections
-    )
-
-
-# ============================================================
-# PROJECT PROMPT BUILDER
+# PROJECT PROMPT
 # ============================================================
 
 def make_project_prompt(
     agent_name: str,
     instruction: str,
-    context: str
+    context: str,
 ) -> str:
 
     return (
-
         f"You are the {agent_name}.\n\n"
-
-        "PROJECT CONTEXT:\n"
-
+        f"PROJECT CONTEXT:\n"
         f"{context}\n\n"
-
-        "YOUR TASK:\n"
-
+        f"YOUR TASK:\n"
         f"{instruction}\n\n"
-
         "IMPORTANT:\n"
-
         "Analyze the supplied project context only. "
-
         "Do not claim that code was executed unless "
         "the backend actually executed it."
     )
-     # ============================================================
-# PROJECT ANALYSIS
+
+
+# ============================================================
+# PROJECT ANALYZE
 # ============================================================
 
 @app.post("/api/project/analyze")
 async def project_analyze(
-    request: ProjectRequest
+    request: ProjectRequest,
 ):
 
     start = time.perf_counter()
 
     try:
 
-        files = validate_project_files(
+        validate_project_files(
             request.files
         )
 
         context = build_project_context(
-            files
+            request.files
         )
 
         analytics_data[
             "project_analysis_runs"
         ] += 1
 
-        prompt = make_project_prompt(
-
-            "Project Analysis Agent",
-
-            (
-                "Analyze the complete project.\n\n"
-
-                "Identify:\n"
-                "- project purpose\n"
-                "- major components\n"
-                "- files and responsibilities\n"
-                "- architecture\n"
-                "- important data flows\n"
-                "- APIs\n"
-                "- configuration\n"
-                "- dependencies\n"
-                "- risks\n"
-                "- technical debt\n"
-                "- improvement opportunities"
-            ),
-
-            context
-        )
-
         output = await infer(
-            prompt,
-            AGENT_MAX_OUTPUT_TOKENS
+            make_project_prompt(
+                "Project Analysis Agent",
+                (
+                    "Analyze the complete project. "
+                    "Explain its purpose, major components, "
+                    "file responsibilities, architecture, "
+                    "data flow, APIs, configuration, "
+                    "dependencies, risks, technical debt, "
+                    "and improvement opportunities."
+                ),
+                context,
+            ),
+            AGENT_MAX_OUTPUT_TOKENS,
         )
 
         record(
             start,
-            True
+            True,
         )
 
         return {
-
             "status": "success",
-
             "project": request.project_name,
-
-            "files_analyzed": len(files),
-
+            "files_analyzed": len(
+                request.files
+            ),
             "analysis": output,
-
             "latency_seconds": round(
-                time.perf_counter()
-                - start,
-                3
+                time.perf_counter() - start,
+                3,
             ),
         }
 
-    except HTTPException:
+    except ValueError as exc:
 
         record(
             start,
-            False
+            False,
         )
 
-        raise
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        )
 
     except Exception as exc:
 
         record(
             start,
-            False
-        )
-
-        logger.exception(
-            "Project analysis failed"
+            False,
         )
 
         raise HTTPException(
             status_code=502,
             detail={
-                "error": (
-                    "Project analysis failed"
-                ),
+                "error": "Project analysis failed",
                 "message": str(exc),
             },
         )
@@ -1548,100 +1252,66 @@ async def project_analyze(
 
 @app.post("/api/project/architecture")
 async def project_architecture(
-    request: ProjectRequest
+    request: ProjectRequest,
 ):
 
     start = time.perf_counter()
 
     try:
 
-        files = validate_project_files(
+        validate_project_files(
             request.files
         )
 
         context = build_project_context(
-            files
+            request.files
         )
 
         analytics_data[
             "architecture_runs"
         ] += 1
 
-        prompt = make_project_prompt(
-
-            "Architecture Agent",
-
-            (
-                "Analyze the project's architecture.\n\n"
-
-                "Describe:\n"
-                "- major components\n"
-                "- component relationships\n"
-                "- data flow\n"
-                "- APIs\n"
-                "- storage\n"
-                "- external services\n"
-                "- deployment structure\n"
-                "- architectural risks\n"
-                "- recommended improvements\n\n"
-
-                "When useful, provide a Mermaid diagram."
-            ),
-
-            context
-        )
-
         output = await infer(
-            prompt,
-            AGENT_MAX_OUTPUT_TOKENS
+            make_project_prompt(
+                "Architecture Agent",
+                (
+                    "Describe the project's architecture. "
+                    "Identify components, relationships, "
+                    "data flow, APIs, storage, external services, "
+                    "deployment architecture, risks, and "
+                    "recommended improvements. "
+                    "Use Mermaid when useful."
+                ),
+                context,
+            ),
+            AGENT_MAX_OUTPUT_TOKENS,
         )
 
         record(
             start,
-            True
+            True,
         )
 
         return {
-
             "status": "success",
-
-            "project": request.project_name,
-
             "architecture": output,
-
             "latency_seconds": round(
-                time.perf_counter()
-                - start,
-                3
+                time.perf_counter() - start,
+                3,
             ),
         }
-
-    except HTTPException:
-
-        record(
-            start,
-            False
-        )
-
-        raise
 
     except Exception as exc:
 
         record(
             start,
-            False
-        )
-
-        logger.exception(
-            "Architecture analysis failed"
+            False,
         )
 
         raise HTTPException(
             status_code=502,
             detail={
-                "error": (
-                    "Architecture analysis failed"
-                ),
+                "error": "Architecture analysis failed",
                 "message": str(exc),
             },
         )
@@ -1653,321 +1323,216 @@ async def project_architecture(
 
 @app.post("/api/project/dependencies")
 async def project_dependencies(
-    request: ProjectRequest
+    request: ProjectRequest,
 ):
 
     start = time.perf_counter()
 
     try:
 
-        files = validate_project_files(
+        validate_project_files(
             request.files
         )
 
         context = build_project_context(
-            files
+            request.files
         )
 
         analytics_data[
             "dependency_analysis_runs"
         ] += 1
 
-        prompt = make_project_prompt(
-
-            "Dependency Analysis Agent",
-
-            (
-                "Analyze project dependencies.\n\n"
-
-                "Identify:\n"
-                "- direct dependencies\n"
-                "- framework dependencies\n"
-                "- runtime dependencies\n"
-                "- development dependencies\n"
-                "- external services\n"
-                "- version constraints when visible\n"
-                "- dependency risks\n"
-                "- potentially unnecessary dependencies\n"
-                "- upgrade recommendations\n"
-                "- compatibility concerns\n\n"
-
-                "Do not invent versions that are not "
-                "visible in the project."
-            ),
-
-            context
-        )
-
         output = await infer(
-            prompt,
-            AGENT_MAX_OUTPUT_TOKENS
+            make_project_prompt(
+                "Dependency Analysis Agent",
+                (
+                    "Identify direct, framework, runtime, "
+                    "and development dependencies. "
+                    "Identify external services, visible versions, "
+                    "dependency risks, unnecessary dependencies, "
+                    "upgrade opportunities, and compatibility issues. "
+                    "Never invent a version that is not visible."
+                ),
+                context,
+            ),
+            AGENT_MAX_OUTPUT_TOKENS,
         )
 
         record(
             start,
-            True
+            True,
         )
 
         return {
-
             "status": "success",
-
-            "project": request.project_name,
-
             "dependencies": output,
-
             "latency_seconds": round(
-                time.perf_counter()
-                - start,
-                3
+                time.perf_counter() - start,
+                3,
             ),
         }
-
-    except HTTPException:
-
-        record(
-            start,
-            False
-        )
-
-        raise
 
     except Exception as exc:
 
         record(
             start,
-            False
-        )
-
-        logger.exception(
-            "Dependency analysis failed"
+            False,
         )
 
         raise HTTPException(
             status_code=502,
             detail={
-                "error": (
-                    "Dependency analysis failed"
-                ),
+                "error": "Dependency analysis failed",
                 "message": str(exc),
             },
         )
 
 
 # ============================================================
-# PROJECT DEBUGGING
+# PROJECT DEBUG
 # ============================================================
 
 @app.post("/api/project/debug")
 async def project_debug(
-    request: ProjectRequest
+    request: ProjectRequest,
 ):
 
     start = time.perf_counter()
 
     try:
 
-        files = validate_project_files(
+        validate_project_files(
             request.files
         )
 
         context = build_project_context(
-            files
+            request.files
         )
 
         analytics_data[
             "debugger_runs"
         ] += 1
 
-        prompt = make_project_prompt(
-
-            "Project Debugger",
-
-            (
-                "Debug this project statically.\n\n"
-
-                "Find:\n"
-                "- syntax problems\n"
-                "- logic bugs\n"
-                "- broken assumptions\n"
-                "- incorrect data flow\n"
-                "- error handling problems\n"
-                "- configuration problems\n"
-                "- integration issues\n"
-                "- likely runtime failures\n\n"
-
-                "For every important issue explain:\n"
-                "- root cause\n"
-                "- affected file\n"
-                "- concrete fix\n"
-                "- possible regression risk"
-            ),
-
-            context
-        )
-
         output = await infer(
-            prompt,
-            AGENT_MAX_OUTPUT_TOKENS
+            make_project_prompt(
+                "Project Debugger Agent",
+                (
+                    "Perform static debugging. "
+                    "Find syntax issues, logic bugs, "
+                    "bad assumptions, data-flow problems, "
+                    "error-handling problems, configuration "
+                    "issues, integration problems, and likely "
+                    "runtime failures. Give root causes, fixes, "
+                    "and regression risks."
+                ),
+                context,
+            ),
+            AGENT_MAX_OUTPUT_TOKENS,
         )
 
         record(
             start,
-            True
+            True,
         )
 
         return {
-
             "status": "success",
-
-            "project": request.project_name,
-
             "debug": output,
-
             "executed": False,
-
             "latency_seconds": round(
-                time.perf_counter()
-                - start,
-                3
+                time.perf_counter() - start,
+                3,
             ),
         }
-
-    except HTTPException:
-
-        record(
-            start,
-            False
-        )
-
-        raise
 
     except Exception as exc:
 
         record(
             start,
-            False
-        )
-
-        logger.exception(
-            "Project debugging failed"
+            False,
         )
 
         raise HTTPException(
             status_code=502,
             detail={
-                "error": (
-                    "Project debugging failed"
-                ),
+                "error": "Project debugging failed",
                 "message": str(exc),
             },
         )
+# ============================================================
+# ENGINEER AI BACKEND
+# MILESTONE 3
+# PART 4/5
+# ============================================================
 
 
 # ============================================================
-# PROJECT TEST GENERATION
+# PROJECT TEST GENERATOR
 # ============================================================
 
 @app.post("/api/project/tests")
 async def project_tests(
-    request: ProjectRequest
+    request: ProjectRequest,
 ):
 
     start = time.perf_counter()
 
     try:
 
-        files = validate_project_files(
+        validate_project_files(
             request.files
         )
 
         context = build_project_context(
-            files
+            request.files
         )
 
         analytics_data[
             "tests_generated"
         ] += 1
 
-        prompt = make_project_prompt(
-
-            "Project Test Agent",
-
-            (
-                "Generate a comprehensive project "
-                "testing strategy.\n\n"
-
-                "Create appropriate:\n"
-                "- unit tests\n"
-                "- integration tests\n"
-                "- edge-case tests\n"
-                "- invalid-input tests\n"
-                "- regression tests\n"
-                "- important assertions\n\n"
-
-                "Identify which files each test should target.\n"
-
-                "Provide example test code when practical.\n"
-
-                "Do not claim that tests were executed."
-            ),
-
-            context
-        )
-
         output = await infer(
-            prompt,
-            AGENT_MAX_OUTPUT_TOKENS
+            make_project_prompt(
+                "Project Testing Agent",
+                (
+                    "Generate a comprehensive test strategy. "
+                    "Include unit tests, integration tests, "
+                    "edge cases, invalid inputs, regression "
+                    "cases, assertions, target files, and "
+                    "example test code. "
+                    "Do not claim that tests were executed."
+                ),
+                context,
+            ),
+            AGENT_MAX_OUTPUT_TOKENS,
         )
 
         record(
             start,
-            True
+            True,
         )
 
         return {
-
             "status": "success",
-
-            "project": request.project_name,
-
             "tests": output,
-
             "executed": False,
-
             "latency_seconds": round(
-                time.perf_counter()
-                - start,
-                3
+                time.perf_counter() - start,
+                3,
             ),
         }
-
-    except HTTPException:
-
-        record(
-            start,
-            False
-        )
-
-        raise
 
     except Exception as exc:
 
         record(
             start,
-            False
-        )
-
-        logger.exception(
-            "Project test generation failed"
+            False,
         )
 
         raise HTTPException(
             status_code=502,
             detail={
-                "error": (
-                    "Project test generation failed"
-                ),
+                "error": "Test generation failed",
                 "message": str(exc),
             },
         )
@@ -1979,611 +1544,348 @@ async def project_tests(
 
 @app.post("/api/project/security")
 async def project_security(
-    request: ProjectRequest
+    request: ProjectRequest,
 ):
 
     start = time.perf_counter()
 
     try:
 
-        files = validate_project_files(
+        validate_project_files(
             request.files
         )
 
         context = build_project_context(
-            files
+            request.files
         )
 
         analytics_data[
             "security_scans_completed"
         ] += 1
 
-        prompt = make_project_prompt(
-
-            "Project Security Agent",
-
-            (
-                "Perform a static security review "
-                "of the entire project.\n\n"
-
-                "Look for:\n"
-                "- authentication weaknesses\n"
-                "- authorization issues\n"
-                "- injection risks\n"
-                "- secrets exposure\n"
-                "- unsafe file operations\n"
-                "- insecure configuration\n"
-                "- dependency risks\n"
-                "- data leakage\n"
-                "- resource abuse\n"
-                "- input validation problems\n"
-                "- logging problems\n"
-                "- other relevant vulnerabilities\n\n"
-
-                "For each important issue provide:\n"
-                "- severity\n"
-                "- root cause\n"
-                "- affected file\n"
-                "- mitigation\n\n"
-
-                "Do not claim that a live security scan occurred."
-            ),
-
-            context
-        )
-
         output = await infer(
-            prompt,
-            AGENT_MAX_OUTPUT_TOKENS
+            make_project_prompt(
+                "Project Security Agent",
+                (
+                    "Perform a static security review. "
+                    "Check authentication, authorization, "
+                    "injection, secrets, file operations, "
+                    "configuration, dependencies, data leakage, "
+                    "resource abuse, input validation, logging, "
+                    "and other vulnerabilities. "
+                    "For each issue provide severity, root cause, "
+                    "affected file, and mitigation. "
+                    "Do not claim a live security scan."
+                ),
+                context,
+            ),
+            AGENT_MAX_OUTPUT_TOKENS,
         )
 
         record(
             start,
-            True
+            True,
         )
 
         return {
-
             "status": "success",
-
-            "project": request.project_name,
-
             "security": output,
-
             "executed": False,
-
             "latency_seconds": round(
-                time.perf_counter()
-                - start,
-                3
+                time.perf_counter() - start,
+                3,
             ),
         }
-
-    except HTTPException:
-
-        record(
-            start,
-            False
-        )
-
-        raise
 
     except Exception as exc:
 
         record(
             start,
-            False
-        )
-
-        logger.exception(
-            "Project security analysis failed"
+            False,
         )
 
         raise HTTPException(
             status_code=502,
             detail={
-                "error": (
-                    "Project security analysis failed"
-                ),
+                "error": "Security analysis failed",
                 "message": str(exc),
             },
         )
-      # ============================================================
+
+
+# ============================================================
 # PROJECT PERFORMANCE
 # ============================================================
 
 @app.post("/api/project/performance")
 async def project_performance(
-    request: ProjectRequest
+    request: ProjectRequest,
 ):
 
     start = time.perf_counter()
 
     try:
 
-        files = validate_project_files(
+        validate_project_files(
             request.files
         )
 
         context = build_project_context(
-            files
+            request.files
         )
 
         analytics_data[
             "performance_analyses"
         ] += 1
 
-        prompt = make_project_prompt(
-
-            "Project Performance Agent",
-
-            (
-                "Perform a static performance analysis "
-                "of the entire project.\n\n"
-
-                "Look for:\n"
-                "- slow algorithms\n"
-                "- unnecessary repeated work\n"
-                "- inefficient loops\n"
-                "- excessive memory usage\n"
-                "- blocking operations\n"
-                "- unnecessary network requests\n"
-                "- database inefficiencies\n"
-                "- caching opportunities\n"
-                "- frontend performance issues\n"
-                "- scalability bottlenecks\n\n"
-
-                "For each important issue provide:\n"
-                "- affected file\n"
-                "- likely impact\n"
-                "- root cause\n"
-                "- recommended optimization\n\n"
-
-                "Do not claim that performance was "
-                "benchmarked or measured."
-            ),
-
-            context
-        )
-
         output = await infer(
-            prompt,
-            AGENT_MAX_OUTPUT_TOKENS
+            make_project_prompt(
+                "Project Performance Agent",
+                (
+                    "Analyze performance. "
+                    "Check slow algorithms, repeated work, "
+                    "inefficient loops, memory usage, blocking "
+                    "operations, network requests, database "
+                    "inefficiencies, caching, frontend performance, "
+                    "and scalability. "
+                    "Give practical optimizations."
+                ),
+                context,
+            ),
+            AGENT_MAX_OUTPUT_TOKENS,
         )
 
         record(
             start,
-            True
+            True,
         )
 
         return {
-
             "status": "success",
-
-            "project": request.project_name,
-
             "performance": output,
-
             "executed": False,
-
             "latency_seconds": round(
-                time.perf_counter()
-                - start,
-                3
+                time.perf_counter() - start,
+                3,
             ),
         }
-
-    except HTTPException:
-
-        record(
-            start,
-            False
-        )
-
-        raise
 
     except Exception as exc:
 
         record(
             start,
-            False
-        )
-
-        logger.exception(
-            "Project performance analysis failed"
+            False,
         )
 
         raise HTTPException(
             status_code=502,
             detail={
-                "error": (
-                    "Project performance analysis failed"
-                ),
+                "error": "Performance analysis failed",
                 "message": str(exc),
             },
         )
 
 
 # ============================================================
-# FULL PROJECT AGENT
+# PROJECT MULTI-AGENT
 # ============================================================
 
 @app.post("/api/project/agent")
 async def project_agent(
-    request: ProjectAgentRequest
+    request: ProjectAgentRequest,
 ):
 
     start = time.perf_counter()
 
     try:
 
-        files = validate_project_files(
+        validate_project_files(
             request.files
         )
 
         context = build_project_context(
-            files
+            request.files
         )
 
         analytics_data[
             "agent_tasks_executed"
         ] += 1
 
-        # ----------------------------------------------------
-        # PLANNER
-        # ----------------------------------------------------
-
-        planner = await run_agent(
-
-            "Project Planner",
-
+        planner = await infer(
             make_project_prompt(
-
-                "Project Planner",
-
+                "Project Planner Agent",
                 (
-                    f"USER TASK:\n"
+                    f"Plan how to accomplish this task:\n"
                     f"{request.task}\n\n"
-
-                    "Create a detailed implementation plan.\n\n"
-
-                    "Include:\n"
-                    "- requirements\n"
-                    "- affected files\n"
-                    "- implementation steps\n"
-                    "- dependencies\n"
-                    "- risks\n"
-                    "- validation strategy\n"
-                    "- rollback considerations\n\n"
-
-                    "Do not write the entire implementation yet."
+                    "Identify affected files, architecture "
+                    "changes, implementation steps, risks, "
+                    "and verification steps."
                 ),
-
-                context
-            )
+                context,
+            ),
+            AGENT_MAX_OUTPUT_TOKENS,
         )
 
-        # ----------------------------------------------------
-        # EXECUTOR
-        # ----------------------------------------------------
-
-        executor = await run_agent(
-
-            "Project Executor",
-
+        executor = await infer(
             make_project_prompt(
-
-                "Project Executor",
-
+                "Project Executor Agent",
                 (
-                    f"USER TASK:\n"
+                    f"Design the actual implementation for:\n"
                     f"{request.task}\n\n"
-
-                    "PLANNER OUTPUT:\n"
-                    f"{planner['output']}\n\n"
-
-                    "Design the implementation required "
-                    "to complete the task.\n\n"
-
-                    "Provide:\n"
-                    "- files that should change\n"
-                    "- exact implementation approach\n"
-                    "- important code changes\n"
-                    "- configuration changes\n"
-                    "- integration considerations\n\n"
-
-                    "Do not claim that files were modified "
-                    "unless the backend actually modified them."
+                    "Provide precise code changes and explain "
+                    "which files should be modified."
                 ),
-
-                context
-            )
+                (
+                    f"{context}\n\n"
+                    f"PLANNER OUTPUT:\n{planner}"
+                ),
+            ),
+            AGENT_MAX_OUTPUT_TOKENS,
         )
 
-        # ----------------------------------------------------
-        # TESTER
-        # ----------------------------------------------------
+        async def project_test():
+
+            return await infer(
+                make_project_prompt(
+                    "Project Tester Agent",
+                    (
+                        "Design tests for the requested change. "
+                        "Cover normal behavior, edge cases, "
+                        "invalid inputs, and regression cases."
+                    ),
+                    context,
+                ),
+                AGENT_MAX_OUTPUT_TOKENS,
+            )
+
+        async def project_security():
+
+            return await infer(
+                make_project_prompt(
+                    "Project Security Agent",
+                    (
+                        "Review the requested change for "
+                        "security problems and give mitigations."
+                    ),
+                    context,
+                ),
+                AGENT_MAX_OUTPUT_TOKENS,
+            )
+
+        async def project_performance():
+
+            return await infer(
+                make_project_prompt(
+                    "Project Performance Agent",
+                    (
+                        "Review the requested change for "
+                        "performance and scalability problems."
+                    ),
+                    context,
+                ),
+                AGENT_MAX_OUTPUT_TOKENS,
+            )
+
+        parallel_tasks = []
+        labels = []
 
         if request.include_tests:
-
-            analytics_data[
-                "tests_generated"
-            ] += 1
-
-            tester_job = run_agent(
-
-                "Project Tester",
-
-                make_project_prompt(
-
-                    "Project Tester",
-
-                    (
-                        f"USER TASK:\n"
-                        f"{request.task}\n\n"
-
-                        "PROPOSED IMPLEMENTATION:\n"
-                        f"{executor['output']}\n\n"
-
-                        "Create a comprehensive test strategy.\n\n"
-
-                        "Include:\n"
-                        "- unit tests\n"
-                        "- integration tests\n"
-                        "- edge cases\n"
-                        "- invalid inputs\n"
-                        "- regression cases\n"
-                        "- expected results\n"
-                        "- important assertions"
-                    ),
-
-                    context
-                )
+            parallel_tasks.append(
+                project_test()
             )
-
-        else:
-
-            tester_job = asyncio.sleep(
-
-                0,
-
-                result={
-                    "agent": "Project Tester",
-                    "status": "skipped",
-                    "output": "",
-                    "latency_seconds": 0.0,
-                }
-            )
-
-        # ----------------------------------------------------
-        # SECURITY
-        # ----------------------------------------------------
+            labels.append("tester")
 
         if request.include_security:
-
-            analytics_data[
-                "security_scans_completed"
-            ] += 1
-
-            security_job = run_agent(
-
-                "Project Security Agent",
-
-                make_project_prompt(
-
-                    "Project Security Agent",
-
-                    (
-                        f"USER TASK:\n"
-                        f"{request.task}\n\n"
-
-                        "PROPOSED IMPLEMENTATION:\n"
-                        f"{executor['output']}\n\n"
-
-                        "Perform a static security review.\n\n"
-
-                        "Look for:\n"
-                        "- injection risks\n"
-                        "- authentication weaknesses\n"
-                        "- authorization problems\n"
-                        "- secret exposure\n"
-                        "- unsafe input handling\n"
-                        "- insecure configuration\n"
-                        "- data leakage\n"
-                        "- resource abuse\n\n"
-
-                        "Do not claim a live security scan."
-                    ),
-
-                    context
-                )
+            parallel_tasks.append(
+                project_security()
             )
-
-        else:
-
-            security_job = asyncio.sleep(
-
-                0,
-
-                result={
-                    "agent": "Project Security Agent",
-                    "status": "skipped",
-                    "output": "",
-                    "latency_seconds": 0.0,
-                }
-            )
-
-        # ----------------------------------------------------
-        # PERFORMANCE
-        # ----------------------------------------------------
+            labels.append("security")
 
         if request.include_performance:
+            parallel_tasks.append(
+                project_performance()
+            )
+            labels.append("performance")
 
-            analytics_data[
-                "performance_analyses"
-            ] += 1
+        parallel_results = []
 
-            performance_job = run_agent(
+        if parallel_tasks:
 
-                "Project Performance Agent",
-
-                make_project_prompt(
-
-                    "Project Performance Agent",
-
-                    (
-                        f"USER TASK:\n"
-                        f"{request.task}\n\n"
-
-                        "PROPOSED IMPLEMENTATION:\n"
-                        f"{executor['output']}\n\n"
-
-                        "Perform a static performance review.\n\n"
-
-                        "Look for:\n"
-                        "- inefficient algorithms\n"
-                        "- repeated work\n"
-                        "- memory issues\n"
-                        "- blocking operations\n"
-                        "- unnecessary network calls\n"
-                        "- scalability problems\n"
-                        "- caching opportunities"
-                    ),
-
-                    context
-                )
+            parallel_results = await asyncio.gather(
+                *parallel_tasks
             )
 
-        else:
+        tester = ""
+        security = ""
+        performance = ""
 
-            performance_job = asyncio.sleep(
+        for label, result in zip(
+            labels,
+            parallel_results,
+        ):
 
-                0,
+            if label == "tester":
+                tester = result
 
-                result={
-                    "agent": "Project Performance Agent",
-                    "status": "skipped",
-                    "output": "",
-                    "latency_seconds": 0.0,
-                }
-            )
+            elif label == "security":
+                security = result
 
-        # Run analysis agents concurrently
+            elif label == "performance":
+                performance = result
 
-        tester, security, performance = (
-            await asyncio.gather(
-
-                tester_job,
-                security_job,
-                performance_job
-            )
-        )
-
-        # ----------------------------------------------------
-        # DEBUGGER
-        # ----------------------------------------------------
-
-        analytics_data[
-            "debugger_runs"
-        ] += 1
-
-        debugger = await run_agent(
-
-            "Project Debugger",
-
+        debugger = await infer(
             make_project_prompt(
-
-                "Project Debugger",
-
+                "Project Debugger Agent",
                 (
-                    f"USER TASK:\n"
-                    f"{request.task}\n\n"
-
-                    "PLANNER:\n"
-                    f"{planner['output']}\n\n"
-
-                    "EXECUTOR:\n"
-                    f"{executor['output']}\n\n"
-
-                    "TESTER:\n"
-                    f"{tester['output']}\n\n"
-
-                    "SECURITY:\n"
-                    f"{security['output']}\n\n"
-
-                    "PERFORMANCE:\n"
-                    f"{performance['output']}\n\n"
-
-                    "Review the complete proposed workflow.\n\n"
-
-                    "Identify:\n"
-                    "- contradictions\n"
-                    "- implementation bugs\n"
-                    "- missing requirements\n"
-                    "- test gaps\n"
-                    "- security problems\n"
-                    "- performance problems\n"
-                    "- incorrect assumptions\n\n"
-
-                    "Give concrete fixes and a final "
-                    "implementation checklist."
+                    "Review all agent outputs. "
+                    "Find contradictions, missing implementation "
+                    "steps, bugs, security risks, test gaps, and "
+                    "performance concerns. Give a final correction "
+                    "plan."
                 ),
-
-                context
-            )
+                (
+                    f"TASK:\n{request.task}\n\n"
+                    f"PLANNER:\n{planner}\n\n"
+                    f"EXECUTOR:\n{executor}\n\n"
+                    f"TESTER:\n{tester}\n\n"
+                    f"SECURITY:\n{security}\n\n"
+                    f"PERFORMANCE:\n{performance}"
+                ),
+            ),
+            AGENT_MAX_OUTPUT_TOKENS,
         )
-
-        workflow = {
-
-            "task": request.task,
-
-            "project": request.project_name,
-
-            "planner": planner,
-
-            "executor": executor,
-
-            "tester": tester,
-
-            "security": security,
-
-            "performance": performance,
-
-            "debugger": debugger,
-        }
 
         record(
             start,
-            True
+            True,
         )
 
         return {
-
             "status": "success",
-
             "project": request.project_name,
 
-            "workflow": workflow,
+            "workflow": {
+                "task": request.task,
+                "project": request.project_name,
+                "planner": planner,
+                "executor": executor,
+                "tester": tester,
+                "security": security,
+                "performance": performance,
+                "debugger": debugger,
+            },
 
             "agent_outputs": {
-
                 "plan": planner,
-
                 "implementation": executor,
-
                 "tests": tester,
-
                 "security_scan": security,
-
                 "performance": performance,
-
                 "debugger": debugger,
             },
 
             "execution": {
-
                 "status": "not_executed",
-
                 "message": (
                     "The project was analyzed statically. "
                     "No project code was executed."
@@ -2591,38 +1893,482 @@ async def project_agent(
             },
 
             "latency_seconds": round(
-                time.perf_counter()
-                - start,
-                3
+                time.perf_counter() - start,
+                3,
             ),
         }
-
-    except HTTPException:
-
-        record(
-            start,
-            False
-        )
-
-        raise
 
     except Exception as exc:
 
         record(
             start,
-            False
+            False,
         )
 
         logger.exception(
-            "Full project agent failed"
+            "Project agent failed."
         )
 
         raise HTTPException(
             status_code=502,
             detail={
-                "error": (
-                    "Full project agent failed"
+                "error": "Project agent failed",
+                "message": str(exc),
+            },
+        )
+
+
+# ============================================================
+# AUTO-FIX JSON PARSER
+# ============================================================
+
+def parse_json_response(
+    text: str,
+) -> Dict[str, Any]:
+
+    text = (text or "").strip()
+
+    if text.startswith("```"):
+        lines = text.splitlines()
+
+        if lines:
+            lines = lines[1:]
+
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+
+        text = "\n".join(lines).strip()
+
+    try:
+
+        return json.loads(
+            text
+        )
+
+    except json.JSONDecodeError:
+
+        start = text.find("{")
+        end = text.rfind("}")
+
+        if start >= 0 and end > start:
+
+            return json.loads(
+                text[start:end + 1]
+            )
+
+        raise
+
+
+def validate_changed_files(
+    changes: List[Dict[str, Any]],
+) -> None:
+
+    if len(changes) > MAX_EXECUTION_FILES:
+        raise ValueError(
+            "AI returned too many changed files."
+        )
+
+    total = 0
+
+    for change in changes:
+
+        if not isinstance(change, dict):
+            raise ValueError(
+                "Invalid change object."
+            )
+
+        path = safe_relative_path(
+            str(change.get("path", ""))
+        )
+
+        content = change.get(
+            "content"
+        )
+
+        if not isinstance(
+            content,
+            str,
+        ):
+            raise ValueError(
+                f"Invalid content for {path}."
+            )
+
+        if len(content) > MAX_EXECUTION_FILE_SIZE:
+            raise ValueError(
+                f"Changed file is too large: {path}"
+            )
+
+        total += len(content)
+
+    if total > MAX_EXECUTION_PROJECT_SIZE:
+        raise ValueError(
+            "AI-generated changes are too large."
+        )
+
+
+def apply_changes(
+    files: List[ExecutionFile],
+    changes: List[Dict[str, Any]],
+) -> List[ExecutionFile]:
+
+    validate_changed_files(
+        changes
+    )
+
+    mapping = {
+        safe_relative_path(item.path): item.content
+        for item in files
+    }
+
+    for change in changes:
+
+        path = safe_relative_path(
+            str(change["path"])
+        )
+
+        mapping[path] = change["content"]
+
+    return [
+        ExecutionFile(
+            path=path,
+            content=content,
+        )
+        for path, content in mapping.items()
+    ]
+
+
+# ============================================================
+# AUTO-FIX AI
+# ============================================================
+
+async def generate_auto_fix(
+    task: str,
+    language: str,
+    files: List[ExecutionFile],
+    test_result: Dict[str, Any],
+) -> Dict[str, Any]:
+
+    context = build_execution_context(
+        files
+    )
+
+    prompt = (
+        "You are Engineer AI Auto-Fix Agent.\n\n"
+
+        "Your job is to diagnose the failed execution/test "
+        "and return only the files that need to change.\n\n"
+
+        f"TASK:\n{task}\n\n"
+
+        f"LANGUAGE:\n{language}\n\n"
+
+        f"PROJECT:\n{context}\n\n"
+
+        "EXECUTION RESULT:\n"
+        f"{json.dumps(test_result, indent=2)}\n\n"
+
+        "Rules:\n"
+        "1. Find the most likely root cause.\n"
+        "2. Fix the actual problem rather than hiding the failure.\n"
+        "3. Preserve existing behavior where possible.\n"
+        "4. Do not invent files unnecessarily.\n"
+        "5. Return complete contents for changed files.\n"
+        "6. Return valid JSON only.\n\n"
+
+        "Required JSON format:\n"
+        "{\n"
+        '  "diagnosis": "root cause",\n'
+        '  "summary": "what was fixed",\n'
+        '  "changes": [\n'
+        "    {\n"
+        '      "path": "file.py",\n'
+        '      "content": "complete file content"\n'
+        "    }\n"
+        "  ]\n"
+        "}\n"
+    )
+
+    raw = await infer(
+        prompt,
+        AUTO_FIX_MAX_OUTPUT_TOKENS,
+        json_mode=True,
+    )
+
+    return parse_json_response(
+        raw
+    )
+
+
+# ============================================================
+# AUTO-FIX LOOP
+# ============================================================
+
+async def run_auto_fix_loop(
+    request: AutoFixRequest,
+) -> Dict[str, Any]:
+
+    start = time.perf_counter()
+
+    analytics_data[
+        "auto_fix_runs"
+    ] += 1
+
+    current_files = list(
+        request.files
+    )
+
+    selected = default_test_command(
+        request.language
+    )
+
+    command = (
+        request.test_command
+        or selected["command"]
+    )
+
+    args = (
+        request.test_args
+        if request.test_args
+        else selected["args"]
+    )
+
+    history = []
+
+    for cycle in range(
+        1,
+        request.max_cycles + 1,
+    ):
+
+        test_result = await execute_files(
+            files=current_files,
+            command=command,
+            args=args,
+            timeout_seconds=request.timeout_seconds,
+            language=request.language,
+        )
+
+        history.append({
+            "cycle": cycle,
+            "execution": test_result,
+        })
+
+        if test_result["status"] == "success":
+
+            latency = (
+                time.perf_counter()
+                - start
+            )
+
+            analytics_data[
+                "total_auto_fix_latency_seconds"
+            ] += latency
+
+            analytics_data[
+                "auto_fix_successes"
+            ] += 1
+
+            return {
+                "status": "success",
+                "message": (
+                    "Tests passed successfully."
                 ),
+                "cycles": cycle,
+                "files": [
+                    item.model_dump()
+                    for item in current_files
+                ],
+                "history": history,
+                "execution": test_result,
+                "fixed": cycle > 1,
+                "latency_seconds": round(
+                    latency,
+                    3,
+                ),
+            }
+
+        fix_result = await generate_auto_fix(
+            task=request.task,
+            language=request.language,
+            files=current_files,
+            test_result=test_result,
+        )
+
+        changes = fix_result.get(
+            "changes",
+            [],
+        )
+
+        if not changes:
+
+            latency = (
+                time.perf_counter()
+                - start
+            )
+
+            analytics_data[
+                "total_auto_fix_latency_seconds"
+            ] += latency
+
+            analytics_data[
+                "auto_fix_failures"
+            ] += 1
+
+            return {
+                "status": "failed",
+                "message": (
+                    "The AI could not produce a safe file change "
+                    "for the failing test."
+                ),
+                "cycles": cycle,
+                "diagnosis": fix_result.get(
+                    "diagnosis",
+                    "",
+                ),
+                "summary": fix_result.get(
+                    "summary",
+                    "",
+                ),
+                "files": [
+                    item.model_dump()
+                    for item in current_files
+                ],
+                "history": history,
+                "fixed": False,
+                "latency_seconds": round(
+                    latency,
+                    3,
+                ),
+            }
+
+        current_files = apply_changes(
+            current_files,
+            changes,
+        )
+
+        history[-1]["fix"] = {
+            "diagnosis": fix_result.get(
+                "diagnosis",
+                "",
+            ),
+            "summary": fix_result.get(
+                "summary",
+                "",
+            ),
+            "changed_files": [
+                safe_relative_path(
+                    str(item["path"])
+                )
+                for item in changes
+            ],
+        }
+
+    final_result = await execute_files(
+        files=current_files,
+        command=command,
+        args=args,
+        timeout_seconds=request.timeout_seconds,
+        language=request.language,
+    )
+
+    latency = (
+        time.perf_counter()
+        - start
+    )
+
+    analytics_data[
+        "total_auto_fix_latency_seconds"
+    ] += latency
+
+    if final_result["status"] == "success":
+
+                analytics_data[
+            "auto_fix_successes"
+        ] += 1
+
+        status = "success"
+
+    else:
+
+        analytics_data[
+            "auto_fix_failures"
+        ] += 1
+
+        status = "failed"
+
+    return {
+        "status": status,
+        "message": (
+            "Maximum auto-fix cycles reached."
+        ),
+        "cycles": request.max_cycles,
+        "files": [
+            item.model_dump()
+            for item in current_files
+        ],
+        "history": history,
+        "execution": final_result,
+        "fixed": (
+            final_result["status"] == "success"
+        ),
+        "latency_seconds": round(
+            latency,
+            3,
+        ),
+    }
+
+
+# ============================================================
+# AUTO-FIX ENDPOINTS
+# ============================================================
+
+@app.post("/api/agent/autofix")
+@app.post("/api/execute/autofix")
+async def auto_fix(
+    request: AutoFixRequest,
+):
+
+    start = time.perf_counter()
+
+    try:
+
+        result = await run_auto_fix_loop(
+            request
+        )
+
+        record(
+            start,
+            result["status"] == "success",
+        )
+
+        return result
+
+    except ValueError as exc:
+
+        record(
+            start,
+            False,
+        )
+
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        )
+
+    except Exception as exc:
+
+        record(
+            start,
+            False,
+        )
+
+        logger.exception(
+            "Auto-fix failed."
+        )
+
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "error": "Auto-fix failed",
                 "message": str(exc),
             },
         )
@@ -2633,7 +2379,7 @@ async def project_agent(
 # ============================================================
 
 def normalize_benchmark_output(
-    text: str
+    text: str,
 ) -> str:
 
     return (
@@ -2643,7 +2389,7 @@ def normalize_benchmark_output(
 
 def evaluate_benchmark_case(
     case: BenchmarkCase,
-    output: str
+    output: str,
 ) -> Dict[str, Any]:
 
     normalized = normalize_benchmark_output(
@@ -2651,7 +2397,6 @@ def evaluate_benchmark_case(
     )
 
     found = []
-
     missed = []
 
     for issue in case.expected_issues:
@@ -2682,13 +2427,11 @@ def evaluate_benchmark_case(
     if total > 0:
 
         score = round(
-
             (
                 len(found)
                 / total
             ) * 100,
-
-            2
+            2,
         )
 
     else:
@@ -2700,193 +2443,117 @@ def evaluate_benchmark_case(
         )
 
     return {
-
         "name": case.name,
-
-        "expected_issues":
-            case.expected_issues,
-
-        "issues_found":
-            found,
-
-        "issues_missed":
-            missed,
-
-        "score_percent":
-            score,
+        "expected_issues": case.expected_issues,
+        "issues_found": found,
+        "issues_missed": missed,
+        "score_percent": score,
     }
 
 
 # ============================================================
-# BENCHMARK RUNNER
+# BENCHMARK ENDPOINT
 # ============================================================
 
 @app.post("/api/benchmark/run")
-async def benchmark_run(
-    request: BenchmarkRequest
+async def run_benchmark(
+    request: BenchmarkRequest,
 ):
 
     start = time.perf_counter()
 
+    results = []
+
     try:
 
-        results = []
-
-        total_found = 0
-
-        total_missed = 0
-
         for case in request.cases:
-
-            case_start = (
-                time.perf_counter()
-            )
 
             analytics_data[
                 "benchmark_runs"
             ] += 1
 
+            analytics_data[
+                "benchmark_cases"
+            ] += 1
+
             prompt = (
-
-                "You are the Engineer AI "
-                "Benchmark Agent.\n\n"
-
-                "Analyze the following intentionally "
-                "broken code.\n\n"
-
-                f"LANGUAGE:\n"
-                f"{case.language}\n\n"
-
-                "CODE:\n"
-
+                "You are Engineer AI Benchmark Agent.\n\n"
+                f"LANGUAGE:\n{case.language}\n\n"
+                "BROKEN CODE:\n"
                 f"```{case.language}\n"
                 f"{case.broken_code}\n"
                 "```\n\n"
-
-                "Identify bugs and explain their "
-                "root causes.\n\n"
-
-                "Provide corrected code and tests "
-                "where useful.\n\n"
-
-                "Also discuss security and "
-                "reliability concerns.\n\n"
-
-                "Do not execute the supplied code."
+                "Identify the bugs and root causes. "
+                "Provide corrected code and tests where useful. "
+                "Check security and reliability. "
+                "Do not claim execution."
             )
 
             output = await infer(
-
                 prompt,
-
-                REVIEW_MAX_OUTPUT_TOKENS
+                AGENT_MAX_OUTPUT_TOKENS,
             )
 
-            evaluation = (
-                evaluate_benchmark_case(
-                    case,
-                    output
-                )
+            evaluation = evaluate_benchmark_case(
+                case,
+                output,
             )
 
-            found_count = len(
+            analytics_data[
+                "benchmark_bugs_found"
+            ] += len(
                 evaluation[
                     "issues_found"
                 ]
             )
 
-            missed_count = len(
+            analytics_data[
+                "benchmark_bugs_missed"
+            ] += len(
                 evaluation[
                     "issues_missed"
                 ]
             )
 
-            total_found += (
-                found_count
-            )
-
-            total_missed += (
-                missed_count
-            )
-
-            analytics_data[
-                "benchmark_cases"
-            ] += 1
-
-            analytics_data[
-                "benchmark_bugs_found"
-            ] += found_count
-
-            analytics_data[
-                "benchmark_bugs_missed"
-            ] += missed_count
-
             results.append({
-
-                "name": case.name,
-
-                "language": case.language,
-
-                "output": output,
-
+                "case": case.name,
+                "analysis": output,
                 "evaluation": evaluation,
-
-                "latency_seconds": round(
-
-                    time.perf_counter()
-                    - case_start,
-
-                    3
-                ),
             })
 
-        total_expected = (
-            total_found
-            + total_missed
-        )
+        scores = [
+            item[
+                "evaluation"
+            ][
+                "score_percent"
+            ]
+            for item in results
+        ]
 
-        overall_score = (
-
+        average_score = (
             round(
-
-                (
-                    total_found
-                    / total_expected
-                ) * 100,
-
-                2
+                sum(scores)
+                / len(scores),
+                2,
             )
-
-            if total_expected > 0
-
+            if scores
             else 0.0
         )
 
         record(
             start,
-            True
+            True,
         )
 
         return {
-
             "status": "success",
 
             "results": results,
 
             "summary": {
-
-                "cases": len(
-                    request.cases
-                ),
-
-                "bugs_found":
-                    total_found,
-
-                "bugs_missed":
-                    total_missed,
-
-                "overall_score_percent":
-                    overall_score,
+                "cases": len(results),
+                "average_score_percent":
+                    average_score,
             },
 
             "tests_requested":
@@ -2896,57 +2563,45 @@ async def benchmark_run(
                 False,
 
             "latency_seconds": round(
-
                 time.perf_counter()
                 - start,
-
-                3
+                3,
             ),
         }
-
-    except HTTPException:
-
-        record(
-            start,
-            False
-        )
-
-        raise
 
     except Exception as exc:
 
         record(
             start,
-            False
+            False,
         )
 
         logger.exception(
-            "Benchmark run failed"
+            "Benchmark failed."
         )
 
         raise HTTPException(
-
             status_code=502,
-
             detail={
-
-                "error":
-                    "Benchmark run failed",
-
-                "message":
-                    str(exc),
+                "error": "Benchmark failed",
+                "message": str(exc),
             },
         )
+# ============================================================
+# ENGINEER AI BACKEND
+# MILESTONE 3
+# PART 5/5
+# ============================================================
 
 
 # ============================================================
-# OPERATIONS ANALYTICS
+# ANALYTICS
 # ============================================================
 
 @app.get("/api/ops/analytics")
-async def operations_analytics():
+async def analytics():
 
-    total = analytics_data[
+    total_requests = analytics_data[
         "total_requests"
     ]
 
@@ -2954,60 +2609,97 @@ async def operations_analytics():
         "successful_responses"
     ]
 
-    if total > 0:
+    if total_requests > 0:
 
         success_rate = round(
-
             (
                 successful
-                / total
+                / total_requests
             ) * 100,
-
-            2
+            2,
         )
 
         average_latency = round(
-
             analytics_data[
                 "total_latency_seconds"
-            ] / total,
-
-            3
+            ]
+            / total_requests,
+            3,
         )
 
     else:
 
-        success_rate = 100.0
-
+        success_rate = 0.0
         average_latency = 0.0
 
-    metrics = dict(
-        analytics_data
-    )
+    execution_runs = analytics_data[
+        "execution_runs"
+    ]
 
-    metrics[
-        "success_rate_percent"
-    ] = success_rate
+    if execution_runs:
 
-    metrics[
-        "average_latency_seconds"
-    ] = average_latency
+        execution_success_rate = round(
+            (
+                analytics_data[
+                    "execution_successes"
+                ]
+                / execution_runs
+            ) * 100,
+            2,
+        )
+
+    else:
+
+        execution_success_rate = 0.0
+
+    test_runs = analytics_data[
+        "test_runs"
+    ]
+
+    if test_runs:
+
+        test_success_rate = round(
+            (
+                analytics_data[
+                    "test_successes"
+                ]
+                / test_runs
+            ) * 100,
+            2,
+        )
+
+    else:
+
+        test_success_rate = 0.0
+
+    auto_fix_runs = analytics_data[
+        "auto_fix_runs"
+    ]
+
+    if auto_fix_runs:
+
+        auto_fix_success_rate = round(
+            (
+                analytics_data[
+                    "auto_fix_successes"
+                ]
+                / auto_fix_runs
+            ) * 100,
+            2,
+        )
+
+    else:
+
+        auto_fix_success_rate = 0.0
 
     return {
 
-        **metrics,
-
-        "status": "success",
-
-        "system_status":
-            "Operational",
-
-        # Compatibility for UIs
-        "metrics":
-            metrics,
+        # ====================================================
+        # EXISTING ANALYTICS
+        # ====================================================
 
         "total_requests":
-            total,
+            total_requests,
 
         "successful_responses":
             successful,
@@ -3021,12 +2713,16 @@ async def operations_analytics():
             success_rate,
 
         "average_latency_seconds":
-                    average_latency,
+            average_latency,
 
         "agent_tasks_executed":
             analytics_data[
                 "agent_tasks_executed"
             ],
+
+        # ====================================================
+        # PROJECT AGENTS
+        # ====================================================
 
         "project_analysis_runs":
             analytics_data[
@@ -3063,6 +2759,10 @@ async def operations_analytics():
                 "performance_analyses"
             ],
 
+        # ====================================================
+        # BENCHMARKS
+        # ====================================================
+
         "benchmark_runs":
             analytics_data[
                 "benchmark_runs"
@@ -3082,11 +2782,112 @@ async def operations_analytics():
             analytics_data[
                 "benchmark_bugs_missed"
             ],
+
+        # ====================================================
+        # MILESTONE 3 — EXECUTION
+        # ====================================================
+
+        "execution_runs":
+            execution_runs,
+
+        "execution_successes":
+            analytics_data[
+                "execution_successes"
+            ],
+
+        "execution_failures":
+            analytics_data[
+                "execution_failures"
+            ],
+
+        "execution_timeouts":
+            analytics_data[
+                "execution_timeouts"
+            ],
+
+        "execution_success_rate_percent":
+            execution_success_rate,
+
+        # ====================================================
+        # TESTING
+        # ====================================================
+
+        "test_runs":
+            test_runs,
+
+        "test_successes":
+            analytics_data[
+                "test_successes"
+            ],
+
+        "test_failures":
+            analytics_data[
+                "test_failures"
+            ],
+
+        "test_success_rate_percent":
+            test_success_rate,
+
+        # ====================================================
+        # AUTO-FIX
+        # ====================================================
+
+        "auto_fix_runs":
+            auto_fix_runs,
+
+        "auto_fix_successes":
+            analytics_data[
+                "auto_fix_successes"
+            ],
+
+        "auto_fix_failures":
+            analytics_data[
+                "auto_fix_failures"
+            ],
+
+        "auto_fix_success_rate_percent":
+            auto_fix_success_rate,
+
+        # ====================================================
+        # EXECUTION SYSTEM
+        # ====================================================
+
+        "execution_mode":
+            EXECUTION_MODE,
+
+        "docker_available":
+            bool(
+                shutil.which("docker")
+            ),
+
+        "total_execution_latency_seconds":
+            round(
+                analytics_data[
+                    "total_execution_latency_seconds"
+                ],
+                3,
+            ),
+
+        "total_test_latency_seconds":
+            round(
+                analytics_data[
+                    "total_test_latency_seconds"
+                ],
+                3,
+            ),
+
+        "total_auto_fix_latency_seconds":
+            round(
+                analytics_data[
+                    "total_auto_fix_latency_seconds"
+                ],
+                3,
+            ),
     }
 
 
 # ============================================================
-# APPLICATION STARTUP
+# STARTUP
 # ============================================================
 
 @app.on_event("startup")
@@ -3095,22 +2896,43 @@ async def startup_event():
     logger.info(
         "%s v%s starting",
         APP_TITLE,
-        APP_VERSION
+        APP_VERSION,
     )
 
     logger.info(
         "AI provider: %s",
-        DEFAULT_PROVIDER
+        DEFAULT_PROVIDER,
     )
 
     logger.info(
         "AI model: %s",
-        DEFAULT_MODEL
+        DEFAULT_MODEL,
     )
+
+    logger.info(
+        "Execution mode: %s",
+        EXECUTION_MODE,
+    )
+
+    if EXECUTION_MODE == "docker":
+
+        if shutil.which("docker"):
+
+            logger.info(
+                "Docker sandbox detected."
+            )
+
+        else:
+
+            logger.warning(
+                "Docker is NOT available. "
+                "Execution endpoints will be unavailable "
+                "until a sandbox is provided."
+            )
 
 
 # ============================================================
-# APPLICATION SHUTDOWN
+# SHUTDOWN
 # ============================================================
 
 @app.on_event("shutdown")
@@ -3118,7 +2940,7 @@ async def shutdown_event():
 
     logger.info(
         "%s shutting down",
-        APP_TITLE
+        APP_TITLE,
     )
 
 
@@ -3132,13 +2954,13 @@ if __name__ == "__main__":
 
     host = os.getenv(
         "HOST",
-        "0.0.0.0"
+        "0.0.0.0",
     )
 
     port = int(
         os.getenv(
             "PORT",
-            "8000"
+            "8000",
         )
     )
 
@@ -3146,4 +2968,5 @@ if __name__ == "__main__":
         app,
         host=host,
         port=port,
-)
+    )
+    
