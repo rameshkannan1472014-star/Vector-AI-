@@ -241,7 +241,7 @@ async def serve_ui():
 # SYSTEM INSTRUCTION
 # ============================================================
 
-SYSTEM_INSTRUCTION = """
+SYSTEM_INSTRUCTION = ""
 You are Engineer AI, an advanced engineering and software engineering
 assistant.
 
