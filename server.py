@@ -856,7 +856,7 @@ async def multi_agent_endpoint(
                 "tester_tasks",
             )
 
-        # ----------------------------------------------------
+          # ----------------------------------------------------
         # SECURITY
         # ----------------------------------------------------
 
@@ -868,10 +868,10 @@ async def multi_agent_endpoint(
                 "security_scans_completed"
             ] += 1
 
-                        security_prompt = (
+            security_prompt = (
                 "You are the Security Agent.\n\n"
-                "Perform a defensive security review of the "
-                "proposed implementation.\n\n"
+                "Perform a defensive security review of "
+                "the proposed implementation.\n\n"
                 "TASK:\n"
                 + task
                 + "\n\nIMPLEMENTATION:\n"
