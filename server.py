@@ -6,6 +6,10 @@ import shutil
 import asyncio
 import logging
 import subprocess
+import sqlite3
+import re
+import tempfile
+
 from pathlib import Path
 from typing import Dict, Any, Optional, List
 
@@ -19,19 +23,12 @@ from google.genai import types
 
 
 # ============================================================
-# ENGINEER AI
-# COMPLETE BACKEND
-# PART 1/5
+# ENGINEER AI BACKEND v5.0
+# PART 1 - CORE / AI / MODELS
 # ============================================================
 
-
 APP_TITLE = "Engineer AI Engine"
-APP_VERSION = "4.0.0"
-
-
-# ------------------------------------------------------------
-# CONFIGURATION
-# ------------------------------------------------------------
+APP_VERSION = "5.0.0"
 
 DEFAULT_MODEL = os.getenv(
     "GEMINI_MODEL",
@@ -75,11 +72,6 @@ AI_RETRIES = int(
 AI_RETRY_DELAY = float(
     os.getenv("AI_RETRY_DELAY", "1.5")
 )
-
-
-# ------------------------------------------------------------
-# EXECUTION CONFIGURATION
-# ------------------------------------------------------------
 
 EXECUTION_MODE = os.getenv(
     "EXECUTION_MODE",
@@ -125,10 +117,15 @@ ALLOW_UNSANDBOXED_EXECUTION = (
     == "true"
 )
 
+DATABASE_PATH = os.getenv(
+    "ENGINEER_DATABASE",
+    "engineer_ai.db",
+)
 
-# ------------------------------------------------------------
+
+# ============================================================
 # LOGGING
-# ------------------------------------------------------------
+# ============================================================
 
 logging.basicConfig(
     level=logging.INFO,
@@ -145,72 +142,96 @@ logger = logging.getLogger(
 )
 
 
-# ------------------------------------------------------------
+# ============================================================
 # FASTAPI
-# ------------------------------------------------------------
+# ============================================================
 
 app = FastAPI(
     title=APP_TITLE,
     version=APP_VERSION,
     description=(
-        "Engineer AI engineering backend "
-        "with AI agents, project intelligence, "
-        "testing and safe execution."
+        "Engineer AI engineering platform."
     ),
 )
 
 
+allowed_origins = os.getenv(
+    "ALLOWED_ORIGINS",
+    "*",
+)
+
+cors_origins = (
+    ["*"]
+    if allowed_origins == "*"
+    else [
+        x.strip()
+        for x in allowed_origins.split(",")
+        if x.strip()
+    ]
+)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=cors_origins,
+    allow_credentials=(
+        "*" not in cors_origins
+    ),
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
-# ------------------------------------------------------------
+# ============================================================
 # ANALYTICS
-# ------------------------------------------------------------
+# ============================================================
 
 analytics_data = {
     "requests": 0,
     "successful_requests": 0,
     "failed_requests": 0,
-
     "chat_requests": 0,
     "agent_requests": 0,
     "review_requests": 0,
-
     "execution_requests": 0,
     "execution_successes": 0,
     "execution_failures": 0,
-
     "test_requests": 0,
     "test_successes": 0,
     "test_failures": 0,
-
     "auto_fix_requests": 0,
     "auto_fix_successes": 0,
     "auto_fix_failures": 0,
-
     "benchmark_requests": 0,
     "benchmark_successes": 0,
-
+    "project_requests": 0,
+    "security_requests": 0,
+    "debug_requests": 0,
+    "terminal_requests": 0,
     "total_latency_seconds": 0.0,
 }
 
 
-# ------------------------------------------------------------
-# REQUEST MODELS
-# ------------------------------------------------------------
+# ============================================================
+# MODELS
+# ============================================================
 
 class ChatRequest(BaseModel):
-    message: str = Field(
+    message: Optional[str] = Field(
+        default=None,
+        max_length=MAX_PROMPT_LENGTH,
+    )
+    prompt: Optional[str] = Field(
+        default=None,
+        max_length=MAX_PROMPT_LENGTH,
+    )
+    model: Optional[str] = None
+
+
+class AITextRequest(BaseModel):
+    prompt: str = Field(
         min_length=1,
         max_length=MAX_PROMPT_LENGTH,
     )
-
     model: Optional[str] = None
 
 
@@ -219,15 +240,13 @@ class MultiAgentRequest(BaseModel):
         default=None,
         max_length=MAX_PROMPT_LENGTH,
     )
-
     task_description: Optional[str] = Field(
         default=None,
         max_length=MAX_PROMPT_LENGTH,
     )
-
     include_tests: bool = True
-
     include_security: bool = True
+    include_performance: bool = False
 
 
 class CodeReviewRequest(BaseModel):
@@ -235,15 +254,12 @@ class CodeReviewRequest(BaseModel):
         min_length=1,
         max_length=MAX_OUTPUT_LENGTH,
     )
-
     language: str = "python"
-
     focus: Optional[str] = None
 
 
 class ProjectFile(BaseModel):
     path: str
-
     content: str = Field(
         max_length=MAX_FILE_SIZE,
     )
@@ -251,9 +267,7 @@ class ProjectFile(BaseModel):
 
 class ProjectRequest(BaseModel):
     project_name: str = "EngineerProject"
-
     files: List[ProjectFile]
-
     task: str = Field(
         min_length=1,
         max_length=MAX_PROMPT_LENGTH,
@@ -262,56 +276,82 @@ class ProjectRequest(BaseModel):
 
 class ProjectAgentRequest(ProjectRequest):
     include_tests: bool = True
-
     include_security: bool = True
-
     include_performance: bool = True
 
 
-# ------------------------------------------------------------
-# CORE SYSTEM INSTRUCTION
-# ------------------------------------------------------------
-
-SYSTEM_INSTRUCTION = """
-You are Engineer AI, an advanced software engineering
-assistant.
-
-Your job is to help users design, understand, write,
-debug, test, review and improve software.
-
-Priorities:
-
-1. Correctness
-2. Security
-3. Reliability
-4. Maintainability
-5. Performance
-6. Clear engineering explanations
-
-When working with projects:
-
-- Understand the existing code before changing it.
-- Preserve existing functionality unless a change is required.
-- Do not invent files that are unnecessary.
-- Do not expose secrets.
-- Avoid destructive operations.
-- Prefer small, reliable changes.
-- Explain important assumptions.
-- Produce valid code.
-- Consider edge cases.
-- Consider security implications.
-- Consider testing.
-
-When asked to modify a project, return structured,
-actionable engineering information.
-
-You are an engineering system, not merely a chatbot.
-"""
+class ExecuteRequest(BaseModel):
+    files: List[ProjectFile]
+    entrypoint: str = "main.py"
+    language: Optional[str] = None
+    command: Optional[List[str]] = None
+    timeout_seconds: Optional[int] = None
 
 
-# ------------------------------------------------------------
-# UTILITY FUNCTIONS
-# ------------------------------------------------------------
+class TestRequest(BaseModel):
+    files: List[ProjectFile]
+    command: Optional[List[str]] = None
+    language: Optional[str] = None
+    timeout_seconds: Optional[int] = None
+
+
+class TerminalRequest(BaseModel):
+    files: List[ProjectFile] = []
+    command: str = Field(
+        min_length=1,
+        max_length=500,
+    )
+    language: str = "python"
+    timeout_seconds: Optional[int] = None
+
+
+class DebugRequest(BaseModel):
+    files: List[ProjectFile]
+    error: Optional[str] = None
+    language: Optional[str] = None
+
+
+class AutoFixRequest(BaseModel):
+    files: List[ProjectFile]
+    task: str = Field(
+        min_length=1,
+        max_length=MAX_PROMPT_LENGTH,
+    )
+    max_cycles: int = Field(
+        default=3,
+        ge=1,
+        le=5,
+    )
+    language: Optional[str] = None
+
+
+class BenchmarkRequest(BaseModel):
+    tasks: List[str] = Field(
+        min_length=1,
+        max_length=20,
+    )
+
+
+class ProjectCreateRequest(BaseModel):
+    name: str = "New Project"
+    task: str = ""
+    files: List[ProjectFile] = []
+
+
+class MemoryRequest(BaseModel):
+    project_id: str
+    key: str
+    value: str
+
+
+class MemoryAskRequest(BaseModel):
+    project_id: str
+    question: str
+
+
+# ============================================================
+# HELPERS
+# ============================================================
 
 def clamp_text(
     value: Any,
@@ -323,7 +363,10 @@ def clamp_text(
     if len(text) <= limit:
         return text
 
-    return text[:limit] + "\n...[truncated]"
+    return (
+        text[:limit]
+        + "\n...[truncated]"
+    )
 
 
 def record(
@@ -338,40 +381,59 @@ def record(
 
 
 def record_latency(
-    start_time: float,
+    start: float,
 ) -> None:
 
     analytics_data[
         "total_latency_seconds"
-    ] += time.time() - start_time
+    ] += time.time() - start
 
 
-def is_retryable_error(
-    error: Exception,
-) -> bool:
+def success_response(
+    response: Any = None,
+    **extra,
+) -> Dict[str, Any]:
 
-    message = str(error).lower()
+    result = {
+        "status": "success",
+        "response": response,
+    }
 
-    retry_words = [
-        "timeout",
-        "temporarily",
-        "unavailable",
-        "rate limit",
-        "429",
-        "500",
-        "503",
-        "connection",
-    ]
+    result.update(extra)
 
-    return any(
-        word in message
-        for word in retry_words
-    )
+    return result
 
 
-# ------------------------------------------------------------
-# GEMINI CLIENT
-# ------------------------------------------------------------
+# ============================================================
+# SYSTEM INSTRUCTION
+# ============================================================
+
+SYSTEM_INSTRUCTION = """
+You are Engineer AI, an advanced software
+engineering assistant.
+
+Help users design, write, understand,
+debug, test, review and improve software.
+
+Priorities:
+1. Correctness
+2. Security
+3. Reliability
+4. Maintainability
+5. Performance
+
+Understand existing code before proposing
+changes. Preserve working functionality.
+Avoid destructive operations and secrets.
+
+Never claim code was executed unless the
+execution system actually executed it.
+"""
+
+
+# ============================================================
+# GEMINI
+# ============================================================
 
 _client = None
 
@@ -395,9 +457,27 @@ def get_client():
     return _client
 
 
-# ------------------------------------------------------------
-# LOW-LEVEL AI GENERATION
-# ------------------------------------------------------------
+def retryable(error: Exception) -> bool:
+
+    text = str(error).lower()
+
+    words = [
+        "timeout",
+        "temporarily",
+        "unavailable",
+        "rate limit",
+        "429",
+        "500",
+        "502",
+        "503",
+        "connection",
+    ]
+
+    return any(
+        word in text
+        for word in words
+    )
+
 
 def generate_sync(
     prompt: str,
@@ -405,30 +485,20 @@ def generate_sync(
     json_mode: bool = False,
 ) -> str:
 
-    prompt = clamp_text(
-        prompt,
-        MAX_PROMPT_LENGTH,
-    )
-
-    selected_model = (
-        model
-        or DEFAULT_MODEL
-    )
-
     client = get_client()
 
-    config_kwargs = {
+    config_args = {
         "system_instruction":
             SYSTEM_INSTRUCTION,
     }
 
     if json_mode:
-        config_kwargs[
+        config_args[
             "response_mime_type"
         ] = "application/json"
 
     config = types.GenerateContentConfig(
-        **config_kwargs
+        **config_args
     )
 
     last_error = None
@@ -439,16 +509,17 @@ def generate_sync(
 
         try:
 
-            response = (
-                client.models.generate_content(
-                    model=selected_model,
-                    contents=prompt,
-                    config=config,
-                )
+            result = client.models.generate_content(
+                model=model or DEFAULT_MODEL,
+                contents=clamp_text(
+                    prompt,
+                    MAX_PROMPT_LENGTH,
+                ),
+                config=config,
             )
 
             text = getattr(
-                response,
+                result,
                 "text",
                 None,
             )
@@ -467,16 +538,11 @@ def generate_sync(
 
             last_error = error
 
-            logger.exception(
-                "AI generation failed "
-                "on attempt %s",
-                attempt + 1,
-            )
-
             if (
                 attempt < AI_RETRIES
-                and is_retryable_error(error)
+                and retryable(error)
             ):
+
                 time.sleep(
                     AI_RETRY_DELAY
                     * (attempt + 1)
@@ -504,115 +570,146 @@ async def infer(
     )
 
 
-# ------------------------------------------------------------
-# GENERIC AGENT
-# ------------------------------------------------------------
+# ============================================================
+# HEALTH
+# ============================================================
 
-async def run_agent(
-    name: str,
-    task: str,
-    context: str = "",
-    model: Optional[str] = None,
-) -> Dict[str, Any]:
+@app.get("/api/health")
+async def health():
+
+    return {
+        "status": "ok",
+        "service": APP_TITLE,
+        "version": APP_VERSION,
+        "provider": DEFAULT_PROVIDER,
+        "model": DEFAULT_MODEL,
+        "execution_mode": EXECUTION_MODE,
+        "docker_available":
+            shutil.which("docker") is not None,
+        "gemini_configured":
+            bool(GEMINI_API_KEY),
+    }
+
+
+# ============================================================
+# CHAT
+# ============================================================
+
+@app.post("/api/chat")
+async def chat(
+    request: ChatRequest,
+):
 
     start = time.time()
 
-    prompt = f"""
-ENGINEERING AGENT: {name}
+    record("requests")
+    record("chat_requests")
 
-TASK:
-{task}
+    message = (
+        request.message
+        or request.prompt
+        or ""
+    ).strip()
 
-CONTEXT:
-{context}
-
-Perform the task carefully.
-
-Return:
-
-1. Analysis
-2. Findings
-3. Recommended action
-4. Implementation details
-5. Risks
-6. Tests to perform
-"""
+    if not message:
+        raise HTTPException(
+            status_code=400,
+            detail="Message is required.",
+        )
 
     try:
 
         output = await infer(
-            prompt,
-            model=model,
+            message,
+            request.model,
+        )
+
+        record(
+            "successful_requests"
         )
 
         return {
-            "agent": name,
             "status": "success",
-            "output": output,
-            "latency_seconds": round(
-                time.time() - start,
-                3,
-            ),
+            "response": output,
+            "message": output,
+            "model":
+                request.model
+                or DEFAULT_MODEL,
+            "latency_seconds":
+                round(
+                    time.time() - start,
+                    3,
+                ),
         }
 
     except Exception as error:
 
-        return {
-            "agent": name,
-            "status": "failed",
-            "output": "",
-            "error": str(error),
-            "latency_seconds": round(
-                time.time() - start,
-                3,
+        record(
+            "failed_requests"
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(error),
+        )
+
+    finally:
+
+        record_latency(start)
+
+
+@app.post("/api/ai/explain")
+async def ai_explain(
+    request: AITextRequest,
+):
+
+    start = time.time()
+
+    record("requests")
+
+    try:
+
+        output = await infer(
+            f"""
+Explain this software engineering
+question clearly:
+
+{request.prompt}
+""",
+            request.model,
+        )
+
+        record(
+            "successful_requests"
+        )
+
+        return success_response(
+            output,
+            message=output,
+            model=(
+                request.model
+                or DEFAULT_MODEL
             ),
-        }
-
-
-# ------------------------------------------------------------
-# FILE PATH SAFETY
-# ------------------------------------------------------------
-
-def safe_relative_path(
-    path: str,
-) -> str:
-
-    if not path:
-        raise ValueError(
-            "File path cannot be empty."
         )
 
-    normalized = path.replace(
-        "\\",
-        "/",
-    ).strip()
+    except Exception as error:
 
-    candidate = Path(normalized)
-
-    if candidate.is_absolute():
-        raise ValueError(
-            "Absolute paths are not allowed."
+        record(
+            "failed_requests"
         )
 
-    parts = candidate.parts
-
-    if ".." in parts:
-        raise ValueError(
-            "Parent-directory traversal "
-            "is not allowed."
+        raise HTTPException(
+            status_code=500,
+            detail=str(error),
         )
 
-    if normalized.startswith("/"):
-        raise ValueError(
-            "Absolute paths are not allowed."
-        )
+    finally:
 
-    return str(candidate)
+        record_latency(start)
+# ============================================================
+# PART 2 - PROJECT INTELLIGENCE + AGENTS
+# ============================================================
 
-
-# ------------------------------------------------------------
-# PROJECT VALIDATION
-# ------------------------------------------------------------
 
 ALLOWED_PROJECT_EXTENSIONS = {
     ".py",
@@ -635,6 +732,44 @@ ALLOWED_PROJECT_EXTENSIONS = {
 }
 
 
+def safe_relative_path(
+    path: str,
+) -> str:
+
+    if not path:
+        raise ValueError(
+            "File path cannot be empty."
+        )
+
+    normalized = (
+        path
+        .replace("\\", "/")
+        .strip()
+    )
+
+    if (
+        normalized.startswith("/")
+        or "\x00" in normalized
+    ):
+        raise ValueError(
+            "Invalid file path."
+        )
+
+    candidate = Path(normalized)
+
+    if candidate.is_absolute():
+        raise ValueError(
+            "Absolute paths are not allowed."
+        )
+
+    if ".." in candidate.parts:
+        raise ValueError(
+            "Path traversal is not allowed."
+        )
+
+    return str(candidate)
+
+
 def validate_project_files(
     files: List[ProjectFile],
 ) -> List[ProjectFile]:
@@ -646,13 +781,12 @@ def validate_project_files(
 
     if len(files) > MAX_PROJECT_FILES:
         raise ValueError(
-            f"Project exceeds the maximum "
-            f"of {MAX_PROJECT_FILES} files."
+            f"Maximum {MAX_PROJECT_FILES} files allowed."
         )
 
-    total_size = 0
-
-    validated = []
+    total = 0
+    seen = set()
+    result = []
 
     for item in files:
 
@@ -660,7 +794,18 @@ def validate_project_files(
             item.path
         )
 
-        suffix = Path(path).suffix.lower()
+        if path in seen:
+            raise ValueError(
+                f"Duplicate file: {path}"
+            )
+
+        seen.add(path)
+
+        suffix = (
+            Path(path)
+            .suffix
+            .lower()
+        )
 
         if (
             suffix
@@ -668,70 +813,41 @@ def validate_project_files(
             ALLOWED_PROJECT_EXTENSIONS
         ):
             raise ValueError(
-                f"Unsupported project file type: "
-                f"{suffix}"
+                f"Unsupported file type: {suffix}"
             )
 
-        if len(item.content) > MAX_FILE_SIZE:
+        size = len(
+            item.content.encode(
+                "utf-8",
+                errors="ignore",
+            )
+        )
+
+        if size > MAX_FILE_SIZE:
             raise ValueError(
                 f"File too large: {path}"
             )
 
-        total_size += len(item.content)
+        total += size
 
-        validated.append(
+        result.append(
             ProjectFile(
                 path=path,
                 content=item.content,
             )
         )
 
-    if total_size > MAX_PROJECT_SIZE:
+    if total > MAX_PROJECT_SIZE:
         raise ValueError(
-            "Project exceeds maximum size."
+            "Project is too large."
         )
 
-    return validated
+    return result
 
-
-# ------------------------------------------------------------
-# PROJECT CONTEXT
-# ------------------------------------------------------------
-
-def build_project_context(
-    files: List[ProjectFile],
-) -> str:
-
-    sections = []
-
-    for item in files:
-
-        sections.append(
-            f"""
-===== FILE: {item.path} =====
-
-{clamp_text(
-    item.content,
-    MAX_FILE_SIZE,
-)}
-"""
-        )
-
-    return clamp_text(
-        "\n".join(sections),
-        MAX_PROJECT_SIZE,
-    )
-
-
-# ------------------------------------------------------------
-# BASIC CODE ANALYSIS
-# ------------------------------------------------------------
 
 def detect_language(
     path: str,
 ) -> str:
-
-    suffix = Path(path).suffix.lower()
 
     mapping = {
         ".py": "python",
@@ -741,25 +857,45 @@ def detect_language(
         ".tsx": "typescript",
         ".html": "html",
         ".css": "css",
-        ".sql": "sql",
         ".json": "json",
+        ".sql": "sql",
         ".sh": "shell",
     }
 
     return mapping.get(
-        suffix,
+        Path(path).suffix.lower(),
         "text",
     )
 
 
-def basic_project_statistics(
+def build_project_context(
+    files: List[ProjectFile],
+) -> str:
+
+    blocks = []
+
+    for item in files:
+
+        blocks.append(
+            f"""
+===== FILE: {item.path} =====
+{item.content}
+"""
+        )
+
+    return clamp_text(
+        "\n".join(blocks),
+        MAX_PROJECT_SIZE,
+    )
+
+
+def project_statistics(
     files: List[ProjectFile],
 ) -> Dict[str, Any]:
 
     languages = {}
-
-    total_lines = 0
-    total_bytes = 0
+    lines = 0
+    bytes_total = 0
 
     for item in files:
 
@@ -772,12 +908,12 @@ def basic_project_statistics(
             + 1
         )
 
-        total_lines += (
+        lines += (
             item.content.count("\n")
             + 1
         )
 
-        total_bytes += len(
+        bytes_total += len(
             item.content.encode(
                 "utf-8",
                 errors="ignore",
@@ -786,57 +922,204 @@ def basic_project_statistics(
 
     return {
         "file_count": len(files),
-        "line_count": total_lines,
-        "size_bytes": total_bytes,
+        "line_count": lines,
+        "size_bytes": bytes_total,
         "languages": languages,
     }
 
 
-# ------------------------------------------------------------
-# HEALTH
-# ------------------------------------------------------------
+# ============================================================
+# AGENTS
+# ============================================================
 
-@app.get("/api/health")
-async def health():
+AGENT_ROLES = {
 
-    docker_available = (
-        shutil.which("docker")
-        is not None
+    "planner": """
+You are the Planning Agent.
+Analyze requirements, architecture,
+implementation steps and risks.
+""",
+
+    "coder": """
+You are the Coding Agent.
+Design correct, maintainable implementation
+changes without unnecessary modifications.
+""",
+
+    "debugger": """
+You are the Debugging Agent.
+Find root causes, logic errors, runtime
+problems and edge cases.
+""",
+
+    "tester": """
+You are the Testing Agent.
+Design useful unit, integration and edge tests.
+""",
+
+    "security": """
+You are the Security Agent.
+Find input validation, injection, secrets,
+path traversal, authentication and
+data exposure risks.
+""",
+
+    "performance": """
+You are the Performance Agent.
+Find inefficient algorithms, unnecessary
+I/O, memory problems and scalability risks.
+""",
+
+    "research": """
+You are the Research Agent.
+Compare technical approaches and provide
+practical engineering recommendations.
+""",
+
+    "documentation": """
+You are the Documentation Agent.
+Explain architecture, APIs, setup and usage.
+""",
+}
+
+
+async def run_agent(
+    role: str,
+    task: str,
+    context: str = "",
+) -> str:
+
+    instruction = AGENT_ROLES.get(
+        role,
+        AGENT_ROLES["research"],
+    )
+
+    prompt = f"""
+{instruction}
+
+TASK:
+{task}
+
+PROJECT CONTEXT:
+{context}
+
+Return a useful engineering result.
+Do not claim execution unless execution
+actually occurred.
+"""
+
+    return await infer(prompt)
+
+
+async def run_multi_agent_workflow(
+    task: str,
+    context: str = "",
+    include_tests: bool = True,
+    include_security: bool = True,
+    include_performance: bool = False,
+) -> Dict[str, Any]:
+
+    workflow = []
+
+    roles = [
+        "planner",
+        "coder",
+        "debugger",
+    ]
+
+    if include_tests:
+        roles.append("tester")
+
+    if include_security:
+        roles.append("security")
+
+    if include_performance:
+        roles.append("performance")
+
+    for role in roles:
+
+        output = await run_agent(
+            role,
+            task,
+            context,
+        )
+
+        workflow.append({
+            "agent": role,
+            "status": "completed",
+            "output": output,
+        })
+
+    combined = "\n\n".join(
+        f"AGENT: {x['agent']}\n{x['output']}"
+        for x in workflow
+    )
+
+    final = await infer(
+        f"""
+You are the Lead Engineering Agent.
+
+TASK:
+{task}
+
+PROJECT:
+{context}
+
+AGENT RESULTS:
+{combined}
+
+Produce:
+1. Summary
+2. Recommended implementation
+3. Risks
+4. Testing
+5. Security
+6. Performance
+7. Next steps
+"""
     )
 
     return {
-        "status": "ok",
-        "service": APP_TITLE,
-        "version": APP_VERSION,
-        "provider": DEFAULT_PROVIDER,
-        "model": DEFAULT_MODEL,
-        "execution_mode": EXECUTION_MODE,
-        "docker_available": docker_available,
-        "gemini_configured": bool(
-            GEMINI_API_KEY
-        ),
+        "status": "completed",
+        "workflow": workflow,
+        "final": final,
+        "agent_count": len(workflow),
     }
 
 
-# ------------------------------------------------------------
-# CHAT API
-# ------------------------------------------------------------
+# ============================================================
+# AGENT API
+# ============================================================
 
-@app.post("/api/chat")
-async def chat(
-    request: ChatRequest,
+@app.post("/api/agent/execute")
+async def execute_agent(
+    request: MultiAgentRequest,
 ):
 
     start = time.time()
 
     record("requests")
-    record("chat_requests")
+    record("agent_requests")
+
+    task = (
+        request.task
+        or request.task_description
+        or ""
+    ).strip()
+
+    if not task:
+        raise HTTPException(
+            status_code=400,
+            detail="Task is required.",
+        )
 
     try:
 
-        output = await infer(
-            request.message,
-            model=request.model,
+        result = await run_multi_agent_workflow(
+            task=task,
+            include_tests=request.include_tests,
+            include_security=request.include_security,
+            include_performance=request.include_performance,
         )
 
         record(
@@ -845,15 +1128,18 @@ async def chat(
 
         return {
             "status": "success",
-            "message": output,
-            "model": (
-                request.model
-                or DEFAULT_MODEL
-            ),
-            "latency_seconds": round(
-                time.time() - start,
-                3,
-            ),
+            "task": task,
+            "workflow":
+                result["workflow"],
+            "final":
+                result["final"],
+            "agent_count":
+                result["agent_count"],
+            "latency_seconds":
+                round(
+                    time.time() - start,
+                    3,
+                ),
         }
 
     except Exception as error:
@@ -870,700 +1156,11 @@ async def chat(
     finally:
 
         record_latency(start)
+
+
 # ============================================================
-# PART 2/5
-# MULTI-AGENT ENGINEERING + PROJECT INTELLIGENCE
-# ============================================================
-
-
-# ------------------------------------------------------------
-# AGENT PROMPTS
-# ------------------------------------------------------------
-
-AGENT_ROLES = {
-    "planner": """
-You are the Lead Software Architect.
-
-Break the user's engineering task into a practical
-implementation plan.
-
-Identify:
-- requirements
-- architecture
-- files that need changes
-- dependencies
-- risks
-- testing strategy
-
-Do not write unnecessary code.
-""",
-
-    "coder": """
-You are the Senior Software Engineer.
-
-Implement the requested engineering changes.
-
-Priorities:
-- correctness
-- clean architecture
-- maintainability
-- security
-- compatibility
-
-When code changes are required, provide complete
-replacement file contents or precise file changes.
-""",
-
-    "debugger": """
-You are a Senior Debugging Engineer.
-
-Analyze errors, failing tests, exceptions and
-unexpected behavior.
-
-Find the root cause rather than merely treating
-the symptom.
-
-Return:
-- root cause
-- affected files
-- exact fix
-- verification steps
-""",
-
-    "tester": """
-You are a Software Testing Engineer.
-
-Analyze the project and determine how it should
-be tested.
-
-Look for:
-- syntax errors
-- logic errors
-- edge cases
-- integration problems
-- regression risks
-
-Recommend or generate appropriate tests.
-""",
-
-    "security": """
-You are an Application Security Engineer.
-
-Review the project for:
-- unsafe input handling
-- authentication problems
-- authorization problems
-- secrets exposure
-- injection risks
-- path traversal
-- insecure execution
-- dependency risks
-- unsafe defaults
-
-Prioritize practical fixes.
-""",
-
-    "performance": """
-You are a Performance Engineer.
-
-Analyze the project for:
-- slow operations
-- unnecessary computation
-- excessive memory use
-- inefficient algorithms
-- unnecessary network calls
-- scalability problems
-
-Recommend improvements without sacrificing
-correctness or security.
-""",
-}
-
-
-# ------------------------------------------------------------
-# SPECIALIZED AGENT
-# ------------------------------------------------------------
-
-async def run_specialized_agent(
-    role: str,
-    task: str,
-    project_context: str,
-    model: Optional[str] = None,
-) -> Dict[str, Any]:
-
-    role_instruction = AGENT_ROLES.get(
-        role,
-        AGENT_ROLES["planner"],
-    )
-
-    prompt = f"""
-{role_instruction}
-
-USER TASK:
-{task}
-
-PROJECT:
-{project_context}
-
-Return a structured engineering response.
-"""
-
-    start = time.time()
-
-    try:
-
-        output = await infer(
-            prompt,
-            model=model,
-        )
-
-        return {
-            "agent": role,
-            "status": "success",
-            "output": output,
-            "latency_seconds": round(
-                time.time() - start,
-                3,
-            ),
-        }
-
-    except Exception as error:
-
-        logger.exception(
-            "Agent '%s' failed",
-            role,
-        )
-
-        return {
-            "agent": role,
-            "status": "failed",
-            "output": "",
-            "error": str(error),
-            "latency_seconds": round(
-                time.time() - start,
-                3,
-            ),
-        }
-
-
-# ------------------------------------------------------------
-# MULTI-AGENT ENGINE
-# ------------------------------------------------------------
-
-async def run_multi_agent_workflow(
-    task: str,
-    project_context: str = "",
-    include_tests: bool = True,
-    include_security: bool = True,
-    include_performance: bool = False,
-    model: Optional[str] = None,
-) -> Dict[str, Any]:
-
-    start = time.time()
-
-    record("agent_requests")
-
-    if not task.strip():
-        raise ValueError(
-            "Task cannot be empty."
-        )
-
-    # --------------------------------------------------------
-    # STEP 1: PLANNER
-    # --------------------------------------------------------
-
-    planner = await run_specialized_agent(
-        "planner",
-        task,
-        project_context,
-        model,
-    )
-
-    planner_output = planner.get(
-        "output",
-        "",
-    )
-
-    # --------------------------------------------------------
-    # STEP 2: PARALLEL ENGINEERING ANALYSIS
-    # --------------------------------------------------------
-
-    agent_tasks = [
-        run_specialized_agent(
-            "coder",
-            task,
-            (
-                project_context
-                + "\n\nPLANNER OUTPUT:\n"
-                + planner_output
-            ),
-            model,
-        ),
-        run_specialized_agent(
-            "debugger",
-            task,
-            (
-                project_context
-                + "\n\nPLANNER OUTPUT:\n"
-                + planner_output
-            ),
-            model,
-        ),
-    ]
-
-    if include_tests:
-
-        agent_tasks.append(
-            run_specialized_agent(
-                "tester",
-                task,
-                (
-                    project_context
-                    + "\n\nPLANNER OUTPUT:\n"
-                    + planner_output
-                ),
-                model,
-            )
-        )
-
-    if include_security:
-
-        agent_tasks.append(
-            run_specialized_agent(
-                "security",
-                task,
-                (
-                    project_context
-                    + "\n\nPLANNER OUTPUT:\n"
-                    + planner_output
-                ),
-                model,
-            )
-        )
-
-    if include_performance:
-
-        agent_tasks.append(
-            run_specialized_agent(
-                "performance",
-                task,
-                (
-                    project_context
-                    + "\n\nPLANNER OUTPUT:\n"
-                    + planner_output
-                ),
-                model,
-            )
-        )
-
-    results = await asyncio.gather(
-        *agent_tasks
-    )
-
-    workflow = {
-        "planner": planner,
-        "agents": results,
-    }
-
-    # --------------------------------------------------------
-    # STEP 3: FINAL SYNTHESIS
-    # --------------------------------------------------------
-
-    synthesis_prompt = f"""
-You are the Lead Engineer reviewing the work of
-multiple engineering agents.
-
-USER TASK:
-{task}
-
-PROJECT:
-{project_context}
-
-PLANNER:
-{planner_output}
-
-AGENT RESULTS:
-{json.dumps(
-    results,
-    indent=2,
-)}
-
-Create one final engineering recommendation.
-
-Include:
-1. What should be changed
-2. Why it should be changed
-3. Files affected
-4. Important implementation details
-5. Tests required
-6. Security concerns
-7. Performance concerns
-8. Final recommended approach
-
-Do not blindly trust an agent.
-Resolve contradictions yourself.
-"""
-
-    try:
-
-        synthesis = await infer(
-            synthesis_prompt,
-            model=model,
-        )
-
-    except Exception as error:
-
-        synthesis = (
-            "Synthesis failed: "
-            + str(error)
-        )
-
-    record(
-        "successful_requests"
-    )
-
-    return {
-        "status": "success",
-        "workflow": workflow,
-        "final_recommendation": synthesis,
-        "latency_seconds": round(
-            time.time() - start,
-            3,
-        ),
-    }
-
-
-# ------------------------------------------------------------
-# PROJECT ARCHITECTURE ANALYSIS
-# ------------------------------------------------------------
-
-async def analyze_project(
-    files: List[ProjectFile],
-    task: str,
-    model: Optional[str] = None,
-) -> Dict[str, Any]:
-
-    validated = validate_project_files(
-        files
-    )
-
-    context = build_project_context(
-        validated
-    )
-
-    statistics = basic_project_statistics(
-        validated
-    )
-
-    prompt = f"""
-Analyze this software project as a senior
-software architect.
-
-TASK:
-{task}
-
-PROJECT STATISTICS:
-{json.dumps(
-    statistics,
-    indent=2,
-)}
-
-PROJECT FILES:
-{context}
-
-Determine:
-
-- project purpose
-- architecture
-- major components
-- relationships between components
-- likely entry points
-- dependencies
-- potential architectural weaknesses
-- security concerns
-- scalability concerns
-- recommended improvements
-
-Do not invent components that are not supported
-by the project.
-"""
-
-    output = await infer(
-        prompt,
-        model=model,
-    )
-
-    return {
-        "status": "success",
-        "statistics": statistics,
-        "analysis": output,
-    }
-
-
-# ------------------------------------------------------------
-# DEPENDENCY ANALYSIS
-# ------------------------------------------------------------
-
-async def analyze_dependencies(
-    files: List[ProjectFile],
-    model: Optional[str] = None,
-) -> Dict[str, Any]:
-
-    validated = validate_project_files(
-        files
-    )
-
-    context = build_project_context(
-        validated
-    )
-
-    prompt = f"""
-Analyze the dependencies of this software project.
-
-PROJECT:
-{context}
-
-Identify:
-
-- Python dependencies
-- Node dependencies
-- package files
-- framework usage
-- external services
-- APIs
-- suspicious or unnecessary dependencies
-- missing dependencies that are clearly required
-
-Do not invent package versions.
-
-Return a concise engineering report.
-"""
-
-    output = await infer(
-        prompt,
-        model=model,
-    )
-
-    return {
-        "status": "success",
-        "dependencies": output,
-    }
-
-
-# ------------------------------------------------------------
-# PROJECT SECURITY ANALYSIS
-# ------------------------------------------------------------
-
-async def analyze_project_security(
-    files: List[ProjectFile],
-    model: Optional[str] = None,
-) -> Dict[str, Any]:
-
-    validated = validate_project_files(
-        files
-    )
-
-    context = build_project_context(
-        validated
-    )
-
-    result = await run_specialized_agent(
-        "security",
-        (
-            "Perform a complete security review "
-            "of this project."
-        ),
-        context,
-        model,
-    )
-
-    return result
-
-
-# ------------------------------------------------------------
-# PROJECT PERFORMANCE ANALYSIS
-# ------------------------------------------------------------
-
-async def analyze_project_performance(
-    files: List[ProjectFile],
-    model: Optional[str] = None,
-) -> Dict[str, Any]:
-
-    validated = validate_project_files(
-        files
-    )
-
-    context = build_project_context(
-        validated
-    )
-
-    result = await run_specialized_agent(
-        "performance",
-        (
-            "Perform a complete performance review "
-            "of this project."
-        ),
-        context,
-        model,
-    )
-
-    return result
-
-
-# ------------------------------------------------------------
-# PROJECT DEBUGGING
-# ------------------------------------------------------------
-
-async def debug_project(
-    files: List[ProjectFile],
-    problem: str,
-    model: Optional[str] = None,
-) -> Dict[str, Any]:
-
-    validated = validate_project_files(
-        files
-    )
-
-    context = build_project_context(
-        validated
-    )
-
-    result = await run_specialized_agent(
-        "debugger",
-        problem,
-        context,
-        model,
-    )
-
-    return result
-
-
-# ------------------------------------------------------------
-# PROJECT TEST PLAN
-# ------------------------------------------------------------
-
-async def generate_test_plan(
-    files: List[ProjectFile],
-    task: str,
-    model: Optional[str] = None,
-) -> Dict[str, Any]:
-
-    validated = validate_project_files(
-        files
-    )
-
-    context = build_project_context(
-        validated
-    )
-
-    result = await run_specialized_agent(
-        "tester",
-        (
-            "Create a comprehensive test plan "
-            "for this project.\n\n"
-            f"Task:\n{task}"
-        ),
-        context,
-        model,
-    )
-
-    return result
-
-
-# ------------------------------------------------------------
-# PROJECT MASTER WORKFLOW
-# ------------------------------------------------------------
-
-async def run_project_workflow(
-    request: ProjectAgentRequest,
-) -> Dict[str, Any]:
-
-    validated = validate_project_files(
-        request.files
-    )
-
-    context = build_project_context(
-        validated
-    )
-
-    statistics = basic_project_statistics(
-        validated
-    )
-
-    result = await run_multi_agent_workflow(
-        task=request.task,
-        project_context=context,
-        include_tests=request.include_tests,
-        include_security=request.include_security,
-        include_performance=request.include_performance,
-    )
-
-    return {
-        "status": "success",
-        "project_name": request.project_name,
-        "statistics": statistics,
-        "workflow": result,
-    }
-
-
-# ------------------------------------------------------------
-# EXISTING UI-COMPATIBLE AGENT ENDPOINT
-# ------------------------------------------------------------
-
-@app.post("/api/agent/execute")
-async def agent_execute(
-    request: MultiAgentRequest,
-):
-
-    task = (
-        request.task_description
-        or request.task
-        or ""
-    ).strip()
-
-    if not task:
-
-        raise HTTPException(
-            status_code=400,
-            detail="Task is required.",
-        )
-
-    start = time.time()
-
-    try:
-
-        result = (
-            await run_multi_agent_workflow(
-                task=task,
-                include_tests=(
-                    request.include_tests
-                ),
-                include_security=(
-                    request.include_security
-                ),
-            )
-        )
-
-        result["latency_seconds"] = round(
-            time.time() - start,
-            3,
-        )
-
-        return result
-
-    except Exception as error:
-
-        record("failed_requests")
-
-        raise HTTPException(
-            status_code=500,
-            detail=str(error),
-        )
-
-
-# ------------------------------------------------------------
 # CODE REVIEW
-# ------------------------------------------------------------
+# ============================================================
 
 @app.post("/api/code/review")
 async def code_review(
@@ -1572,361 +1169,51 @@ async def code_review(
 
     start = time.time()
 
-    prompt = f"""
+    record("requests")
+    record("review_requests")
+
+    focus = (
+        request.focus
+        or "correctness, security, "
+           "performance and maintainability"
+    )
+
+    try:
+
+        output = await infer(
+            f"""
 Perform a professional code review.
 
 LANGUAGE:
 {request.language}
 
 FOCUS:
-{request.focus or "general quality"}
+{focus}
 
 CODE:
+```{request.language}
 {request.code}
 
-Review for:
+---
 
-- correctness
-- bugs
-- security
-- maintainability
-- performance
-- readability
-- edge cases
-- testing
+# 🧩 PART 3/5 — Secure Execution + Testing + Terminal
 
-Return:
-
-1. Summary
-2. Critical issues
-3. Important issues
-4. Improvements
-5. Suggested corrected code where useful
-6. Testing recommendations
-"""
-
-    try:
-
-        output = await infer(
-            prompt
-        )
-
-        record(
-            "successful_requests"
-        )
-
-        return {
-            "status": "success",
-            "review": {
-                "output": output
-            },
-            "latency_seconds": round(
-                time.time() - start,
-                3,
-            ),
-        }
-
-    except Exception as error:
-
-        record("failed_requests")
-
-        raise HTTPException(
-            status_code=500,
-            detail=str(error),
-        )
-
-
-# ------------------------------------------------------------
-# PROJECT ENDPOINTS
-# ------------------------------------------------------------
-
-@app.post("/api/project/analyze")
-async def project_analyze(
-    request: ProjectRequest,
-):
-
-    try:
-
-        return await analyze_project(
-            request.files,
-            request.task,
-        )
-
-    except Exception as error:
-
-        raise HTTPException(
-            status_code=400,
-            detail=str(error),
-        )
-
-
-@app.post("/api/project/architecture")
-async def project_architecture(
-    request: ProjectRequest,
-):
-
-    try:
-
-        return await analyze_project(
-            request.files,
-            (
-                request.task
-                + "\nFocus specifically on architecture."
-            ),
-        )
-
-    except Exception as error:
-
-        raise HTTPException(
-            status_code=400,
-            detail=str(error),
-        )
-
-
-@app.post("/api/project/dependencies")
-async def project_dependencies(
-    request: ProjectRequest,
-):
-
-    try:
-
-        return await analyze_dependencies(
-            request.files
-        )
-
-    except Exception as error:
-
-        raise HTTPException(
-            status_code=400,
-            detail=str(error),
-        )
-
-
-@app.post("/api/project/debug")
-async def project_debug(
-    request: ProjectRequest,
-):
-
-    try:
-
-        return await debug_project(
-            request.files,
-            request.task,
-        )
-
-    except Exception as error:
-
-        raise HTTPException(
-            status_code=400,
-            detail=str(error),
-        )
-
-
-@app.post("/api/project/tests")
-async def project_tests(
-    request: ProjectRequest,
-):
-
-    try:
-
-        return await generate_test_plan(
-            request.files,
-            request.task,
-        )
-
-    except Exception as error:
-
-        raise HTTPException(
-            status_code=400,
-            detail=str(error),
-        )
-
-
-@app.post("/api/project/security")
-async def project_security(
-    request: ProjectRequest,
-):
-
-    try:
-
-        return await analyze_project_security(
-            request.files
-        )
-
-    except Exception as error:
-
-        raise HTTPException(
-            status_code=400,
-            detail=str(error),
-        )
-
-
-@app.post("/api/project/performance")
-async def project_performance(
-    request: ProjectRequest,
-):
-
-    try:
-
-        return await analyze_project_performance(
-            request.files
-        )
-
-    except Exception as error:
-
-        raise HTTPException(
-            status_code=400,
-            detail=str(error),
-        )
-
-
-@app.post("/api/project/agent")
-async def project_agent(
-    request: ProjectAgentRequest,
-):
-
-    try:
-
-        return await run_project_workflow(
-            request
-        )
-
-    except Exception as error:
-
-        raise HTTPException(
-            status_code=400,
-            detail=str(error),
-        )
+```python
 # ============================================================
-# PART 3/5
-# SAFE CODE EXECUTION + TEST RUNNER
+# PART 3 - EXECUTION / TESTING / TERMINAL
 # ============================================================
 
 
-# ------------------------------------------------------------
-# EXECUTION MODELS
-# ------------------------------------------------------------
-
-class ExecutionFile(BaseModel):
-    path: str
-
-    content: str = Field(
-        max_length=MAX_FILE_SIZE
-    )
-
-
-class ExecuteRequest(BaseModel):
-    files: List[ExecutionFile]
-
-    command: Optional[str] = None
-
-    language: str = "python"
-
-    timeout_seconds: int = Field(
-        default=EXECUTION_TIMEOUT_SECONDS,
-        ge=1,
-        le=60,
-    )
-
-
-class TestRequest(BaseModel):
-    files: List[ExecutionFile]
-
-    command: Optional[str] = None
-
-    language: str = "python"
-
-    timeout_seconds: int = Field(
-        default=EXECUTION_TIMEOUT_SECONDS,
-        ge=1,
-        le=60,
-    )
-
-
-class ExecutionResult(BaseModel):
-    status: str
-
-    exit_code: Optional[int] = None
-
-    stdout: str = ""
-
-    stderr: str = ""
-
-    command: Optional[str] = None
-
-    duration_seconds: float = 0.0
-
-
-# ------------------------------------------------------------
-# SAFE EXECUTION COMMANDS
-# ------------------------------------------------------------
-
-SAFE_COMMANDS = {
+SAFE_EXECUTABLES = {
     "python",
     "python3",
-    "pytest",
     "node",
     "npm",
 }
 
 
-def validate_execution_files(
-    files: List[ExecutionFile],
-) -> List[ExecutionFile]:
-
-    if not files:
-        raise ValueError(
-            "At least one execution file is required."
-        )
-
-    if len(files) > MAX_PROJECT_FILES:
-        raise ValueError(
-            f"Too many files. Maximum: "
-            f"{MAX_PROJECT_FILES}"
-        )
-
-    total_size = 0
-    validated = []
-
-    for item in files:
-
-        path = safe_relative_path(
-            item.path
-        )
-
-        if len(item.content) > MAX_FILE_SIZE:
-            raise ValueError(
-                f"File too large: {path}"
-            )
-
-        total_size += len(
-            item.content.encode(
-                "utf-8",
-                errors="ignore",
-            )
-        )
-
-        validated.append(
-            ExecutionFile(
-                path=path,
-                content=item.content,
-            )
-        )
-
-    if total_size > MAX_PROJECT_SIZE:
-        raise ValueError(
-            "Execution project is too large."
-        )
-
-    return validated
-
-
-# ------------------------------------------------------------
-# COMMAND VALIDATION
-# ------------------------------------------------------------
-
 def validate_command(
-    command: str,
+    command: List[str],
 ) -> List[str]:
 
     if not command:
@@ -1934,555 +1221,340 @@ def validate_command(
             "Command cannot be empty."
         )
 
-    command = command.strip()
+    if len(command) > 20:
+        raise ValueError(
+            "Too many command arguments."
+        )
 
-    # No shell execution.
-    forbidden = [
-        ";",
-        "&&",
-        "||",
-        "|",
-        ">",
-        "<",
-        "`",
-        "$(",
-        "\n",
-        "\r",
-    ]
+    cleaned = []
 
-    for token in forbidden:
+    for value in command:
 
-        if token in command:
+        if not isinstance(value, str):
             raise ValueError(
-                "Shell operators are not allowed."
+                "Command arguments must be strings."
             )
 
-    parts = command.split()
+        if len(value) > 500:
+            raise ValueError(
+                "Command argument is too long."
+            )
 
-    if not parts:
-        raise ValueError(
-            "Invalid command."
-        )
+        if "\x00" in value:
+            raise ValueError(
+                "Null byte detected."
+            )
+
+        cleaned.append(value)
 
     executable = Path(
-        parts[0]
+        cleaned[0]
     ).name.lower()
 
-    if executable not in SAFE_COMMANDS:
+    if executable not in SAFE_EXECUTABLES:
         raise ValueError(
-            f"Command '{executable}' "
-            "is not permitted."
+            f"Command '{executable}' is not allowed."
         )
 
-    # Prevent direct path execution.
-    if "/" in parts[0] or "\\" in parts[0]:
-        raise ValueError(
-            "Executable paths are not allowed."
-        )
-
-    # Keep arguments conservative.
-    dangerous_arguments = [
-        "--privileged",
-        "--network",
-        "--mount",
-        "--volume",
-        "-v",
-        "--rm",
-        "sudo",
-        "su",
-        "chmod",
-        "chown",
-        "curl",
-        "wget",
-    ]
-
-    for argument in parts[1:]:
-
-        if argument in dangerous_arguments:
-            raise ValueError(
-                f"Argument '{argument}' "
-                "is not allowed."
-            )
-
-    return parts
+    return cleaned
 
 
-# ------------------------------------------------------------
-# OUTPUT PROTECTION
-# ------------------------------------------------------------
+def default_command(
+    language: str,
+    entrypoint: str,
+) -> List[str]:
 
-def clamp_execution_output(
+    entrypoint = safe_relative_path(
+        entrypoint
+    )
+
+    language = language.lower()
+
+    if language == "python":
+        return [
+            "python",
+            entrypoint,
+        ]
+
+    if language in (
+        "javascript",
+        "js",
+        "node",
+    ):
+        return [
+            "node",
+            entrypoint,
+        ]
+
+    raise ValueError(
+        f"Unsupported language: {language}"
+    )
+
+
+def output_limit(
     text: str,
 ) -> str:
 
-    if not text:
-        return ""
-
-    if len(text) <= EXECUTION_OUTPUT_LIMIT:
-        return text
+    text = text or ""
 
     return (
+        text
+        if len(text) <=
+        EXECUTION_OUTPUT_LIMIT
+        else
         text[:EXECUTION_OUTPUT_LIMIT]
         + "\n...[output truncated]"
     )
 
 
-# ------------------------------------------------------------
-# TEMPORARY WORKSPACE
-# ------------------------------------------------------------
+def create_workspace(
+    files: List[ProjectFile],
+) -> Path:
 
-def create_workspace() -> Path:
+    files = validate_project_files(
+        files
+    )
 
     base = Path(
-        os.getenv(
-            "ENGINEER_WORKSPACE",
-            "/tmp",
+        tempfile.mkdtemp(
+            prefix="engineer_ai_"
         )
     )
 
-    base.mkdir(
-        parents=True,
-        exist_ok=True,
-    )
+    for item in files:
 
-    workspace = (
-        base
-        / f"engineer-ai-{uuid.uuid4().hex}"
-    )
+        target = base / item.path
 
-    workspace.mkdir(
-        parents=True,
-        exist_ok=False,
-    )
+        target.parent.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
 
-    return workspace
+        target.write_text(
+            item.content,
+            encoding="utf-8",
+        )
+
+    return base
 
 
 def cleanup_workspace(
     workspace: Path,
 ) -> None:
 
-    try:
-
-        if workspace.exists():
-
-            shutil.rmtree(
-                workspace,
-                ignore_errors=True,
-            )
-
-    except Exception:
-
-        logger.exception(
-            "Workspace cleanup failed."
-        )
-
-
-# ------------------------------------------------------------
-# WRITE PROJECT FILES
-# ------------------------------------------------------------
-
-def write_execution_files(
-    workspace: Path,
-    files: List[ExecutionFile],
-) -> None:
-
-    total_size = 0
-
-    for item in files:
-
-        relative = safe_relative_path(
-            item.path
-        )
-
-        destination = (
-            workspace
-            / relative
-        )
-
-        destination.parent.mkdir(
-            parents=True,
-            exist_ok=True,
-        )
-
-        content_bytes = item.content.encode(
-            "utf-8",
-            errors="ignore",
-        )
-
-        total_size += len(
-            content_bytes
-        )
-
-        if total_size > MAX_PROJECT_SIZE:
-            raise ValueError(
-                "Project size limit exceeded."
-            )
-
-        destination.write_bytes(
-            content_bytes
-        )
-
-
-# ------------------------------------------------------------
-# ENVIRONMENT
-# ------------------------------------------------------------
-
-def build_execution_environment(
-    workspace: Path,
-) -> Dict[str, str]:
-
-    # Deliberately do NOT forward the server's
-    # environment variables into generated code.
-
-    return {
-        "HOME": "/tmp",
-        "PYTHONUNBUFFERED": "1",
-        "PYTHONDONTWRITEBYTECODE": "1",
-        "NODE_ENV": "test",
-        "ENGINEER_AI_SANDBOX": "1",
-    }
-
-
-# ------------------------------------------------------------
-# LANGUAGE / IMAGE SELECTION
-# ------------------------------------------------------------
-
-def select_docker_image(
-    language: str,
-) -> str:
-
-    language = (
-        language
-        or "python"
-    ).lower()
-
-    if language in {
-        "python",
-        "py",
-    }:
-
-        return PYTHON_DOCKER_IMAGE
-
-    if language in {
-        "javascript",
-        "js",
-        "node",
-        "typescript",
-        "ts",
-    }:
-
-        return NODE_DOCKER_IMAGE
-
-    raise ValueError(
-        f"Unsupported execution language: "
-        f"{language}"
+    shutil.rmtree(
+        workspace,
+        ignore_errors=True,
     )
 
 
-# ------------------------------------------------------------
-# DEFAULT TEST COMMAND
-# ------------------------------------------------------------
-
-def default_test_command(
-    language: str,
-) -> str:
-
-    language = (
-        language
-        or "python"
-    ).lower()
-
-    if language in {
-        "python",
-        "py",
-    }:
-
-        return (
-            "python -m unittest discover -v"
-        )
-
-    if language in {
-        "javascript",
-        "js",
-        "node",
-        "typescript",
-        "ts",
-    }:
-
-        return "npm test"
-
-    raise ValueError(
-        f"No default test command for "
-        f"language: {language}"
-    )
-
-
-# ------------------------------------------------------------
-# HOST PROCESS RUNNER
-# ------------------------------------------------------------
-
-def run_host_process(
+def run_docker(
     workspace: Path,
-    command_parts: List[str],
-    timeout_seconds: int,
-) -> Dict[str, Any]:
-
-    if not ALLOW_UNSANDBOXED_EXECUTION:
-
-        raise RuntimeError(
-            "Unsandboxed execution is disabled. "
-            "Use Docker execution."
-        )
-
-    start = time.time()
-
-    environment = (
-        build_execution_environment(
-            workspace
-        )
-    )
-
-    try:
-
-        process = subprocess.run(
-            command_parts,
-            cwd=str(workspace),
-            env=environment,
-            stdin=subprocess.DEVNULL,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            timeout=timeout_seconds,
-            shell=False,
-            check=False,
-        )
-
-        return {
-            "status": (
-                "success"
-                if process.returncode == 0
-                else "failed"
-            ),
-            "exit_code": process.returncode,
-            "stdout": clamp_execution_output(
-                process.stdout.decode(
-                    "utf-8",
-                    errors="replace",
-                )
-            ),
-            "stderr": clamp_execution_output(
-                process.stderr.decode(
-                    "utf-8",
-                    errors="replace",
-                )
-            ),
-            "duration_seconds": round(
-                time.time() - start,
-                3,
-            ),
-        }
-
-    except subprocess.TimeoutExpired:
-
-        return {
-            "status": "timeout",
-            "exit_code": None,
-            "stdout": "",
-            "stderr": (
-                "Execution timed out."
-            ),
-            "duration_seconds": round(
-                time.time() - start,
-                3,
-            ),
-        }
-
-
-# ------------------------------------------------------------
-# DOCKER PROCESS RUNNER
-# ------------------------------------------------------------
-
-def run_docker_process(
-    workspace: Path,
-    command_parts: List[str],
+    command: List[str],
     language: str,
-    timeout_seconds: int,
+    timeout: int,
 ) -> Dict[str, Any]:
 
     if shutil.which("docker") is None:
-
         raise RuntimeError(
-            "Docker is not available on this server."
+            "Docker is not available."
         )
 
-    image = select_docker_image(
-        language
-    )
-
-    start = time.time()
-
-    workspace_path = str(
-        workspace.resolve()
+    image = (
+        PYTHON_DOCKER_IMAGE
+        if language == "python"
+        else NODE_DOCKER_IMAGE
     )
 
     docker_command = [
         "docker",
         "run",
-
         "--rm",
-
         "--network",
         "none",
-
         "--cpus",
         "0.5",
-
         "--memory",
         "256m",
-
         "--pids-limit",
         "64",
-
         "--read-only",
-
         "--security-opt",
         "no-new-privileges",
-
         "--cap-drop",
         "ALL",
-
         "--tmpfs",
         "/tmp:rw,noexec,nosuid,size=64m",
-
-        "--mount",
-        (
-            "type=bind,"
-            f"source={workspace_path},"
-            "target=/workspace,"
-            "readonly"
-        ),
-
-        "--workdir",
+        "-v",
+        f"{workspace.resolve()}:/workspace:ro",
+        "-w",
         "/workspace",
-
         image,
-    ]
+    ] + command
 
-    docker_command.extend(
-        command_parts
-    )
+    start = time.time()
 
     try:
 
-        process = subprocess.run(
+        result = subprocess.run(
             docker_command,
-            stdin=subprocess.DEVNULL,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            timeout=timeout_seconds,
-            shell=False,
-            check=False,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
         )
 
         return {
-            "status": (
-                "success"
-                if process.returncode == 0
-                else "failed"
-            ),
-            "exit_code": process.returncode,
-            "stdout": clamp_execution_output(
-                process.stdout.decode(
-                    "utf-8",
-                    errors="replace",
-                )
-            ),
-            "stderr": clamp_execution_output(
-                process.stderr.decode(
-                    "utf-8",
-                    errors="replace",
-                )
-            ),
-            "duration_seconds": round(
-                time.time() - start,
-                3,
-            ),
+            "status":
+                (
+                    "success"
+                    if result.returncode == 0
+                    else "failed"
+                ),
+            "return_code":
+                result.returncode,
+            "stdout":
+                output_limit(
+                    result.stdout
+                ),
+            "stderr":
+                output_limit(
+                    result.stderr
+                ),
+            "duration_seconds":
+                round(
+                    time.time() - start,
+                    3,
+                ),
+            "sandbox":
+                "docker",
+        }
+
+    except subprocess.TimeoutExpired as error:
+
+        return {
+            "status": "timeout",
+            "return_code": None,
+            "stdout":
+                output_limit(
+                    error.stdout or ""
+                ),
+            "stderr":
+                output_limit(
+                    error.stderr or ""
+                ),
+            "duration_seconds":
+                round(
+                    time.time() - start,
+                    3,
+                ),
+            "sandbox":
+                "docker",
+        }
+
+
+def run_host_explicit(
+    workspace: Path,
+    command: List[str],
+    timeout: int,
+) -> Dict[str, Any]:
+
+    if not ALLOW_UNSANDBOXED_EXECUTION:
+        raise RuntimeError(
+            "Host execution is disabled."
+        )
+
+    start = time.time()
+
+    try:
+
+        result = subprocess.run(
+            command,
+            cwd=str(workspace),
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+
+        return {
+            "status":
+                (
+                    "success"
+                    if result.returncode == 0
+                    else "failed"
+                ),
+            "return_code":
+                result.returncode,
+            "stdout":
+                output_limit(
+                    result.stdout
+                ),
+            "stderr":
+                output_limit(
+                    result.stderr
+                ),
+            "duration_seconds":
+                round(
+                    time.time() - start,
+                    3,
+                ),
+            "sandbox":
+                "host-explicitly-enabled",
         }
 
     except subprocess.TimeoutExpired:
 
         return {
             "status": "timeout",
-            "exit_code": None,
+            "return_code": None,
             "stdout": "",
-            "stderr": (
-                "Docker execution timed out."
-            ),
-            "duration_seconds": round(
-                time.time() - start,
-                3,
-            ),
+            "stderr": "Execution timed out.",
+            "duration_seconds":
+                round(
+                    time.time() - start,
+                    3,
+                ),
+            "sandbox":
+                "host-explicitly-enabled",
         }
 
 
-# ------------------------------------------------------------
-# EXECUTION ENGINE
-# ------------------------------------------------------------
-
-def execute_files(
-    files: List[ExecutionFile],
-    command: str,
+def execute_project(
+    files: List[ProjectFile],
+    command: List[str],
     language: str,
-    timeout_seconds: int,
+    timeout: int,
 ) -> Dict[str, Any]:
 
-    validated = validate_execution_files(
+    workspace = create_workspace(
         files
     )
 
-    command_parts = validate_command(
-        command
-    )
-
-    workspace = create_workspace()
-
     try:
 
-        write_execution_files(
-            workspace,
-            validated,
+        command = validate_command(
+            command
         )
 
-        if EXECUTION_MODE.lower() == "docker":
+        if EXECUTION_MODE == "docker":
 
-            result = run_docker_process(
+            return run_docker(
                 workspace,
-                command_parts,
+                command,
                 language,
-                timeout_seconds,
+                timeout,
             )
 
-        elif (
-            EXECUTION_MODE.lower()
-            == "host"
-        ):
+        if EXECUTION_MODE == "host":
 
-            result = run_host_process(
+            return run_host_explicit(
                 workspace,
-                command_parts,
-                timeout_seconds,
+                command,
+                timeout,
             )
 
-        else:
-
-            raise RuntimeError(
-                f"Unknown execution mode: "
-                f"{EXECUTION_MODE}"
-            )
-
-        result["command"] = command
-
-        return result
+        raise RuntimeError(
+            "Unknown execution mode."
+        )
 
     finally:
 
@@ -2491,9 +1563,9 @@ def execute_files(
         )
 
 
-# ------------------------------------------------------------
+# ============================================================
 # EXECUTE API
-# ------------------------------------------------------------
+# ============================================================
 
 @app.post("/api/execute")
 async def execute_code(
@@ -2502,76 +1574,68 @@ async def execute_code(
 
     start = time.time()
 
-    record(
-        "execution_requests"
-    )
-
-    if request.command is None:
-
-        language = (
-            request.language
-            or "python"
-        ).lower()
-
-        if language in {
-            "python",
-            "py",
-        }:
-
-            request.command = (
-                "python main.py"
-            )
-
-        elif language in {
-            "javascript",
-            "js",
-            "node",
-        }:
-
-            request.command = (
-                "node index.js"
-            )
-
-        else:
-
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    "A command is required "
-                    "for this language."
-                ),
-            )
+    record("requests")
+    record("execution_requests")
 
     try:
 
+        files = validate_project_files(
+            request.files
+        )
+
+        language = (
+            request.language
+            or detect_language(
+                request.entrypoint
+            )
+        )
+
+        timeout = max(
+            1,
+            min(
+                request.timeout_seconds
+                or EXECUTION_TIMEOUT_SECONDS,
+                EXECUTION_TIMEOUT_SECONDS,
+            ),
+        )
+
+        command = (
+            request.command
+            if request.command
+            else default_command(
+                language,
+                request.entrypoint,
+            )
+        )
+
         result = await asyncio.to_thread(
-            execute_files,
-            request.files,
-            request.command,
-            request.language,
-            request.timeout_seconds,
+            execute_project,
+            files,
+            command,
+            language,
+            timeout,
         )
 
         if result["status"] == "success":
-
             record(
                 "execution_successes"
             )
-
         else:
-
             record(
                 "execution_failures"
             )
 
-        result["latency_seconds"] = round(
-            time.time() - start,
-            3,
-        )
+        return {
+            "status": "success",
+            "execution": result,
+            "latency_seconds":
+                round(
+                    time.time() - start,
+                    3,
+                ),
+        }
 
-        return result
-
-    except Exception as error:
+    except ValueError as error:
 
         record(
             "execution_failures"
@@ -2582,14 +1646,25 @@ async def execute_code(
             detail=str(error),
         )
 
+    except Exception as error:
+
+        record(
+            "execution_failures"
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(error),
+        )
+
     finally:
 
         record_latency(start)
 
 
-# ------------------------------------------------------------
+# ============================================================
 # TEST API
-# ------------------------------------------------------------
+# ============================================================
 
 @app.post("/api/test/run")
 async def run_tests(
@@ -2598,49 +1673,88 @@ async def run_tests(
 
     start = time.time()
 
-    record(
-        "test_requests"
-    )
+    record("requests")
+    record("test_requests")
 
     try:
 
-        command = (
-            request.command
-            or default_test_command(
-                request.language
+        files = validate_project_files(
+            request.files
+        )
+
+        language = (
+            request.language
+            or detect_language(
+                files[0].path
             )
         )
 
-        result = await asyncio.to_thread(
-            execute_files,
-            request.files,
-            command,
-            request.language,
-            request.timeout_seconds,
-        )
+        if request.command:
 
-        if result["status"] == "success":
-
-            record(
-                "test_successes"
+            command = validate_command(
+                request.command
             )
+
+        elif language == "python":
+
+            command = [
+                "python",
+                "-m",
+                "unittest",
+                "discover",
+                "-v",
+            ]
+
+        elif language in (
+            "javascript",
+            "js",
+            "node",
+        ):
+
+            command = [
+                "npm",
+                "test",
+            ]
 
         else:
 
-            record(
-                "test_failures"
+            raise ValueError(
+                "Automatic testing is not "
+                "supported for this language."
             )
 
-        result["test_command"] = command
-
-        result["latency_seconds"] = round(
-            time.time() - start,
-            3,
+        result = await asyncio.to_thread(
+            execute_project,
+            files,
+            command,
+            language,
+            request.timeout_seconds
+            or EXECUTION_TIMEOUT_SECONDS,
         )
 
-        return result
+        passed = (
+            result["status"]
+            == "success"
+        )
 
-    except Exception as error:
+        record(
+            "test_successes"
+            if passed
+            else "test_failures"
+        )
+
+        return {
+            "status": "success",
+            "tests": result,
+            "passed": passed,
+            "latency_seconds":
+                round(
+                    time.time() - start,
+                    3,
+                ),
+        }
+
+    except ValueError as error:
 
         record(
             "test_failures"
@@ -2651,985 +1765,14 @@ async def run_tests(
             detail=str(error),
         )
 
-    finally:
-
-        record_latency(start)
-
-
-# ------------------------------------------------------------
-# EXECUTION CONTEXT FOR AI
-# ------------------------------------------------------------
-
-def build_execution_context(
-    files: List[ExecutionFile],
-) -> str:
-
-    sections = []
-
-    for item in files:
-
-        sections.append(
-            f"""
-===== {item.path} =====
-
-{clamp_text(
-    item.content,
-    MAX_FILE_SIZE,
-)}
-"""
-        )
-
-    return clamp_text(
-        "\n".join(sections),
-        MAX_PROJECT_SIZE,
-    )
-# ============================================================
-# PART 4/5
-# AUTOMATIC DIAGNOSE → FIX → RETEST
-# + BENCHMARKING
-# ============================================================
-
-
-# ------------------------------------------------------------
-# AUTO-FIX MODELS
-# ------------------------------------------------------------
-
-class AutoFixRequest(BaseModel):
-    files: List[ExecutionFile]
-
-    command: Optional[str] = None
-
-    language: str = "python"
-
-    max_cycles: int = Field(
-        default=MAX_TEST_FIX_CYCLES,
-        ge=1,
-        le=5,
-    )
-
-    timeout_seconds: int = Field(
-        default=EXECUTION_TIMEOUT_SECONDS,
-        ge=1,
-        le=60,
-    )
-
-    task: Optional[str] = None
-
-
-# ------------------------------------------------------------
-# BENCHMARK MODELS
-# ------------------------------------------------------------
-
-class BenchmarkCase(BaseModel):
-    name: str
-
-    files: List[ExecutionFile]
-
-    command: str
-
-    language: str = "python"
-
-    expected_output: Optional[str] = None
-
-    expected_contains: List[str] = []
-
-
-class BenchmarkRequest(BaseModel):
-    cases: List[BenchmarkCase]
-
-    stop_on_failure: bool = False
-
-
-# ------------------------------------------------------------
-# JSON RESPONSE PARSER
-# ------------------------------------------------------------
-
-def parse_json_response(
-    text: str,
-) -> Dict[str, Any]:
-
-    if not text:
-        raise ValueError(
-            "AI returned an empty response."
-        )
-
-    cleaned = text.strip()
-
-    # Remove markdown fences if the model
-    # accidentally returns them.
-    if cleaned.startswith("```"):
-
-        lines = cleaned.splitlines()
-
-        if lines:
-            lines = lines[1:]
-
-        if lines and lines[-1].strip() == "```":
-            lines = lines[:-1]
-
-        cleaned = "\n".join(lines).strip()
-
-    try:
-
-        result = json.loads(
-            cleaned
-        )
-
-    except json.JSONDecodeError:
-
-        # Try to recover the first JSON object.
-        start = cleaned.find("{")
-        end = cleaned.rfind("}")
-
-        if start == -1 or end == -1:
-            raise ValueError(
-                "AI response did not contain valid JSON."
-            )
-
-        try:
-
-            result = json.loads(
-                cleaned[start:end + 1]
-            )
-
-        except json.JSONDecodeError as error:
-
-            raise ValueError(
-                "Unable to parse AI JSON response."
-            ) from error
-
-    if not isinstance(result, dict):
-
-        raise ValueError(
-            "AI response must be a JSON object."
-        )
-
-    return result
-
-
-# ------------------------------------------------------------
-# VALIDATE AI FILE CHANGES
-# ------------------------------------------------------------
-
-def validate_changed_files(
-    changes: Any,
-) -> List[ExecutionFile]:
-
-    if not isinstance(
-        changes,
-        list,
-    ):
-
-        raise ValueError(
-            "AI changes must be a list."
-        )
-
-    if len(changes) > MAX_PROJECT_FILES:
-
-        raise ValueError(
-            "AI returned too many files."
-        )
-
-    validated = []
-
-    total_size = 0
-
-    for change in changes:
-
-        if not isinstance(
-            change,
-            dict,
-        ):
-
-            raise ValueError(
-                "Invalid AI file change."
-            )
-
-        path = safe_relative_path(
-            str(
-                change.get(
-                    "path",
-                    "",
-                )
-            )
-        )
-
-        content = change.get(
-            "content"
-        )
-
-        if not isinstance(
-            content,
-            str,
-        ):
-
-            raise ValueError(
-                f"Invalid content for {path}."
-            )
-
-        if len(content) > MAX_FILE_SIZE:
-
-            raise ValueError(
-                f"AI-generated file too large: {path}"
-            )
-
-        total_size += len(
-            content.encode(
-                "utf-8",
-                errors="ignore",
-            )
-        )
-
-        validated.append(
-            ExecutionFile(
-                path=path,
-                content=content,
-            )
-        )
-
-    if total_size > MAX_PROJECT_SIZE:
-
-        raise ValueError(
-            "AI-generated project is too large."
-        )
-
-    return validated
-
-
-# ------------------------------------------------------------
-# APPLY AI CHANGES
-# ------------------------------------------------------------
-
-def apply_file_changes(
-    current_files: List[ExecutionFile],
-    changed_files: List[ExecutionFile],
-) -> List[ExecutionFile]:
-
-    file_map = {
-        safe_relative_path(
-            item.path
-        ): item.content
-        for item in current_files
-    }
-
-    for item in changed_files:
-
-        path = safe_relative_path(
-            item.path
-        )
-
-        file_map[path] = item.content
-
-    result = []
-
-    for path, content in file_map.items():
-
-        result.append(
-            ExecutionFile(
-                path=path,
-                content=content,
-            )
-        )
-
-    if len(result) > MAX_PROJECT_FILES:
-
-        raise ValueError(
-            "Resulting project has too many files."
-        )
-
-    total_size = sum(
-        len(
-            item.content.encode(
-                "utf-8",
-                errors="ignore",
-            )
-        )
-        for item in result
-    )
-
-    if total_size > MAX_PROJECT_SIZE:
-
-        raise ValueError(
-            "Resulting project is too large."
-        )
-
-    return sorted(
-        result,
-        key=lambda item: item.path,
-    )
-
-
-# ------------------------------------------------------------
-# AI AUTO-FIX GENERATOR
-# ------------------------------------------------------------
-
-async def generate_auto_fix(
-    files: List[ExecutionFile],
-    task: str,
-    execution_result: Dict[str, Any],
-    language: str,
-    model: Optional[str] = None,
-) -> Dict[str, Any]:
-
-    context = build_execution_context(
-        files
-    )
-
-    stdout = clamp_execution_output(
-        execution_result.get(
-            "stdout",
-            "",
-        )
-    )
-
-    stderr = clamp_execution_output(
-        execution_result.get(
-            "stderr",
-            "",
-        )
-    )
-
-    prompt = f"""
-You are Engineer AI's automatic debugging and
-code repair engine.
-
-USER TASK:
-{task}
-
-LANGUAGE:
-{language}
-
-CURRENT PROJECT:
-{context}
-
-EXECUTION STATUS:
-{execution_result.get(
-    "status",
-    "unknown",
-)}
-
-EXIT CODE:
-{execution_result.get(
-    "exit_code"
-)}
-
-STDOUT:
-{stdout}
-
-STDERR:
-{stderr}
-
-Diagnose the failure and produce the smallest
-safe correction that should make the project
-pass its test or execution command.
-
-Return ONLY valid JSON with this exact structure:
-
-{{
-  "diagnosis": "root cause",
-  "summary": "short explanation",
-  "changes": [
-    {{
-      "path": "relative/path",
-      "content": "complete new file content"
-    }}
-  ],
-  "tests": [
-    "verification step"
-  ]
-}}
-
-Rules:
-
-- Only use relative file paths.
-- Never use absolute paths.
-- Never use ../
-- Do not add secrets.
-- Do not add destructive commands.
-- Do not modify unrelated files.
-- Preserve working functionality.
-- Return complete file contents for changed files.
-- If no safe fix is possible, return an empty changes list.
-"""
-
-    raw = await infer(
-        prompt,
-        model=model,
-        json_mode=True,
-    )
-
-    return parse_json_response(
-        raw
-    )
-
-
-# ------------------------------------------------------------
-# SINGLE AUTO-FIX CYCLE
-# ------------------------------------------------------------
-
-async def run_one_fix_cycle(
-    files: List[ExecutionFile],
-    task: str,
-    command: str,
-    language: str,
-    timeout_seconds: int,
-) -> Dict[str, Any]:
-
-    execution = await asyncio.to_thread(
-        execute_files,
-        files,
-        command,
-        language,
-        timeout_seconds,
-    )
-
-    if execution["status"] == "success":
-
-        return {
-            "status": "success",
-            "execution": execution,
-            "files": files,
-            "diagnosis": None,
-            "changes": [],
-        }
-
-    diagnosis = await generate_auto_fix(
-        files=files,
-        task=task,
-        execution_result=execution,
-        language=language,
-    )
-
-    raw_changes = diagnosis.get(
-        "changes",
-        [],
-    )
-
-    changed_files = (
-        validate_changed_files(
-            raw_changes
-        )
-    )
-
-    if not changed_files:
-
-        return {
-            "status": "failed",
-            "execution": execution,
-            "files": files,
-            "diagnosis": diagnosis,
-            "changes": [],
-            "message": (
-                "AI could not produce "
-                "a safe correction."
-            ),
-        }
-
-    updated_files = apply_file_changes(
-        files,
-        changed_files,
-    )
-
-    return {
-        "status": "fixed",
-        "execution": execution,
-        "files": updated_files,
-        "diagnosis": diagnosis,
-        "changes": [
-            item.model_dump()
-            for item in changed_files
-        ],
-    }
-
-
-# ------------------------------------------------------------
-# COMPLETE AUTO-FIX LOOP
-# ------------------------------------------------------------
-
-async def run_auto_fix_loop(
-    request: AutoFixRequest,
-) -> Dict[str, Any]:
-
-    start = time.time()
-
-    record(
-        "auto_fix_requests"
-    )
-
-    current_files = (
-        validate_execution_files(
-            request.files
-        )
-    )
-
-    language = (
-        request.language
-        or "python"
-    )
-
-    command = (
-        request.command
-        or default_test_command(
-            language
-        )
-    )
-
-    task = (
-        request.task
-        or "Make the project pass its tests."
-    )
-
-    history = []
-
-    for cycle in range(
-        1,
-        request.max_cycles + 1,
-    ):
-
-        result = await run_one_fix_cycle(
-            files=current_files,
-            task=task,
-            command=command,
-            language=language,
-            timeout_seconds=(
-                request.timeout_seconds
-            ),
-        )
-
-        history.append({
-            "cycle": cycle,
-            "status": result["status"],
-            "execution": result.get(
-                "execution"
-            ),
-            "diagnosis": result.get(
-                "diagnosis"
-            ),
-            "changes": result.get(
-                "changes",
-                [],
-            ),
-        })
-
-        if result["status"] == "success":
-
-            record(
-                "auto_fix_successes"
-            )
-
-            return {
-                "status": "success",
-                "message": (
-                    "Project passed execution/tests."
-                ),
-                "cycles": cycle,
-                "files": [
-                    item.model_dump()
-                    for item in current_files
-                ],
-                "history": history,
-                "execution": result[
-                    "execution"
-                ],
-                "fixed": cycle > 1,
-                "latency_seconds": round(
-                    time.time() - start,
-                    3,
-                ),
-            }
-
-        if result["status"] == "failed":
-
-            record(
-                "auto_fix_failures"
-            )
-
-            return {
-                "status": "failed",
-                "message": result.get(
-                    "message",
-                    "Automatic repair failed.",
-                ),
-                "cycles": cycle,
-                "files": [
-                    item.model_dump()
-                    for item in current_files
-                ],
-                "history": history,
-                "execution": result.get(
-                    "execution"
-                ),
-                "fixed": False,
-                "latency_seconds": round(
-                    time.time() - start,
-                    3,
-                ),
-            }
-
-        current_files = result[
-            "files"
-        ]
-
-    # --------------------------------------------------------
-    # FINAL VERIFICATION
-    # --------------------------------------------------------
-
-    final_result = await asyncio.to_thread(
-        execute_files,
-        current_files,
-        command,
-        language,
-        request.timeout_seconds,
-    )
-
-    if final_result["status"] == "success":
-
-        record(
-            "auto_fix_successes"
-        )
-
-        status = "success"
-
-    else:
-
-        record(
-            "auto_fix_failures"
-        )
-
-        status = "failed"
-
-    return {
-        "status": status,
-        "message": (
-            "Maximum auto-fix cycles reached."
-        ),
-        "cycles": request.max_cycles,
-        "files": [
-            item.model_dump()
-            for item in current_files
-        ],
-        "history": history,
-        "execution": final_result,
-        "fixed": (
-            status == "success"
-        ),
-        "latency_seconds": round(
-            time.time() - start,
-            3,
-        ),
-    }
-
-
-# ------------------------------------------------------------
-# AUTO-FIX API
-# ------------------------------------------------------------
-
-@app.post("/api/agent/autofix")
-async def agent_autofix(
-    request: AutoFixRequest,
-):
-
-    try:
-
-        return await run_auto_fix_loop(
-            request
-        )
-
     except Exception as error:
 
         record(
-            "auto_fix_failures"
+            "test_failures"
         )
 
         raise HTTPException(
-            status_code=400,
-            detail=str(error),
-        )
-
-
-@app.post("/api/execute/autofix")
-async def execute_autofix(
-    request: AutoFixRequest,
-):
-
-    try:
-
-        return await run_auto_fix_loop(
-            request
-        )
-
-    except Exception as error:
-
-        record(
-            "auto_fix_failures"
-        )
-
-        raise HTTPException(
-            status_code=400,
-            detail=str(error),
-        )
-
-
-# ------------------------------------------------------------
-# BENCHMARK HELPERS
-# ------------------------------------------------------------
-
-def evaluate_benchmark_result(
-    result: Dict[str, Any],
-    case: BenchmarkCase,
-) -> Dict[str, Any]:
-
-    passed = (
-        result.get("status")
-        == "success"
-    )
-
-    reasons = []
-
-    if not passed:
-
-        reasons.append(
-            "Execution failed."
-        )
-
-    stdout = result.get(
-        "stdout",
-        "",
-    )
-
-    if case.expected_output is not None:
-
-        if stdout.strip() != (
-            case.expected_output.strip()
-        ):
-
-            passed = False
-
-            reasons.append(
-                "Output did not exactly match "
-                "expected output."
-            )
-
-    for expected in (
-        case.expected_contains
-    ):
-
-        if expected not in stdout:
-
-            passed = False
-
-            reasons.append(
-                f"Missing expected output: "
-                f"{expected}"
-            )
-
-    return {
-        "passed": passed,
-        "reasons": reasons,
-    }
-
-
-# ------------------------------------------------------------
-# BENCHMARK RUNNER
-# ------------------------------------------------------------
-
-async def run_benchmarks(
-    request: BenchmarkRequest,
-) -> Dict[str, Any]:
-
-    start = time.time()
-
-    record(
-        "benchmark_requests"
-    )
-
-    if not request.cases:
-
-        raise ValueError(
-            "At least one benchmark case is required."
-        )
-
-    if len(request.cases) > 50:
-
-        raise ValueError(
-            "Maximum 50 benchmark cases."
-        )
-
-    results = []
-
-    passed_count = 0
-
-    for index, case in enumerate(
-        request.cases,
-        start=1,
-    ):
-
-        try:
-
-            validated_files = (
-                validate_execution_files(
-                    case.files
-                )
-            )
-
-            result = await asyncio.to_thread(
-                execute_files,
-                validated_files,
-                case.command,
-                case.language,
-                EXECUTION_TIMEOUT_SECONDS,
-            )
-
-            evaluation = (
-                evaluate_benchmark_result(
-                    result,
-                    case,
-                )
-            )
-
-            if evaluation["passed"]:
-
-                passed_count += 1
-
-            item = {
-                "index": index,
-                "name": case.name,
-                "execution": result,
-                "evaluation": evaluation,
-            }
-
-        except Exception as error:
-
-            item = {
-                "index": index,
-                "name": case.name,
-                "execution": {
-                    "status": "error",
-                    "error": str(error),
-                },
-                "evaluation": {
-                    "passed": False,
-                    "reasons": [
-                        str(error)
-                    ],
-                },
-            }
-
-        results.append(item)
-
-        if (
-            request.stop_on_failure
-            and not item[
-                "evaluation"
-            ]["passed"]
-        ):
-
-            break
-
-    total = len(results)
-
-    pass_rate = (
-        passed_count / total
-        if total
-        else 0.0
-    )
-
-    if passed_count == total and total > 0:
-
-        record(
-            "benchmark_successes"
-        )
-
-    return {
-        "status": "success",
-        "total_cases": total,
-        "passed_cases": passed_count,
-        "failed_cases": (
-            total - passed_count
-        ),
-        "pass_rate": round(
-            pass_rate,
-            4,
-        ),
-        "results": results,
-        "latency_seconds": round(
-            time.time() - start,
-            3,
-        ),
-    }
-
-
-# ------------------------------------------------------------
-# BENCHMARK API
-# ------------------------------------------------------------
-
-@app.post("/api/benchmark/run")
-async def benchmark_run(
-    request: BenchmarkRequest,
-):
-
-    try:
-
-        return await run_benchmarks(
-            request
-        )
-
-    except Exception as error:
-
-        raise HTTPException(
-            status_code=400,
-            detail=str(error),
-        )
-# ============================================================
-# PART 5/5
-# FINAL API WIRING + ANALYTICS + STARTUP
-# ============================================================
-
-
-# ------------------------------------------------------------
-# PROJECT MASTER AGENT
-# ------------------------------------------------------------
-
-@app.post("/api/project/run")
-async def project_run(
-    request: ProjectAgentRequest,
-):
-    """
-    Complete project engineering workflow.
-
-    Runs:
-    Planner
-    Coder
-    Debugger
-    Tester
-    Security
-    Performance
-    Final synthesis
-    """
-
-    start = time.time()
-
-    record("agent_requests")
-
-    try:
-
-        result = await run_project_workflow(
-            request
-        )
-
-        result["latency_seconds"] = round(
-            time.time() - start,
-            3,
-        )
-
-        return result
-
-    except Exception as error:
-
-        record("failed_requests")
-
-        raise HTTPException(
-            status_code=400,
+            status_code=500,
             detail=str(error),
         )
 
@@ -3638,223 +1781,92 @@ async def project_run(
         record_latency(start)
 
 
-# ------------------------------------------------------------
-# PROJECT MEMORY
-# ------------------------------------------------------------
+# ============================================================
+# SAFE TERMINAL
+# ============================================================
 
-project_memory: Dict[str, Dict[str, Any]] = {}
-
-
-class ProjectMemoryRequest(BaseModel):
-    project_id: str = Field(
-        min_length=1,
-        max_length=200,
-    )
-
-    project_name: Optional[str] = None
-
-    files: List[ProjectFile] = []
-
-    notes: Optional[str] = Field(
-        default=None,
-        max_length=MAX_PROMPT_LENGTH,
-    )
-
-
-@app.post("/api/project/memory/save")
-async def save_project_memory(
-    request: ProjectMemoryRequest,
+@app.post("/api/terminal/execute")
+async def terminal_execute(
+    request: TerminalRequest,
 ):
 
-    try:
+    start = time.time()
 
-        validated = validate_project_files(
-            request.files
-        ) if request.files else []
+    record("requests")
+    record("terminal_requests")
 
-        statistics = (
-            basic_project_statistics(
-                validated
-            )
-            if validated
-            else {}
+    command_text = request.command.strip()
+
+    if not command_text:
+        raise HTTPException(
+            status_code=400,
+            detail="Command is required.",
         )
 
-        project_memory[
-            request.project_id
-        ] = {
-            "project_id":
-                request.project_id,
-
-            "project_name":
-                request.project_name
-                or request.project_id,
-
-            "files": [
-                item.model_dump()
-                for item in validated
-            ],
-
-            "notes":
-                request.notes or "",
-
-            "statistics":
-                statistics,
-
-            "updated_at":
-                time.time(),
-        }
+    if command_text in (
+        "help",
+        "?",
+    ):
 
         return {
             "status": "success",
-            "project_id":
-                request.project_id,
-            "message":
-                "Project memory saved.",
+            "output": (
+                "Engineer AI Terminal\n"
+                "Allowed commands:\n"
+                "python <file>\n"
+                "node <file>\n"
+                "python -m unittest discover -v\n"
+                "npm test"
+            ),
         }
 
-    except Exception as error:
+    if command_text == "pwd":
+
+        return {
+            "status": "success",
+            "output": "/workspace",
+        }
+
+    if command_text == "ls":
+
+        names = [
+            x.path
+            for x in request.files
+        ]
+
+        return {
+            "status": "success",
+            "output": "\n".join(names),
+        }
+
+    parts = command_text.split()
+
+    try:
+
+        command = validate_command(
+            parts
+        )
+
+        result = await asyncio.to_thread(
+            execute_project,
+            request.files,
+            command,
+            request.language,
+            request.timeout_seconds
+            or EXECUTION_TIMEOUT_SECONDS,
+        )
+
+        return {
+            "status": "success",
+            "execution": result,
+        }
+
+    except ValueError as error:
 
         raise HTTPException(
             status_code=400,
             detail=str(error),
         )
-
-
-@app.get("/api/project/memory/{project_id}")
-async def get_project_memory(
-    project_id: str,
-):
-
-    memory = project_memory.get(
-        project_id
-    )
-
-    if memory is None:
-
-        raise HTTPException(
-            status_code=404,
-            detail="Project memory not found.",
-        )
-
-    return {
-        "status": "success",
-        "project": memory,
-    }
-
-
-@app.delete("/api/project/memory/{project_id}")
-async def delete_project_memory(
-    project_id: str,
-):
-
-    if project_id not in project_memory:
-
-        raise HTTPException(
-            status_code=404,
-            detail="Project memory not found.",
-        )
-
-    del project_memory[
-        project_id
-    ]
-
-    return {
-        "status": "success",
-        "project_id": project_id,
-        "message":
-            "Project memory deleted.",
-    }
-
-
-# ------------------------------------------------------------
-# MEMORY-AWARE PROJECT ANALYSIS
-# ------------------------------------------------------------
-
-class ProjectQuestionRequest(BaseModel):
-    project_id: str = Field(
-        min_length=1,
-        max_length=200,
-    )
-
-    question: str = Field(
-        min_length=1,
-        max_length=MAX_PROMPT_LENGTH,
-    )
-
-
-@app.post("/api/project/memory/ask")
-async def ask_project_memory(
-    request: ProjectQuestionRequest,
-):
-
-    memory = project_memory.get(
-        request.project_id
-    )
-
-    if memory is None:
-
-        raise HTTPException(
-            status_code=404,
-            detail="Project memory not found.",
-        )
-
-    files = memory.get(
-        "files",
-        [],
-    )
-
-    context = build_project_context(
-        [
-            ProjectFile(**item)
-            for item in files
-        ]
-    )
-
-    prompt = f"""
-You are Engineer AI working with a previously
-saved software project.
-
-PROJECT ID:
-{request.project_id}
-
-PROJECT NAME:
-{memory.get("project_name", "")}
-
-PROJECT NOTES:
-{memory.get("notes", "")}
-
-PROJECT:
-{context}
-
-USER QUESTION:
-{request.question}
-
-Answer using the project context.
-
-Do not invent files, APIs, dependencies,
-or functionality that is not supported
-by the project.
-"""
-
-    start = time.time()
-
-    try:
-
-        output = await infer(
-            prompt
-        )
-
-        return {
-            "status": "success",
-            "project_id":
-                request.project_id,
-            "answer": output,
-            "latency_seconds": round(
-                time.time() - start,
-                3,
-            ),
-        }
 
     except Exception as error:
 
@@ -3863,105 +1875,105 @@ by the project.
             detail=str(error),
         )
 
+    finally:
 
-# ------------------------------------------------------------
-# SECURITY STATIC CHECKS
-# ------------------------------------------------------------
+        record_latency(start)
+# ============================================================
+# PART 4 - DEBUGGER / SECURITY / AUTO-FIX / BENCHMARK
+# ============================================================
 
-def basic_security_scan(
+
+# ============================================================
+# SECURITY SCANNER
+# ============================================================
+
+SECURITY_PATTERNS = [
+
+    (
+        r"(?i)(api[_-]?key|secret|password)"
+        r"\s*=\s*['\"][^'\"]+['\"]",
+        "Possible hard-coded secret.",
+    ),
+
+    (
+        r"(?i)eval\s*\(",
+        "Use of eval() detected.",
+    ),
+
+    (
+        r"(?i)exec\s*\(",
+        "Use of exec() detected.",
+    ),
+
+    (
+        r"(?i)subprocess\.(run|Popen|call)"
+        r".*shell\s*=\s*True",
+        "Potential shell injection risk.",
+    ),
+
+    (
+        r"(?i)SELECT\s+.*\+",
+        "Possible SQL injection pattern.",
+    ),
+
+    (
+        r"(?i)os\.system\s*\(",
+        "os.system() detected.",
+    ),
+
+    (
+        r"(?i)innerHTML\s*=",
+        "Potential DOM injection risk.",
+    ),
+
+]
+
+
+def static_security_scan(
     files: List[ProjectFile],
 ) -> List[Dict[str, Any]]:
 
     findings = []
 
-    patterns = [
-        (
-            "hardcoded-secret",
-            [
-                "api_key =",
-                "apikey =",
-                "password =",
-                "secret =",
-                "token =",
-            ],
-            "Possible hardcoded credential.",
-        ),
-
-        (
-            "shell-execution",
-            [
-                "os.system(",
-                "shell=True",
-            ],
-            "Potential shell execution.",
-        ),
-
-        (
-            "unsafe-eval",
-            [
-                "eval(",
-                "exec(",
-            ],
-            "Dynamic code execution detected.",
-        ),
-
-        (
-            "debug-mode",
-            [
-                "debug=True",
-            ],
-            "Debug mode may be unsafe in production.",
-        ),
-    ]
-
     for item in files:
 
-        content_lower = (
-            item.content.lower()
-        )
+        for pattern, message in SECURITY_PATTERNS:
 
-        for rule_name, tokens, message in patterns:
+            try:
+                matches = list(
+                    re.finditer(
+                        pattern,
+                        item.content,
+                    )
+                )
+            except re.error:
+                matches = []
 
-            for token in tokens:
+            for match in matches:
 
-                if token.lower() in content_lower:
+                line = (
+                    item.content[:match.start()]
+                    .count("\n")
+                    + 1
+                )
 
-                    findings.append({
-                        "severity":
-                            (
-                                "high"
-                                if rule_name
-                                in {
-                                    "hardcoded-secret",
-                                    "shell-execution",
-                                    "unsafe-eval",
-                                }
-                                else "medium"
-                            ),
-
-                        "rule":
-                            rule_name,
-
-                        "file":
-                            item.path,
-
-                        "message":
-                            message,
-                    })
-
-                    break
+                findings.append({
+                    "file": item.path,
+                    "line": line,
+                    "severity": "medium",
+                    "message": message,
+                })
 
     return findings
 
 
-class SecurityScanRequest(BaseModel):
-    files: List[ProjectFile]
-
-
 @app.post("/api/security/scan")
 async def security_scan(
-    request: SecurityScanRequest,
+    request: ProjectRequest,
 ):
+
+    record("requests")
+    record("security_requests")
 
     try:
 
@@ -3969,19 +1981,17 @@ async def security_scan(
             request.files
         )
 
-        findings = basic_security_scan(
+        findings = static_security_scan(
             files
         )
 
         return {
             "status": "success",
             "findings": findings,
-            "finding_count": len(
-                findings
-            ),
+            "count": len(findings),
         }
 
-    except Exception as error:
+    except ValueError as error:
 
         raise HTTPException(
             status_code=400,
@@ -3989,14 +1999,75 @@ async def security_scan(
         )
 
 
-# ------------------------------------------------------------
-# AI + STATIC SECURITY REVIEW
-# ------------------------------------------------------------
-
 @app.post("/api/security/review")
 async def security_review(
-    request: SecurityScanRequest,
+    request: ProjectRequest,
 ):
+
+    record("requests")
+    record("security_requests")
+
+    files = validate_project_files(
+        request.files
+    )
+
+    context = build_project_context(
+        files
+    )
+
+    static_findings = static_security_scan(
+        files
+    )
+
+    ai_review = await infer(
+        f"""
+Perform a security review of this project.
+
+PROJECT:
+{context}
+
+STATIC FINDINGS:
+{json.dumps(
+    static_findings,
+    indent=2,
+)}
+
+Look for:
+- injection
+- secrets
+- authentication problems
+- authorization problems
+- unsafe file access
+- unsafe execution
+- data exposure
+- insecure defaults
+
+Provide severity and recommendations.
+"""
+    )
+
+    return {
+        "status": "success",
+        "static_findings":
+            static_findings,
+        "ai_review":
+            ai_review,
+    }
+
+
+# ============================================================
+# DEBUGGER
+# ============================================================
+
+@app.post("/api/debug")
+async def debug_project(
+    request: DebugRequest,
+):
+
+    start = time.time()
+
+    record("requests")
+    record("debug_requests")
 
     try:
 
@@ -4004,267 +2075,1106 @@ async def security_review(
             request.files
         )
 
-        static_findings = (
-            basic_security_scan(
-                files
-            )
-        )
-
         context = build_project_context(
             files
         )
 
-        ai_result = (
-            await run_specialized_agent(
-                "security",
-                (
-                    "Review this project for "
-                    "security vulnerabilities and "
-                    "recommend concrete fixes."
-                ),
-                context,
-            )
+        prompt = f"""
+You are the Engineer AI Debugger.
+
+Analyze this project for bugs.
+
+PROJECT:
+{context}
+
+ERROR:
+{request.error or "No error supplied."}
+
+Return:
+1. probable root cause
+2. affected file
+3. affected area
+4. explanation
+5. recommended fix
+6. tests to verify the fix
+
+Do not claim execution.
+"""
+
+        analysis = await infer(
+            prompt
         )
 
         return {
             "status": "success",
-            "static_findings":
-                static_findings,
-            "ai_review":
-                ai_result,
+            "debug": analysis,
+            "files":
+                [x.path for x in files],
+            "latency_seconds":
+                round(
+                    time.time() - start,
+                    3,
+                ),
         }
 
-    except Exception as error:
+    except ValueError as error:
 
         raise HTTPException(
             status_code=400,
             detail=str(error),
         )
 
+    finally:
 
-# ------------------------------------------------------------
-# PERFORMANCE METRICS
-# ------------------------------------------------------------
+        record_latency(start)
 
-@app.get("/api/ops/analytics")
-async def operations_analytics():
 
-    requests = analytics_data.get(
-        "requests",
-        0,
+# ============================================================
+# JSON EXTRACTION
+# ============================================================
+
+def extract_json(
+    text: str,
+) -> Optional[Any]:
+
+    text = text.strip()
+
+    try:
+        return json.loads(text)
+    except Exception:
+        pass
+
+    match = re.search(
+        r"```(?:json)?\s*(.*?)```",
+        text,
+        re.DOTALL | re.IGNORECASE,
     )
 
-    successful = analytics_data.get(
-        "successful_requests",
-        0,
-    )
+    if match:
 
-    failed = analytics_data.get(
-        "failed_requests",
-        0,
-    )
+        try:
+            return json.loads(
+                match.group(1).strip()
+            )
+        except Exception:
+            pass
 
-    total_latency = (
-        analytics_data.get(
-            "total_latency_seconds",
-            0.0,
+    start = text.find("{")
+    end = text.rfind("}")
+
+    if start >= 0 and end > start:
+
+        try:
+            return json.loads(
+                text[start:end + 1]
+            )
+        except Exception:
+            pass
+
+    return None
+
+
+# ============================================================
+# AUTO-FIX
+# ============================================================
+
+def validate_fixed_files(
+    original: List[ProjectFile],
+    candidate: Any,
+) -> List[ProjectFile]:
+
+    if not isinstance(
+        candidate,
+        list,
+    ):
+        raise ValueError(
+            "AI did not return a file list."
         )
+
+    fixed = []
+
+    for item in candidate:
+
+        if not isinstance(
+            item,
+            dict,
+        ):
+            continue
+
+        path = item.get(
+            "path"
+        )
+
+        content = item.get(
+            "content"
+        )
+
+        if not isinstance(
+            path,
+            str,
+        ):
+            continue
+
+        if not isinstance(
+            content,
+            str,
+        ):
+            continue
+
+        fixed.append(
+            ProjectFile(
+                path=path,
+                content=content,
+            )
+        )
+
+    if not fixed:
+        raise ValueError(
+            "AI returned no valid files."
+        )
+
+    return validate_project_files(
+        fixed
     )
 
-    average_latency = (
-        total_latency / requests
-        if requests
-        else 0.0
+
+async def generate_fixed_project(
+    files: List[ProjectFile],
+    task: str,
+    error_output: str = "",
+) -> List[ProjectFile]:
+
+    context = build_project_context(
+        files
     )
 
-    success_rate = (
-        successful / requests
-        if requests
-        else 0.0
+    prompt = f"""
+Fix this software project.
+
+TASK:
+{task}
+
+ERROR OUTPUT:
+{error_output}
+
+CURRENT PROJECT:
+{context}
+
+Return ONLY valid JSON in this format:
+
+[
+  {{
+    "path": "file.py",
+    "content": "complete file content"
+  }}
+]
+
+Return complete contents for files that
+need modification.
+"""
+
+    output = await infer(
+        prompt,
+        json_mode=True,
+    )
+
+    parsed = extract_json(
+        output
+    )
+
+    return validate_fixed_files(
+        files,
+        parsed,
+    )
+
+
+@app.post("/api/agent/autofix")
+async def agent_autofix(
+    request: AutoFixRequest,
+):
+
+    start = time.time()
+
+    record("requests")
+    record("auto_fix_requests")
+
+    current_files = validate_project_files(
+        request.files
+    )
+
+    history = []
+    final_execution = None
+
+    max_cycles = min(
+        request.max_cycles,
+        MAX_TEST_FIX_CYCLES,
+    )
+
+    try:
+
+        for cycle in range(
+            1,
+            max_cycles + 1,
+        ):
+
+            language = (
+                request.language
+                or detect_language(
+                    current_files[0].path
+                )
+            )
+
+            entrypoint = current_files[0].path
+
+            if language == "python":
+
+                command = [
+                    "python",
+                    entrypoint,
+                ]
+
+            elif language in (
+                "javascript",
+                "js",
+                "node",
+            ):
+
+                command = [
+                    "node",
+                    entrypoint,
+                ]
+
+            else:
+
+                break
+
+            result = await asyncio.to_thread(
+                execute_project,
+                current_files,
+                command,
+                language,
+                EXECUTION_TIMEOUT_SECONDS,
+            )
+
+            final_execution = result
+
+            history.append({
+                "cycle": cycle,
+                "execution": result,
+            })
+
+            if result["status"] == "success":
+
+                record(
+                    "auto_fix_successes"
+                )
+
+                return {
+                    "status": "success",
+                    "fixed": True,
+                    "cycles": cycle,
+                    "files": [
+                        x.model_dump()
+                        for x in current_files
+                    ],
+                    "history": history,
+                    "execution": result,
+                }
+
+            current_files = (
+                await generate_fixed_project(
+                    current_files,
+                    request.task,
+                    (
+                        result.get("stderr", "")
+                        + "\n"
+                        + result.get("stdout", "")
+                    ),
+                )
+            )
+
+        record(
+            "auto_fix_failures"
+        )
+
+        return {
+            "status": "success",
+            "fixed": False,
+            "cycles": max_cycles,
+            "files": [
+                x.model_dump()
+                for x in current_files
+            ],
+            "history": history,
+            "execution":
+                final_execution,
+        }
+
+    except ValueError as error:
+
+        record(
+            "auto_fix_failures"
+        )
+
+        raise HTTPException(
+            status_code=400,
+            detail=str(error),
+        )
+
+    except Exception as error:
+
+        record(
+            "auto_fix_failures"
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(error),
+        )
+
+    finally:
+
+        record_latency(start)
+
+
+# ============================================================
+# BENCHMARK
+# ============================================================
+
+@app.post("/api/benchmark/run")
+async def benchmark(
+    request: BenchmarkRequest,
+):
+
+    start = time.time()
+
+    record("requests")
+    record("benchmark_requests")
+
+    results = []
+
+    for task in request.tasks:
+
+        task_start = time.time()
+
+        try:
+
+            answer = await infer(
+                f"""
+Solve this engineering benchmark task:
+
+{task}
+
+Give a correct and concise engineering answer.
+"""
+            )
+
+            results.append({
+                "task": task,
+                "status": "success",
+                "output": answer,
+                "latency_seconds":
+                    round(
+                        time.time()
+                        - task_start,
+                        3,
+                    ),
+            })
+
+        except Exception as error:
+
+            results.append({
+                "task": task,
+                "status": "failed",
+                "error": str(error),
+            })
+
+    successful = sum(
+        1
+        for x in results
+        if x["status"] == "success"
+    )
+
+    record(
+        "benchmark_successes"
+        if successful == len(results)
+        else "failed_requests"
     )
 
     return {
-        **analytics_data,
-
-        "average_latency_seconds":
+        "status": "success",
+        "total": len(results),
+        "successful": successful,
+        "score":
             round(
-                average_latency,
+                successful
+                / max(len(results), 1)
+                * 100,
+                2,
+            ),
+        "results": results,
+        "latency_seconds":
+            round(
+                time.time() - start,
                 3,
             ),
+    }
+# ============================================================
+# PART 5 - DATABASE / PROJECTS / MEMORY / ANALYTICS / STARTUP
+# ============================================================
 
-        "success_rate":
-            round(
-                success_rate,
-                4,
+
+# ============================================================
+# DATABASE
+# ============================================================
+
+def db_connect():
+
+    connection = sqlite3.connect(
+        DATABASE_PATH
+    )
+
+    connection.row_factory = (
+        sqlite3.Row
+    )
+
+    return connection
+
+
+def initialize_database():
+
+    connection = db_connect()
+
+    try:
+
+        connection.execute("""
+            CREATE TABLE IF NOT EXISTS projects (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                task TEXT DEFAULT '',
+                files_json TEXT NOT NULL,
+                created_at REAL NOT NULL,
+                updated_at REAL NOT NULL
+            )
+        """)
+
+        connection.execute("""
+            CREATE TABLE IF NOT EXISTS memory (
+                id TEXT PRIMARY KEY,
+                project_id TEXT NOT NULL,
+                memory_key TEXT NOT NULL,
+                memory_value TEXT NOT NULL,
+                created_at REAL NOT NULL,
+                updated_at REAL NOT NULL
+            )
+        """)
+
+        connection.execute("""
+            CREATE INDEX IF NOT EXISTS
+            idx_memory_project
+            ON memory(project_id)
+        """)
+
+        connection.commit()
+
+    finally:
+
+        connection.close()
+
+
+def save_project_db(
+    project_id: str,
+    name: str,
+    task: str,
+    files: List[ProjectFile],
+):
+
+    now = time.time()
+
+    connection = db_connect()
+
+    try:
+
+        connection.execute(
+            """
+            INSERT OR REPLACE INTO projects
+            (
+                id,
+                name,
+                task,
+                files_json,
+                created_at,
+                updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                project_id,
+                name,
+                task,
+                json.dumps([
+                    x.model_dump()
+                    for x in files
+                ]),
+                now,
+                now,
             ),
+        )
 
-        "auto_fix_rate":
-            round(
-                (
-                    analytics_data[
-                        "auto_fix_successes"
-                    ]
-                    /
-                    analytics_data[
-                        "auto_fix_requests"
-                    ]
-                )
-                if analytics_data[
-                    "auto_fix_requests"
-                ]
-                else 0.0,
-                4,
-            ),
+        connection.commit()
 
-        "test_pass_rate":
-            round(
-                (
-                    analytics_data[
-                        "test_successes"
-                    ]
-                    /
-                    analytics_data[
-                        "test_requests"
-                    ]
-                )
-                if analytics_data[
-                    "test_requests"
-                ]
-                else 0.0,
-                4,
+    finally:
+
+        connection.close()
+
+
+def get_project_db(
+    project_id: str,
+):
+
+    connection = db_connect()
+
+    try:
+
+        row = connection.execute(
+            """
+            SELECT *
+            FROM projects
+            WHERE id = ?
+            """,
+            (project_id,),
+        ).fetchone()
+
+        if not row:
+            return None
+
+        return {
+            "id": row["id"],
+            "name": row["name"],
+            "task": row["task"],
+            "files":
+                json.loads(
+                    row["files_json"]
+                ),
+            "created_at":
+                row["created_at"],
+            "updated_at":
+                row["updated_at"],
+        }
+
+    finally:
+
+        connection.close()
+
+
+# ============================================================
+# PROJECT CRUD
+# ============================================================
+
+@app.post("/api/projects")
+async def create_project(
+    request: ProjectCreateRequest,
+):
+
+    files = validate_project_files(
+        request.files
+    )
+
+    project_id = uuid.uuid4().hex
+
+    save_project_db(
+        project_id,
+        request.name,
+        request.task,
+        files,
+    )
+
+    return {
+        "status": "success",
+        "project": {
+            "id": project_id,
+            "name": request.name,
+            "task": request.task,
+            "files": [
+                x.model_dump()
+                for x in files
+            ],
+        },
+    }
+
+
+@app.get("/api/projects")
+async def list_projects():
+
+    connection = db_connect()
+
+    try:
+
+        rows = connection.execute(
+            """
+            SELECT id, name, task,
+                   created_at, updated_at
+            FROM projects
+            ORDER BY updated_at DESC
+            """
+        ).fetchall()
+
+        return {
+            "status": "success",
+            "projects": [
+                dict(row)
+                for row in rows
+            ],
+        }
+
+    finally:
+
+        connection.close()
+
+
+@app.get("/api/projects/{project_id}")
+async def get_project(
+    project_id: str,
+):
+
+    project = get_project_db(
+        project_id
+    )
+
+    if not project:
+
+        raise HTTPException(
+            status_code=404,
+            detail="Project not found.",
+        )
+
+    return {
+        "status": "success",
+        "project": project,
+    }
+
+
+@app.put("/api/projects/{project_id}")
+async def update_project(
+    project_id: str,
+    request: ProjectCreateRequest,
+):
+
+    if not get_project_db(
+        project_id
+    ):
+
+        raise HTTPException(
+            status_code=404,
+            detail="Project not found.",
+        )
+
+    files = validate_project_files(
+        request.files
+    )
+
+    save_project_db(
+        project_id,
+        request.name,
+        request.task,
+        files,
+    )
+
+    return {
+        "status": "success",
+        "project":
+            get_project_db(
+                project_id
             ),
     }
 
 
-# ------------------------------------------------------------
-# SYSTEM STATUS
-# ------------------------------------------------------------
+@app.delete("/api/projects/{project_id}")
+async def delete_project(
+    project_id: str,
+):
+
+    connection = db_connect()
+
+    try:
+
+        connection.execute(
+            """
+            DELETE FROM memory
+            WHERE project_id = ?
+            """,
+            (project_id,),
+        )
+
+        result = connection.execute(
+            """
+            DELETE FROM projects
+            WHERE id = ?
+            """,
+            (project_id,),
+        )
+
+        connection.commit()
+
+        if result.rowcount == 0:
+
+            raise HTTPException(
+                status_code=404,
+                detail="Project not found.",
+            )
+
+        return {
+            "status": "success",
+            "deleted": project_id,
+        }
+
+    finally:
+
+        connection.close()
+
+
+# ============================================================
+# PROJECT MASTER API
+# ============================================================
+
+@app.post("/api/project/run")
+async def project_run(
+    request: ProjectAgentRequest,
+):
+
+    start = time.time()
+
+    record("requests")
+    record("project_requests")
+
+    files = validate_project_files(
+        request.files
+    )
+
+    project_id = uuid.uuid4().hex
+
+    save_project_db(
+        project_id,
+        request.project_name,
+        request.task,
+        files,
+    )
+
+    context = build_project_context(
+        files
+    )
+
+    result = await run_multi_agent_workflow(
+        task=request.task,
+        context=context,
+        include_tests=request.include_tests,
+        include_security=request.include_security,
+        include_performance=request.include_performance,
+    )
+
+    return {
+        "status": "success",
+        "project_id": project_id,
+        "project_name":
+            request.project_name,
+        "statistics":
+            project_statistics(files),
+        "workflow":
+            result["workflow"],
+        "final":
+            result["final"],
+        "agent_count":
+            result["agent_count"],
+        "latency_seconds":
+            round(
+                time.time() - start,
+                3,
+            ),
+    }
+
+
+# ============================================================
+# MEMORY
+# ============================================================
+
+@app.post("/api/project/memory/save")
+async def memory_save(
+    request: MemoryRequest,
+):
+
+    project = get_project_db(
+        request.project_id
+    )
+
+    if not project:
+
+        raise HTTPException(
+            status_code=404,
+            detail="Project not found.",
+        )
+
+    memory_id = uuid.uuid4().hex
+    now = time.time()
+
+    connection = db_connect()
+
+    try:
+
+        connection.execute(
+            """
+            INSERT INTO memory
+            (
+                id,
+                project_id,
+                memory_key,
+                memory_value,
+                created_at,
+                updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                memory_id,
+                request.project_id,
+                request.key,
+                request.value,
+                now,
+                now,
+            ),
+        )
+
+        connection.commit()
+
+    finally:
+
+        connection.close()
+
+    return {
+        "status": "success",
+        "memory_id": memory_id,
+    }
+
+
+@app.get("/api/project/memory/{project_id}")
+async def memory_get(
+    project_id: str,
+):
+
+    connection = db_connect()
+
+    try:
+
+        rows = connection.execute(
+            """
+            SELECT id,
+                   memory_key,
+                   memory_value,
+                   created_at,
+                   updated_at
+            FROM memory
+            WHERE project_id = ?
+            ORDER BY updated_at DESC
+            """,
+            (project_id,),
+        ).fetchall()
+
+        return {
+            "status": "success",
+            "memory": [
+                dict(row)
+                for row in rows
+            ],
+        }
+
+    finally:
+
+        connection.close()
+
+
+@app.delete("/api/project/memory/{memory_id}")
+async def memory_delete(
+    memory_id: str,
+):
+
+    connection = db_connect()
+
+    try:
+
+        result = connection.execute(
+            """
+            DELETE FROM memory
+            WHERE id = ?
+            """,
+            (memory_id,),
+        )
+
+        connection.commit()
+
+        return {
+            "status": "success",
+            "deleted":
+                result.rowcount > 0,
+        }
+
+    finally:
+
+        connection.close()
+
+
+@app.post("/api/project/memory/ask")
+async def memory_ask(
+    request: MemoryAskRequest,
+):
+
+    connection = db_connect()
+
+    try:
+
+        rows = connection.execute(
+            """
+            SELECT memory_key,
+                   memory_value
+            FROM memory
+            WHERE project_id = ?
+            ORDER BY updated_at DESC
+            LIMIT 50
+            """,
+            (request.project_id,),
+        ).fetchall()
+
+    finally:
+
+        connection.close()
+
+    memory_context = "\n".join(
+        f"{row['memory_key']}: "
+        f"{row['memory_value']}"
+        for row in rows
+    )
+
+    answer = await infer(
+        f"""
+Answer the user's engineering question
+using the saved project memory.
+
+MEMORY:
+{memory_context}
+
+QUESTION:
+{request.question}
+"""
+    )
+
+    return {
+        "status": "success",
+        "answer": answer,
+        "memory_items":
+            len(rows),
+    }
+
+
+# ============================================================
+# ANALYTICS
+# ============================================================
+
+@app.get("/api/ops/analytics")
+async def ops_analytics():
+
+    requests = analytics_data[
+        "requests"
+    ]
+
+    average_latency = (
+        analytics_data[
+            "total_latency_seconds"
+        ]
+        / max(requests, 1)
+    )
+
+    return {
+        "status": "success",
+        "metrics": {
+            **analytics_data,
+            "average_latency_seconds":
+                round(
+                    average_latency,
+                    3,
+                ),
+        },
+    }
+
 
 @app.get("/api/status")
-async def system_status():
+async def api_status():
 
-    docker_available = (
-        shutil.which("docker")
-        is not None
+    return {
+        "status": "online",
+        "service": APP_TITLE,
+        "version": APP_VERSION,
+        "ai_provider":
+            DEFAULT_PROVIDER,
+        "ai_model":
+            DEFAULT_MODEL,
+        "execution_mode":
+            EXECUTION_MODE,
+        "database":
+            DATABASE_PATH,
+        "features": {
+            "chat": True,
+            "agents": True,
+            "projects": True,
+            "project_memory": True,
+            "code_review": True,
+            "execution": True,
+            "testing": True,
+            "terminal": True,
+            "debugger": True,
+            "security": True,
+            "auto_fix": True,
+            "benchmarking": True,
+            "analytics": True,
+        },
+    }
+
+
+# ============================================================
+# ROOT / FRONTEND
+# ============================================================
+
+@app.get("/")
+async def root():
+
+    index = Path(
+        "index.html"
     )
+
+    if index.exists():
+
+        return FileResponse(
+            index
+        )
 
     return {
         "service": APP_TITLE,
         "version": APP_VERSION,
         "status": "online",
-
-        "ai": {
-            "provider":
-                DEFAULT_PROVIDER,
-
-            "model":
-                DEFAULT_MODEL,
-
-            "configured":
-                bool(
-                    GEMINI_API_KEY
-                ),
-        },
-
-        "execution": {
-            "mode":
-                EXECUTION_MODE,
-
-            "docker_available":
-                docker_available,
-
-            "sandbox_enabled":
-                EXECUTION_MODE.lower()
-                == "docker",
-        },
-
-        "limits": {
-            "max_project_files":
-                MAX_PROJECT_FILES,
-
-            "max_file_size":
-                MAX_FILE_SIZE,
-
-            "max_project_size":
-                MAX_PROJECT_SIZE,
-
-            "execution_timeout":
-                EXECUTION_TIMEOUT_SECONDS,
-
-            "max_fix_cycles":
-                MAX_TEST_FIX_CYCLES,
-        },
-
-        "memory": {
-            "projects":
-                len(project_memory),
-        },
+        "message":
+            "Engineer AI backend is running.",
     }
 
 
-# ------------------------------------------------------------
-# ROOT ROUTE
-# ------------------------------------------------------------
-
-@app.get("/")
-async def root():
-
-    # If frontend exists, serve it.
-    possible_files = [
-        "index.html",
-        "frontend/index.html",
-        "static/index.html",
-    ]
-
-    for filename in possible_files:
-
-        path = Path(filename)
-
-        if path.exists():
-
-            return FileResponse(
-                path
-            )
-
-    return {
-        "name": APP_TITLE,
-        "version": APP_VERSION,
-        "status": "online",
-
-        "message": (
-            "Engineer AI backend is running."
-        ),
-
-        "documentation":
-            "/docs",
-    }
-
-
-# ------------------------------------------------------------
+# ============================================================
 # STARTUP
-# ------------------------------------------------------------
+# ============================================================
 
 @app.on_event("startup")
-async def startup_event():
+async def startup():
+
+    initialize_database()
 
     logger.info(
-        "======================================"
-    )
-
-    logger.info(
-        "%s v%s starting",
-        APP_TITLE,
+        "Engineer AI v%s started.",
         APP_VERSION,
-    )
-
-    logger.info(
-        "AI provider: %s",
-        DEFAULT_PROVIDER,
-    )
-
-    logger.info(
-        "AI model: %s",
-        DEFAULT_MODEL,
     )
 
     logger.info(
@@ -4272,31 +3182,18 @@ async def startup_event():
         EXECUTION_MODE,
     )
 
-    logger.info(
-        "Docker available: %s",
-        shutil.which("docker") is not None,
-    )
-
-    logger.info(
-        "======================================"
-    )
-
-
-# ------------------------------------------------------------
-# SHUTDOWN
-# ------------------------------------------------------------
 
 @app.on_event("shutdown")
-async def shutdown_event():
+async def shutdown():
 
     logger.info(
         "Engineer AI shutting down."
     )
 
 
-# ------------------------------------------------------------
-# LOCAL DEVELOPMENT SERVER
-# ------------------------------------------------------------
+# ============================================================
+# MAIN
+# ============================================================
 
 if __name__ == "__main__":
 
