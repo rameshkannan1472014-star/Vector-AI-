@@ -3762,3 +3762,937 @@ async def performance_review(
     finally:
 
         finish_timer(start)
+        # ============================================================
+# PART 11 - AUTOMATIC TEST -> FIX -> RETEST LOOP
+# ============================================================
+
+
+class AutoFixRequest(BaseModel):
+    files: List[ProjectFile]
+    task: str = "Fix the project"
+    entrypoint: str = None
+    max_attempts: int = 3
+
+
+def parse_ai_files(
+    text: str
+):
+
+    text = text.strip()
+
+    if text.startswith("```"):
+
+        lines = text.splitlines()
+
+        if lines:
+
+            lines = lines[1:]
+
+        if lines and lines[-1].strip() == "```":
+
+            lines = lines[:-1]
+
+        text = "\n".join(lines).strip()
+
+    try:
+
+        data = json.loads(text)
+
+    except json.JSONDecodeError:
+
+        start = text.find("[")
+
+        end = text.rfind("]")
+
+        if start == -1 or end == -1:
+
+            raise ValueError(
+                "AI did not return valid file JSON."
+            )
+
+        data = json.loads(
+            text[start:end + 1]
+        )
+
+    if not isinstance(data, list):
+
+        raise ValueError(
+            "AI file response must be a list."
+        )
+
+    result = []
+
+    for item in data:
+
+        if not isinstance(item, dict):
+            continue
+
+        path = item.get("path")
+        content = item.get("content")
+
+        if not isinstance(path, str):
+            continue
+
+        if not isinstance(content, str):
+            continue
+
+        result.append(
+            ProjectFile(
+                path=path,
+                content=content
+            )
+        )
+
+    if not result:
+
+        raise ValueError(
+            "AI returned no valid files."
+        )
+
+    return validate_files(
+        result
+    )
+
+
+def merge_project_files(
+    original: List[ProjectFile],
+    changed: List[ProjectFile]
+):
+
+    merged = {
+        file.path: file
+        for file in original
+    }
+
+    for file in changed:
+
+        merged[file.path] = file
+
+    return list(
+        merged.values()
+    )
+
+
+async def generate_fix(
+    files: List[ProjectFile],
+    task: str,
+    execution_result: dict
+):
+
+    context = build_context(
+        files
+    )
+
+    error_text = (
+        execution_result.get(
+            "stderr",
+            ""
+        )
+        or execution_result.get(
+            "stdout",
+            ""
+        )
+    )
+
+    prompt = (
+        "You are an expert software repair engineer.\n\n"
+        "Fix the project while preserving its intended behavior.\n\n"
+        "TASK:\n"
+        + task
+        + "\n\n"
+        "EXECUTION ERROR:\n"
+        + error_text
+        + "\n\n"
+        "PROJECT:\n"
+        + context
+        + "\n\n"
+        "Return ONLY a JSON array.\n"
+        "Each item must contain:\n"
+        "path\n"
+        "content\n\n"
+        "Return complete file contents for files that "
+        "need changes."
+    )
+
+    answer = await ask_ai(
+        prompt
+    )
+
+    return parse_ai_files(
+        answer
+    )
+
+
+@app.post("/api/agent/autofix")
+async def automatic_fix(
+    request: AutoFixRequest
+):
+
+    start = time.time()
+
+    record_request()
+
+    try:
+
+        files = validate_files(
+            request.files
+        )
+
+        attempts = max(
+            1,
+            min(
+                request.max_attempts,
+                5
+            )
+        )
+
+        current_files = files
+
+        history = []
+
+        for attempt in range(
+            1,
+            attempts + 1
+        ):
+
+            command = build_execution_command(
+                current_files,
+                request.entrypoint
+            )
+
+            execution = await execute_code(
+                current_files,
+                command,
+                EXECUTION_TIMEOUT
+            )
+
+            history.append({
+                "attempt":
+                    attempt,
+                "status":
+                    execution["status"],
+                "stderr":
+                    execution["stderr"],
+                "stdout":
+                    execution["stdout"],
+                "return_code":
+                    execution["return_code"]
+            })
+
+            if execution["status"] == "success":
+
+                record_success()
+
+                return {
+                    "status":
+                        "success",
+                    "fixed":
+                        attempt > 1,
+                    "cycles":
+                        attempt,
+                    "files":
+                        [
+                            model_dict(file)
+                            for file in current_files
+                        ],
+                    "history":
+                        history,
+                    "execution":
+                        execution,
+                    "latency_seconds":
+                        round(
+                            time.time() - start,
+                            3
+                        )
+                }
+
+            if attempt >= attempts:
+                break
+
+            changed_files = await generate_fix(
+                current_files,
+                request.task,
+                execution
+            )
+
+            current_files = merge_project_files(
+                current_files,
+                changed_files
+            )
+
+        record_failure()
+
+        return {
+            "status":
+                "failed",
+            "fixed":
+                False,
+            "cycles":
+                attempts,
+            "files":
+                [
+                    model_dict(file)
+                    for file in current_files
+                ],
+            "history":
+                history,
+            "execution":
+                history[-1]
+                if history
+                else None,
+            "latency_seconds":
+                round(
+                    time.time() - start,
+                    3
+                )
+        }
+
+    except ValueError as error:
+
+        record_failure()
+
+        raise HTTPException(
+            status_code=400,
+            detail=str(error)
+        )
+
+    except RuntimeError as error:
+
+        record_failure()
+
+        raise HTTPException(
+            status_code=503,
+            detail=str(error)
+        )
+
+    except Exception as error:
+
+        record_failure()
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(error)
+        )
+
+    finally:
+
+        finish_timer(start)
+        # ============================================================
+# PART 12 - BENCHMARKING + AI EVALUATION
+# ============================================================
+
+
+class BenchmarkRequest(BaseModel):
+    tasks: List[str]
+    iterations: int = 1
+
+
+DEFAULT_BENCHMARK_TASKS = [
+    "Write a Python function that reverses a string.",
+    "Explain how a REST API works.",
+    "Find a simple bug in a Python function.",
+    "Design a basic database schema for a todo app.",
+    "Write unit tests for a simple calculator."
+]
+
+
+async def benchmark_task(
+    task: str
+):
+
+    started = time.time()
+
+    try:
+
+        answer = await ask_ai(
+            task
+        )
+
+        latency = round(
+            time.time() - started,
+            3
+        )
+
+        success = bool(
+            answer and answer.strip()
+        )
+
+        return {
+            "task":
+                task,
+            "success":
+                success,
+            "latency_seconds":
+                latency,
+            "answer_length":
+                len(answer),
+            "answer":
+                trim_text(
+                    answer,
+                    3000
+                )
+        }
+
+    except Exception as error:
+
+        return {
+            "task":
+                task,
+            "success":
+                False,
+            "latency_seconds":
+                round(
+                    time.time() - started,
+                    3
+                ),
+            "answer_length":
+                0,
+            "answer":
+                "",
+            "error":
+                str(error)
+        }
+
+
+@app.post("/api/benchmark/run")
+async def run_benchmark(
+    request: BenchmarkRequest
+):
+
+    start = time.time()
+
+    record_request()
+
+    try:
+
+        tasks = request.tasks
+
+        if not tasks:
+
+            tasks = DEFAULT_BENCHMARK_TASKS
+
+        iterations = max(
+            1,
+            min(
+                request.iterations,
+                5
+            )
+        )
+
+        results = []
+
+        for iteration in range(
+            1,
+            iterations + 1
+        ):
+
+            for task in tasks:
+
+                result = await benchmark_task(
+                    task
+                )
+
+                result["iteration"] = (
+                    iteration
+                )
+
+                results.append(
+                    result
+                )
+
+        successful = sum(
+            1
+            for item in results
+            if item["success"]
+        )
+
+        total = len(results)
+
+        success_rate = (
+            round(
+                successful / total * 100,
+                2
+            )
+            if total
+            else 0
+        )
+
+        latencies = [
+            item["latency_seconds"]
+            for item in results
+        ]
+
+        average_latency = (
+            round(
+                sum(latencies)
+                / len(latencies),
+                3
+            )
+            if latencies
+            else 0
+        )
+
+        record_success()
+
+        return {
+            "status":
+                "success",
+            "total_tasks":
+                total,
+            "successful_tasks":
+                successful,
+            "failed_tasks":
+                total - successful,
+            "success_rate":
+                success_rate,
+            "average_latency_seconds":
+                average_latency,
+            "results":
+                results,
+            "total_latency_seconds":
+                round(
+                    time.time() - start,
+                    3
+                )
+        }
+
+    except Exception as error:
+
+        record_failure()
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(error)
+        )
+
+    finally:
+
+        finish_timer(start)
+
+
+# ============================================================
+# AI QUALITY EVALUATION
+# ============================================================
+
+
+class EvaluationRequest(BaseModel):
+    prompt: str
+    response: str
+
+
+@app.post("/api/benchmark/evaluate")
+async def evaluate_response(
+    request: EvaluationRequest
+):
+
+    start = time.time()
+
+    record_request()
+
+    try:
+
+        evaluation_prompt = (
+            "Evaluate the quality of an AI engineering response.\n\n"
+            "USER PROMPT:\n"
+            + request.prompt
+            + "\n\n"
+            "AI RESPONSE:\n"
+            + request.response
+            + "\n\n"
+            "Score the response from 0 to 10 for:\n"
+            "accuracy\n"
+            "usefulness\n"
+            "clarity\n"
+            "completeness\n"
+            "safety\n\n"
+            "Return a concise evaluation with "
+            "scores and improvement suggestions."
+        )
+
+        evaluation = await ask_ai(
+            evaluation_prompt
+        )
+
+        record_success()
+
+        return {
+            "status":
+                "success",
+            "evaluation":
+                evaluation,
+            "latency_seconds":
+                round(
+                    time.time() - start,
+                    3
+                )
+        }
+
+    except Exception as error:
+
+        record_failure()
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(error)
+        )
+
+    finally:
+
+        finish_timer(start)
+        # ============================================================
+# PART 13 - ANALYTICS + SYSTEM STATUS
+# ============================================================
+
+
+@app.get("/api/ops/analytics")
+async def get_analytics():
+
+    return {
+        "status": "success",
+        "requests": analytics["requests"],
+        "successful_requests":
+            analytics["successful_requests"],
+        "failed_requests":
+            analytics["failed_requests"],
+        "chat_requests":
+            analytics["chat_requests"],
+        "project_requests":
+            analytics["project_requests"],
+        "agent_requests":
+            analytics["agent_requests"],
+        "security_scans":
+            analytics["security_scans"],
+        "auto_fix_successes":
+            analytics["auto_fix_successes"],
+        "uptime_seconds":
+            round(
+                time.time()
+                - analytics["started_at"],
+                3
+            )
+    }
+
+
+@app.get("/api/status")
+async def system_status():
+
+    database_ok = False
+
+    try:
+
+        connection = db_connect()
+
+        connection.execute(
+            "SELECT 1"
+        ).fetchone()
+
+        connection.close()
+
+        database_ok = True
+
+    except Exception:
+
+        database_ok = False
+
+    return {
+        "status": "online",
+        "service": APP_NAME,
+        "version": APP_VERSION,
+        "database": (
+            "online"
+            if database_ok
+            else "offline"
+        ),
+        "ai": (
+            "configured"
+            if GEMINI_API_KEY
+            else "not_configured"
+        ),
+        "execution": {
+            "mode":
+                EXECUTION_MODE,
+            "docker":
+                docker_available()
+        },
+        "uptime_seconds":
+            round(
+                time.time()
+                - analytics["started_at"],
+                3
+            )
+    }
+
+
+@app.get("/api/database")
+async def database_status():
+
+    connection = db_connect()
+
+    try:
+
+        project_count = connection.execute(
+            "SELECT COUNT(*) AS count FROM projects"
+        ).fetchone()["count"]
+
+        memory_count = connection.execute(
+            "SELECT COUNT(*) AS count FROM memory"
+        ).fetchone()["count"]
+
+        return {
+            "status": "success",
+            "database":
+                DATABASE_PATH,
+            "projects":
+                project_count,
+            "memory_items":
+                memory_count
+        }
+
+    finally:
+
+        connection.close()
+        # ============================================================
+# PART 14 - ROOT + FRONTEND + STARTUP
+# ============================================================
+
+
+@app.get("/")
+async def root():
+
+    frontend_path = os.path.join(
+        os.path.dirname(__file__),
+        "index.html"
+    )
+
+    if os.path.exists(frontend_path):
+
+        return FileResponse(
+            frontend_path,
+            media_type="text/html"
+        )
+
+    return {
+        "service":
+            APP_NAME,
+        "version":
+            APP_VERSION,
+        "status":
+            "online",
+        "message":
+            "Engineer AI backend is running."
+    }
+
+
+@app.get("/api")
+async def api_info():
+
+    return {
+        "service":
+            APP_NAME,
+        "version":
+            APP_VERSION,
+        "status":
+            "online",
+        "endpoints": [
+            "/api/health",
+            "/api/status",
+            "/api/chat",
+            "/api/agent/execute",
+            "/api/code/review",
+            "/api/projects",
+            "/api/project/analyze",
+            "/api/project/stats",
+            "/api/project/context",
+            "/api/project/run",
+            "/api/project/ask",
+            "/api/project/memory/save",
+            "/api/execute",
+            "/api/test/run",
+            "/api/terminal/execute",
+            "/api/debug",
+            "/api/security/scan",
+            "/api/security/review",
+            "/api/performance/analyze",
+            "/api/performance/review",
+            "/api/agent/autofix",
+            "/api/benchmark/run",
+            "/api/benchmark/evaluate",
+            "/api/ops/analytics"
+        ]
+    }
+
+
+@app.on_event("startup")
+async def startup_event():
+
+    try:
+
+        initialize_database()
+
+        logging.info(
+            APP_NAME
+            + " database initialized"
+        )
+
+    except Exception as error:
+
+        logging.error(
+            "Database initialization failed: "
+            + str(error)
+        )
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+
+    logging.info(
+        APP_NAME
+        + " shutting down"
+        )
+    # ============================================================
+# PART 15 - CHAT + AI EXPLAIN + FINAL INTEGRATION
+# ============================================================
+
+
+@app.post("/api/chat")
+async def chat(request: ChatRequest):
+
+    start_time = time.time()
+
+    analytics["requests"] += 1
+    analytics.setdefault("chat_requests", 0)
+    analytics["chat_requests"] += 1
+
+    prompt = request.prompt
+
+    if not prompt:
+        prompt = request.message
+
+    if not prompt:
+        analytics["failed_requests"] += 1
+
+        return {
+            "status": "error",
+            "response": "Please enter a message.",
+            "message": "Please enter a message."
+        }
+
+    try:
+
+        answer = await ask_ai(prompt)
+
+        analytics["successful_requests"] += 1
+
+        analytics["total_latency"] += (
+            time.time() - start_time
+        )
+
+        return {
+            "status": "success",
+            "response": answer,
+            "message": answer
+        }
+
+    except Exception as error:
+
+        analytics["failed_requests"] += 1
+
+        return {
+            "status": "error",
+            "response":
+                "AI request failed: "
+                + str(error),
+            "message":
+                "AI request failed: "
+                + str(error)
+        }
+
+
+@app.post("/api/ai/explain")
+async def ai_explain(request: ExplainRequest):
+
+    start_time = time.time()
+
+    analytics["requests"] += 1
+
+    try:
+
+        prompt = (
+            "Explain the following engineering topic "
+            "clearly for a developer.\n\n"
+            "Topic:\n"
+            + request.topic
+        )
+
+        answer = await ask_ai(prompt)
+
+        analytics["successful_requests"] += 1
+
+        analytics["total_latency"] += (
+            time.time() - start_time
+        )
+
+        return {
+            "status": "success",
+            "response": answer,
+            "explanation": answer
+        }
+
+    except Exception as error:
+
+        analytics["failed_requests"] += 1
+
+        return {
+            "status": "error",
+            "response":
+                "Explanation failed: "
+                + str(error),
+            "explanation":
+                "Explanation failed: "
+                + str(error)
+        }
+
+
+@app.get("/api/version")
+async def version():
+
+    return {
+        "name": APP_NAME,
+        "version": APP_VERSION,
+        "status": "online"
+    }
+
+
+# ============================================================
+# ANALYTICS KEY SAFETY
+# ============================================================
+
+analytics.setdefault("requests", 0)
+analytics.setdefault("successful_requests", 0)
+analytics.setdefault("failed_requests", 0)
+analytics.setdefault("total_latency", 0.0)
+analytics.setdefault("chat_requests", 0)
+analytics.setdefault("project_requests", 0)
+analytics.setdefault("agent_requests", 0)
+analytics.setdefault("security_scans", 0)
+analytics.setdefault("auto_fix_successes", 0)
+
+
+# ============================================================
+# APPLICATION START
+# ============================================================
+
+if __name__ == "__main__":
+
+    import uvicorn
+
+    uvicorn.run(
+        app,
+        host="0.0.0.0",
+        port=int(
+            os.getenv(
+                "PORT",
+                "8000"
+            )
+        )
+            )
