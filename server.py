@@ -3052,18 +3052,14 @@ async def memory_ask(
         for row in rows
     )
 
-    answer = await infer(
-        f"""
-Answer the user's engineering question
-using the saved project memory.
-
-MEMORY:
-{memory_context}
-
-QUESTION:
-{request.question}
-"""
-    )
+        answer = await infer(
+        f"Answer the user's engineering question "
+        f"using the saved project memory.\n\n"
+        f"MEMORY:\n"
+        f"{memory_context}\n\n"
+        f"QUESTION:\n"
+        f"{request.question}"
+        )
 
     return {
         "status": "success",
