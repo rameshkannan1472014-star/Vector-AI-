@@ -1958,3 +1958,1807 @@ async def project_ask(
             status_code=500,
             detail=str(error)
     )
+        # ============================================================
+# PART 6 - SAFE CODE EXECUTION ENGINE
+# ============================================================
+
+
+SAFE_EXECUTABLES = {
+    "python": "python",
+    "python3": "python3",
+    "node": "node",
+    "npm": "npm"
+}
+
+
+def validate_execution_files(
+    files: List[ProjectFile]
+):
+    validated = []
+
+    for file in files:
+
+        path = safe_path(
+            file.path
+        )
+
+        validated.append(
+            ProjectFile(
+                path=path,
+                content=file.content
+            )
+        )
+
+    return validated
+
+
+def create_workspace(
+    files: List[ProjectFile]
+):
+
+    workspace = tempfile.mkdtemp(
+        prefix="engineer_ai_"
+    )
+
+    try:
+
+        for file in files:
+
+            path = safe_path(
+                file.path
+            )
+
+            full_path = os.path.join(
+                workspace,
+                path
+            )
+
+            folder = os.path.dirname(
+                full_path
+            )
+
+            if folder:
+                os.makedirs(
+                    folder,
+                    exist_ok=True
+                )
+
+            with open(
+                full_path,
+                "w",
+                encoding="utf-8"
+            ) as output:
+
+                output.write(
+                    file.content
+                )
+
+        return workspace
+
+    except Exception:
+
+        shutil.rmtree(
+            workspace,
+            ignore_errors=True
+        )
+
+        raise
+
+
+def get_entrypoint(
+    files: List[ProjectFile]
+):
+
+    preferred = [
+        "main.py",
+        "app.py",
+        "server.py",
+        "index.js",
+        "main.js",
+        "app.js"
+    ]
+
+    paths = {
+        file.path
+        for file in files
+    }
+
+    for name in preferred:
+
+        if name in paths:
+            return name
+
+    if files:
+        return files[0].path
+
+    return None
+
+
+def detect_runtime(
+    entrypoint: str
+):
+
+    extension = os.path.splitext(
+        entrypoint
+    )[1].lower()
+
+    if extension == ".py":
+        return "python"
+
+    if extension in {
+        ".js",
+        ".mjs",
+        ".cjs"
+    }:
+        return "node"
+
+    return None
+
+
+def validate_command(
+    command: List[str]
+):
+
+    if not command:
+        raise ValueError(
+            "Execution command cannot be empty."
+        )
+
+    executable = command[0]
+
+    if executable not in SAFE_EXECUTABLES:
+
+        raise ValueError(
+            "Executable is not allowed."
+        )
+
+    if len(command) > 20:
+
+        raise ValueError(
+            "Command has too many arguments."
+        )
+
+    for argument in command:
+
+        if "\x00" in argument:
+            raise ValueError(
+                "Invalid command argument."
+            )
+
+        if len(argument) > 500:
+            raise ValueError(
+                "Command argument is too long."
+            )
+
+        blocked = [
+            ";",
+            "&&",
+            "||",
+            "|",
+            ">",
+            "<",
+            "`",
+            "$("
+        ]
+
+        if any(
+            item in argument
+            for item in blocked
+        ):
+
+            raise ValueError(
+                "Unsafe shell syntax detected."
+            )
+
+    return True
+
+
+def build_execution_command(
+    files: List[ProjectFile],
+    entrypoint: str = None
+):
+
+    if not entrypoint:
+
+        entrypoint = get_entrypoint(
+            files
+        )
+
+    if not entrypoint:
+
+        raise ValueError(
+            "No entrypoint found."
+        )
+
+    runtime = detect_runtime(
+        entrypoint
+    )
+
+    if runtime == "python":
+
+        command = [
+            "python",
+            entrypoint
+        ]
+
+    elif runtime == "node":
+
+        command = [
+            "node",
+            entrypoint
+        ]
+
+    else:
+
+        raise ValueError(
+            "Unsupported project runtime."
+        )
+
+    validate_command(
+        command
+    )
+
+    return command
+
+
+def normalize_execution_result(
+    result,
+    started_at
+):
+
+    stdout = trim_text(
+        result.get("stdout", "")
+    )
+
+    stderr = trim_text(
+        result.get("stderr", "")
+    )
+
+    return {
+        "status":
+            result.get(
+                "status",
+                "unknown"
+            ),
+        "stdout":
+            stdout,
+        "stderr":
+            stderr,
+        "return_code":
+            result.get(
+                "return_code"
+            ),
+        "timed_out":
+            bool(
+                result.get(
+                    "timed_out",
+                    False
+                )
+            ),
+        "latency_seconds":
+            round(
+                time.time() - started_at,
+                3
+            )
+    }
+
+
+async def execute_host_command(
+    command: List[str],
+    workspace: str,
+    timeout: int
+):
+
+    if os.getenv(
+        "ALLOW_UNSANDBOXED_EXECUTION",
+        "false"
+    ).lower() != "true":
+
+        raise RuntimeError(
+            "Host execution is disabled."
+        )
+
+    validate_command(
+        command
+    )
+
+    started_at = time.time()
+
+    try:
+
+        process = await asyncio.create_subprocess_exec(
+            *command,
+            cwd=workspace,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+
+        try:
+
+            stdout, stderr = await asyncio.wait_for(
+                process.communicate(),
+                timeout=timeout
+            )
+
+            result = {
+                "status":
+                    "success"
+                    if process.returncode == 0
+                    else "failed",
+                "stdout":
+                    stdout.decode(
+                        "utf-8",
+                        errors="replace"
+                    ),
+                "stderr":
+                    stderr.decode(
+                        "utf-8",
+                        errors="replace"
+                    ),
+                "return_code":
+                    process.returncode,
+                "timed_out":
+                    False
+            }
+
+        except asyncio.TimeoutError:
+
+            process.kill()
+
+            await process.communicate()
+
+            result = {
+                "status": "timeout",
+                "stdout": "",
+                "stderr":
+                    "Execution timed out.",
+                "return_code": None,
+                "timed_out": True
+            }
+
+        return normalize_execution_result(
+            result,
+            started_at
+        )
+
+    except Exception as error:
+
+        return normalize_execution_result(
+            {
+                "status": "error",
+                "stdout": "",
+                "stderr": str(error),
+                "return_code": None,
+                "timed_out": False
+            },
+            started_at
+        )
+        # ============================================================
+# PART 7 - DOCKER SANDBOX + EXECUTION API
+# ============================================================
+
+
+def docker_available():
+    return shutil.which("docker") is not None
+
+
+def docker_command(
+    command: List[str],
+    workspace: str,
+    timeout: int
+):
+
+    if not docker_available():
+
+        raise RuntimeError(
+            "Docker is not available on this server."
+        )
+
+    validate_command(
+        command
+    )
+
+    if not os.path.isdir(workspace):
+
+        raise ValueError(
+            "Execution workspace does not exist."
+        )
+
+    return [
+        "docker",
+        "run",
+        "--rm",
+        "--network",
+        "none",
+        "--cpus",
+        "0.5",
+        "--memory",
+        "256m",
+        "--pids-limit",
+        "64",
+        "--read-only",
+        "--security-opt",
+        "no-new-privileges",
+        "--cap-drop",
+        "ALL",
+        "--tmpfs",
+        "/tmp:rw,noexec,nosuid,size=64m",
+        "-v",
+        workspace + ":/workspace:ro",
+        "-w",
+        "/workspace",
+        "python:3.12-slim",
+        *command
+    ]
+
+
+async def execute_docker_command(
+    command: List[str],
+    workspace: str,
+    timeout: int
+):
+
+    started_at = time.time()
+
+    try:
+
+        docker_args = docker_command(
+            command,
+            workspace,
+            timeout
+        )
+
+        process = await asyncio.create_subprocess_exec(
+            *docker_args,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+
+        try:
+
+            stdout, stderr = await asyncio.wait_for(
+                process.communicate(),
+                timeout=timeout
+            )
+
+            result = {
+                "status":
+                    "success"
+                    if process.returncode == 0
+                    else "failed",
+                "stdout":
+                    stdout.decode(
+                        "utf-8",
+                        errors="replace"
+                    ),
+                "stderr":
+                    stderr.decode(
+                        "utf-8",
+                        errors="replace"
+                    ),
+                "return_code":
+                    process.returncode,
+                "timed_out":
+                    False
+            }
+
+        except asyncio.TimeoutError:
+
+            process.kill()
+
+            await process.communicate()
+
+            result = {
+                "status":
+                    "timeout",
+                "stdout":
+                    "",
+                "stderr":
+                    "Execution timed out.",
+                "return_code":
+                    None,
+                "timed_out":
+                    True
+            }
+
+        return normalize_execution_result(
+            result,
+            started_at
+        )
+
+    except Exception as error:
+
+        return normalize_execution_result(
+            {
+                "status":
+                    "error",
+                "stdout":
+                    "",
+                "stderr":
+                    str(error),
+                "return_code":
+                    None,
+                "timed_out":
+                    False
+            },
+            started_at
+        )
+
+
+async def execute_code(
+    files: List[ProjectFile],
+    command: List[str],
+    timeout: int
+):
+
+    timeout = max(
+        1,
+        min(
+            timeout,
+            EXECUTION_TIMEOUT
+        )
+    )
+
+    validated = validate_execution_files(
+        files
+    )
+
+    workspace = create_workspace(
+        validated
+    )
+
+    try:
+
+        if EXECUTION_MODE == "docker":
+
+            return await execute_docker_command(
+                command,
+                workspace,
+                timeout
+            )
+
+        if EXECUTION_MODE == "host":
+
+            return await execute_host_command(
+                command,
+                workspace,
+                timeout
+            )
+
+        raise RuntimeError(
+            "Unknown execution mode."
+        )
+
+    finally:
+
+        shutil.rmtree(
+            workspace,
+            ignore_errors=True
+        )
+
+
+# ============================================================
+# CODE EXECUTION ENDPOINT
+# ============================================================
+
+
+@app.post("/api/execute")
+async def execute_endpoint(
+    request: ExecuteRequest
+):
+
+    start = time.time()
+
+    record_request()
+
+    try:
+
+        files = validate_execution_files(
+            request.files
+        )
+
+        command = request.command
+
+        if not command:
+
+            command = build_execution_command(
+                files,
+                request.entrypoint
+            )
+
+        validate_command(
+            command
+        )
+
+        result = await execute_code(
+            files,
+            command,
+            request.timeout
+        )
+
+        if result["status"] == "success":
+            record_success()
+        else:
+            record_failure()
+
+        return {
+            "status":
+                result["status"],
+            "command":
+                command,
+            "stdout":
+                result["stdout"],
+            "stderr":
+                result["stderr"],
+            "return_code":
+                result["return_code"],
+            "timed_out":
+                result["timed_out"],
+            "latency_seconds":
+                result["latency_seconds"]
+        }
+
+    except ValueError as error:
+
+        record_failure()
+
+        raise HTTPException(
+            status_code=400,
+            detail=str(error)
+        )
+
+    except RuntimeError as error:
+
+        record_failure()
+
+        raise HTTPException(
+            status_code=503,
+            detail=str(error)
+        )
+
+    except Exception as error:
+
+        record_failure()
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(error)
+        )
+
+    finally:
+
+        finish_timer(start)
+
+
+# ============================================================
+# EXECUTION HEALTH
+# ============================================================
+
+
+@app.get("/api/execute/status")
+async def execution_status():
+
+    return {
+        "execution_mode":
+            EXECUTION_MODE,
+        "docker_available":
+            docker_available(),
+        "host_execution_allowed":
+            os.getenv(
+                "ALLOW_UNSANDBOXED_EXECUTION",
+                "false"
+            ).lower() == "true",
+        "supported_runtimes": [
+            "python",
+            "node"
+        ]
+            }
+    # ============================================================
+# PART 8 - TESTING + SAFE TERMINAL
+# ============================================================
+
+
+def build_test_command(
+    files: List[ProjectFile],
+    entrypoint: str = None
+):
+
+    paths = {
+        file.path
+        for file in files
+    }
+
+    has_python = any(
+        path.endswith(".py")
+        for path in paths
+    )
+
+    has_node = any(
+        path.endswith(
+            (".js", ".mjs", ".cjs")
+        )
+        for path in paths
+    )
+
+    if has_python:
+
+        return [
+            "python",
+            "-m",
+            "unittest",
+            "discover",
+            "-v"
+        ]
+
+    if has_node:
+
+        return [
+            "npm",
+            "test"
+        ]
+
+    raise ValueError(
+        "No supported test runtime found."
+    )
+
+
+# ============================================================
+# TEST REQUEST
+# ============================================================
+
+
+class TestRunRequest(BaseModel):
+    files: List[ProjectFile]
+    timeout: int = 20
+
+
+# ============================================================
+# TEST ENDPOINT
+# ============================================================
+
+
+@app.post("/api/test/run")
+async def run_tests(
+    request: TestRunRequest
+):
+
+    start = time.time()
+
+    record_request()
+
+    try:
+
+        files = validate_execution_files(
+            request.files
+        )
+
+        command = build_test_command(
+            files
+        )
+
+        result = await execute_code(
+            files,
+            command,
+            request.timeout
+        )
+
+        if result["status"] == "success":
+            record_success()
+        else:
+            record_failure()
+
+        return {
+            "status":
+                result["status"],
+            "command":
+                command,
+            "stdout":
+                result["stdout"],
+            "stderr":
+                result["stderr"],
+            "return_code":
+                result["return_code"],
+            "timed_out":
+                result["timed_out"],
+            "latency_seconds":
+                result["latency_seconds"]
+        }
+
+    except ValueError as error:
+
+        record_failure()
+
+        raise HTTPException(
+            status_code=400,
+            detail=str(error)
+        )
+
+    except RuntimeError as error:
+
+        record_failure()
+
+        raise HTTPException(
+            status_code=503,
+            detail=str(error)
+        )
+
+    except Exception as error:
+
+        record_failure()
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(error)
+        )
+
+    finally:
+
+        finish_timer(start)
+
+
+# ============================================================
+# SAFE TERMINAL
+# ============================================================
+
+
+class TerminalRequest(BaseModel):
+    files: List[ProjectFile] = []
+    command: str
+    timeout: int = 10
+
+
+SAFE_TERMINAL_COMMANDS = {
+    "help",
+    "pwd",
+    "ls",
+    "python",
+    "python3",
+    "node",
+    "npm"
+}
+
+
+def parse_terminal_command(
+    command_text: str
+):
+
+    command_text = command_text.strip()
+
+    if not command_text:
+
+        raise ValueError(
+            "Terminal command cannot be empty."
+        )
+
+    parts = command_text.split()
+
+    executable = parts[0]
+
+    if executable not in SAFE_TERMINAL_COMMANDS:
+
+        raise ValueError(
+            "Terminal command is not allowed."
+        )
+
+    return parts
+
+
+def terminal_help():
+
+    return {
+        "status": "success",
+        "output": (
+            "Safe Engineer AI Terminal\n"
+            "\n"
+            "Available commands:\n"
+            "help\n"
+            "pwd\n"
+            "ls\n"
+            "python <file.py>\n"
+            "python3 <file.py>\n"
+            "node <file.js>\n"
+            "npm test\n"
+        )
+    }
+
+
+def terminal_virtual_command(
+    parts: List[str],
+    workspace: str
+):
+
+    command = parts[0]
+
+    if command == "help":
+        return terminal_help()
+
+    if command == "pwd":
+
+        return {
+            "status": "success",
+            "output": "/workspace"
+        }
+
+    if command == "ls":
+
+        entries = sorted(
+            os.listdir(workspace)
+        )
+
+        output = "\n".join(
+            entries
+        )
+
+        return {
+            "status": "success",
+            "output": output
+        }
+
+    return None
+
+
+# ============================================================
+# TERMINAL ENDPOINT
+# ============================================================
+
+
+@app.post("/api/terminal/execute")
+async def terminal_execute(
+    request: TerminalRequest
+):
+
+    start = time.time()
+
+    record_request()
+
+    try:
+
+        parts = parse_terminal_command(
+            request.command
+        )
+
+        files = validate_execution_files(
+            request.files
+        )
+
+        workspace = create_workspace(
+            files
+        )
+
+        try:
+
+            virtual_result = (
+                terminal_virtual_command(
+                    parts,
+                    workspace
+                )
+            )
+
+            if virtual_result is not None:
+
+                record_success()
+
+                return {
+                    **virtual_result,
+                    "command":
+                        request.command
+                }
+
+            validate_command(
+                parts
+            )
+
+            result = await execute_code(
+                files,
+                parts,
+                request.timeout
+            )
+
+            if result["status"] == "success":
+                record_success()
+            else:
+                record_failure()
+
+            return {
+                "status":
+                    result["status"],
+                "command":
+                    request.command,
+                "stdout":
+                    result["stdout"],
+                "stderr":
+                    result["stderr"],
+                "return_code":
+                    result["return_code"],
+                "timed_out":
+                    result["timed_out"],
+                "latency_seconds":
+                    result["latency_seconds"]
+            }
+
+        finally:
+
+            shutil.rmtree(
+                workspace,
+                ignore_errors=True
+            )
+
+    except ValueError as error:
+
+        record_failure()
+
+        raise HTTPException(
+            status_code=400,
+            detail=str(error)
+        )
+
+    except RuntimeError as error:
+
+        record_failure()
+
+        raise HTTPException(
+            status_code=503,
+            detail=str(error)
+        )
+
+    except Exception as error:
+
+        record_failure()
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(error)
+        )
+
+    finally:
+
+        finish_timer(start)
+        # ============================================================
+# PART 9 - SECURITY SCANNER
+# ============================================================
+
+
+SECURITY_RULES = [
+    {
+        "name": "hardcoded_secret",
+        "pattern": r"(?i)(api[_-]?key|secret|password|token)\s*=\s*['\"][^'\"]{8,}['\"]",
+        "severity": "high",
+        "message": "Possible hardcoded secret detected."
+    },
+    {
+        "name": "eval_usage",
+        "pattern": r"\beval\s*\(",
+        "severity": "high",
+        "message": "Dynamic eval() usage can execute untrusted code."
+    },
+    {
+        "name": "exec_usage",
+        "pattern": r"\bexec\s*\(",
+        "severity": "high",
+        "message": "Dynamic exec() usage can execute arbitrary code."
+    },
+    {
+        "name": "shell_true",
+        "pattern": r"shell\s*=\s*True",
+        "severity": "high",
+        "message": "subprocess shell=True can create command injection risk."
+    },
+    {
+        "name": "os_system",
+        "pattern": r"\bos\.system\s*\(",
+        "severity": "high",
+        "message": "os.system() executes operating-system commands."
+    },
+    {
+        "name": "sql_concatenation",
+        "pattern": r"(?i)(SELECT|INSERT|UPDATE|DELETE).*(\+|f['\"]|format\s*\()",
+        "severity": "medium",
+        "message": "Possible SQL string construction detected."
+    },
+    {
+        "name": "inner_html",
+        "pattern": r"\.innerHTML\s*=",
+        "severity": "medium",
+        "message": "innerHTML assignment can create XSS risk with untrusted data."
+    }
+]
+
+
+def scan_file_security(
+    path: str,
+    content: str
+):
+
+    findings = []
+
+    lines = content.splitlines()
+
+    for line_number, line in enumerate(
+        lines,
+        start=1
+    ):
+
+        for rule in SECURITY_RULES:
+
+            try:
+
+                matched = re.search(
+                    rule["pattern"],
+                    line
+                )
+
+            except re.error:
+
+                matched = False
+
+            if matched:
+
+                findings.append(
+                    {
+                        "file":
+                            path,
+                        "line":
+                            line_number,
+                        "severity":
+                            rule["severity"],
+                        "rule":
+                            rule["name"],
+                        "message":
+                            rule["message"],
+                        "code":
+                            trim_text(
+                                line,
+                                300
+                            )
+                    }
+                )
+
+    return findings
+
+
+def security_scan(
+    files: List[ProjectFile]
+):
+
+    findings = []
+
+    for file in files:
+
+        file_findings = scan_file_security(
+            file.path,
+            file.content
+        )
+
+        findings.extend(
+            file_findings
+        )
+
+    severity_order = {
+        "critical": 0,
+        "high": 1,
+        "medium": 2,
+        "low": 3
+    }
+
+    findings.sort(
+        key=lambda item:
+        severity_order.get(
+            item["severity"],
+            99
+        )
+    )
+
+    counts = {
+        "critical": 0,
+        "high": 0,
+        "medium": 0,
+        "low": 0
+    }
+
+    for finding in findings:
+
+        severity = finding[
+            "severity"
+        ]
+
+        if severity in counts:
+            counts[severity] += 1
+
+    if counts["critical"] > 0:
+        overall = "critical"
+    elif counts["high"] > 0:
+        overall = "high"
+    elif counts["medium"] > 0:
+        overall = "medium"
+    elif counts["low"] > 0:
+        overall = "low"
+    else:
+        overall = "clean"
+
+    return {
+        "status": "success",
+        "overall": overall,
+        "counts": counts,
+        "total_findings":
+            len(findings),
+        "findings": findings
+    }
+
+
+# ============================================================
+# SECURITY SCAN REQUEST
+# ============================================================
+
+
+class SecurityScanRequest(BaseModel):
+    files: List[ProjectFile]
+
+
+# ============================================================
+# SECURITY SCAN ENDPOINT
+# ============================================================
+
+
+@app.post("/api/security/scan")
+async def security_scan_endpoint(
+    request: SecurityScanRequest
+):
+
+    start = time.time()
+
+    record_request()
+
+    try:
+
+        files = validate_files(
+            request.files
+        )
+
+        result = security_scan(
+            files
+        )
+
+        record_success()
+
+        return {
+            **result,
+            "latency_seconds":
+                round(
+                    time.time() - start,
+                    3
+                )
+        }
+
+    except ValueError as error:
+
+        record_failure()
+
+        raise HTTPException(
+            status_code=400,
+            detail=str(error)
+        )
+
+    except Exception as error:
+
+        record_failure()
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(error)
+        )
+
+    finally:
+
+        finish_timer(start)
+
+
+# ============================================================
+# AI SECURITY REVIEW
+# ============================================================
+
+
+class SecurityReviewRequest(BaseModel):
+    files: List[ProjectFile]
+    focus: str = "security"
+
+
+@app.post("/api/security/review")
+async def security_review(
+    request: SecurityReviewRequest
+):
+
+    start = time.time()
+
+    record_request()
+
+    try:
+
+        files = validate_files(
+            request.files
+        )
+
+        static_result = security_scan(
+            files
+        )
+
+        context = build_context(
+            files
+        )
+
+        prompt = (
+            "Perform a careful software security review.\n\n"
+            "Focus: "
+            + request.focus
+            + "\n\n"
+            "Static scanner findings:\n"
+            + json.dumps(
+                static_result["findings"],
+                indent=2
+            )
+            + "\n\n"
+            "PROJECT CONTEXT:\n"
+            + context
+            + "\n\n"
+            "Explain the important risks, "
+            "why they matter, and safe fixes. "
+            "Do not provide instructions for "
+            "attacking real systems."
+        )
+
+        ai_review = await ask_ai(
+            prompt
+        )
+
+        record_success()
+
+        return {
+            "status": "success",
+            "static_scan":
+                static_result,
+            "review": {
+                "output":
+                    ai_review
+            },
+            "latency_seconds":
+                round(
+                    time.time() - start,
+                    3
+                )
+        }
+
+    except ValueError as error:
+
+        record_failure()
+
+        raise HTTPException(
+            status_code=400,
+            detail=str(error)
+        )
+
+    except Exception as error:
+
+        record_failure()
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(error)
+        )
+
+    finally:
+
+        finish_timer(start)
+        # ============================================================
+# PART 10 - DEBUGGER + PERFORMANCE ANALYZER
+# ============================================================
+
+
+class DebugRequest(BaseModel):
+    files: List[ProjectFile]
+    error: str = ""
+    question: str = ""
+
+
+def find_debug_hints(
+    files: List[ProjectFile]
+):
+
+    hints = []
+
+    for file in files:
+
+        lines = file.content.splitlines()
+
+        for number, line in enumerate(
+            lines,
+            start=1
+        ):
+
+            stripped = line.strip()
+
+            if "except:" in stripped:
+
+                hints.append({
+                    "file": file.path,
+                    "line": number,
+                    "type": "bare_except",
+                    "message":
+                        "Use a specific exception type when possible."
+                })
+
+            if "TODO" in line:
+
+                hints.append({
+                    "file": file.path,
+                    "line": number,
+                    "type": "todo",
+                    "message":
+                        "TODO marker found."
+                })
+
+            if "print(" in stripped:
+
+                hints.append({
+                    "file": file.path,
+                    "line": number,
+                    "type": "debug_output",
+                    "message":
+                        "Debug print statement detected."
+                })
+
+    return hints
+
+
+@app.post("/api/debug")
+async def debug_project(
+    request: DebugRequest
+):
+
+    start = time.time()
+
+    record_request()
+
+    try:
+
+        files = validate_files(
+            request.files
+        )
+
+        hints = find_debug_hints(
+            files
+        )
+
+        context = build_context(
+            files
+        )
+
+        prompt = (
+            "Act as an expert software debugger.\n\n"
+            "Analyze the project and identify "
+            "likely bugs, errors, and improvements.\n\n"
+            "KNOWN ERROR:\n"
+            + request.error
+            + "\n\n"
+            "USER QUESTION:\n"
+            + request.question
+            + "\n\n"
+            "STATIC DEBUG HINTS:\n"
+            + json.dumps(
+                hints,
+                indent=2
+            )
+            + "\n\n"
+            "PROJECT CONTEXT:\n"
+            + context
+            + "\n\n"
+            "Give clear explanations and safe "
+            "code-fix suggestions."
+        )
+
+        answer = await ask_ai(
+            prompt
+        )
+
+        record_success()
+
+        return {
+            "status": "success",
+            "static_hints":
+                hints,
+            "debug": {
+                "output":
+                    answer
+            },
+            "latency_seconds":
+                round(
+                    time.time() - start,
+                    3
+                )
+        }
+
+    except ValueError as error:
+
+        record_failure()
+
+        raise HTTPException(
+            status_code=400,
+            detail=str(error)
+        )
+
+    except Exception as error:
+
+        record_failure()
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(error)
+        )
+
+    finally:
+
+        finish_timer(start)
+
+
+# ============================================================
+# PERFORMANCE ANALYZER
+# ============================================================
+
+
+class PerformanceRequest(BaseModel):
+    files: List[ProjectFile]
+
+
+def analyze_performance(
+    files: List[ProjectFile]
+):
+
+    findings = []
+
+    for file in files:
+
+        lines = file.content.splitlines()
+
+        loop_depth = 0
+
+        for number, line in enumerate(
+            lines,
+            start=1
+        ):
+
+            stripped = line.strip()
+
+            if stripped.startswith(
+                ("for ", "while ")
+            ):
+
+                loop_depth += 1
+
+                if loop_depth >= 2:
+
+                    findings.append({
+                        "file":
+                            file.path,
+                        "line":
+                            number,
+                        "type":
+                            "nested_loop",
+                        "severity":
+                            "medium",
+                        "message":
+                            "Possible nested loop detected."
+                    })
+
+            if ".sort(" in stripped:
+
+                findings.append({
+                    "file":
+                        file.path,
+                    "line":
+                        number,
+                    "type":
+                        "sort_operation",
+                    "severity":
+                        "low",
+                    "message":
+                        "Review repeated sorting for performance."
+                })
+
+            if "SELECT *" in line.upper():
+
+                findings.append({
+                    "file":
+                        file.path,
+                    "line":
+                        number,
+                    "type":
+                        "select_all",
+                    "severity":
+                        "low",
+                    "message":
+                        "Selecting all database columns may be unnecessary."
+                })
+
+            if "time.sleep(" in stripped:
+
+                findings.append({
+                    "file":
+                        file.path,
+                    "line":
+                        number,
+                    "type":
+                        "blocking_sleep",
+                    "severity":
+                        "medium",
+                    "message":
+                        "Blocking sleep may reduce responsiveness."
+                })
+
+        if len(
+            file.content
+        ) > 500000:
+
+            findings.append({
+                "file":
+                    file.path,
+                "line":
+                    1,
+                "type":
+                    "large_file",
+                "severity":
+                    "medium",
+                "message":
+                    "Large source file detected."
+            })
+
+    return findings
+
+
+@app.post("/api/performance/analyze")
+async def performance_analyze(
+    request: PerformanceRequest
+):
+
+    start = time.time()
+
+    record_request()
+
+    try:
+
+        files = validate_files(
+            request.files
+        )
+
+        findings = analyze_performance(
+            files
+        )
+
+        record_success()
+
+        return {
+            "status":
+                "success",
+            "total_findings":
+                len(findings),
+            "findings":
+                findings,
+            "latency_seconds":
+                round(
+                    time.time() - start,
+                    3
+                )
+        }
+
+    except ValueError as error:
+
+        record_failure()
+
+        raise HTTPException(
+            status_code=400,
+            detail=str(error)
+        )
+
+    except Exception as error:
+
+        record_failure()
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(error)
+        )
+
+    finally:
+
+        finish_timer(start)
+
+
+# ============================================================
+# AI PERFORMANCE REVIEW
+# ============================================================
+
+
+class PerformanceReviewRequest(BaseModel):
+    files: List[ProjectFile]
+
+
+@app.post("/api/performance/review")
+async def performance_review(
+    request: PerformanceReviewRequest
+):
+
+    start = time.time()
+
+    record_request()
+
+    try:
+
+        files = validate_files(
+            request.files
+        )
+
+        findings = analyze_performance(
+            files
+        )
+
+        context = build_context(
+            files
+        )
+
+        prompt = (
+            "Act as a senior performance engineer.\n\n"
+            "Review this software project for "
+            "performance bottlenecks and scalability issues.\n\n"
+            "STATIC FINDINGS:\n"
+            + json.dumps(
+                findings,
+                indent=2
+            )
+            + "\n\n"
+            "PROJECT CONTEXT:\n"
+            + context
+            + "\n\n"
+            "Explain the biggest issues and "
+            "suggest practical optimizations."
+        )
+
+        answer = await ask_ai(
+            prompt
+        )
+
+        record_success()
+
+        return {
+            "status":
+                "success",
+            "static_findings":
+                findings,
+            "review": {
+                "output":
+                    answer
+            },
+            "latency_seconds":
+                round(
+                    time.time() - start,
+                    3
+                )
+        }
+
+    except ValueError as error:
+
+        record_failure()
+
+        raise HTTPException(
+            status_code=400,
+            detail=str(error)
+        )
+
+    except Exception as error:
+
+        record_failure()
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(error)
+        )
+
+    finally:
+
+        finish_timer(start)
