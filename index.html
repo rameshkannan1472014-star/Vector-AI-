@@ -2,26 +2,42 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport"
-      content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 
-<meta name="theme-color" content="#060912">
+<meta
+    name="viewport"
+    content="width=device-width,
+             initial-scale=1,
+             maximum-scale=1,
+             viewport-fit=cover"
+>
+
+<meta name="theme-color" content="#050811">
 
 <title>Engineer AI</title>
 
-<link rel="preconnect" href="https://cdnjs.cloudflare.com">
-<link rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+<link
+    rel="preconnect"
+    href="https://cdnjs.cloudflare.com"
+>
 
-<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css"
+>
 
 <style>
+
+/* =========================================================
+   ENGINEER AI
+   GLOBAL DESIGN SYSTEM
+========================================================= */
 
 :root {
     --bg: #050811;
     --panel: #0a1020;
     --panel2: #0d1527;
     --card: #101a2e;
+
     --line: #1b2942;
 
     --text: #f7f9ff;
@@ -35,8 +51,15 @@
     --red: #ff5c7a;
 
     --nav-height: 72px;
-    --safe-bottom: env(safe-area-inset-bottom, 0px);
+
+    --safe-bottom:
+        env(safe-area-inset-bottom, 0px);
 }
+
+
+/* =========================================================
+   RESET
+========================================================= */
 
 * {
     box-sizing: border-box;
@@ -48,6 +71,7 @@ html,
 body {
     width: 100%;
     height: 100%;
+
     background: var(--bg);
     color: var(--text);
 
@@ -59,7 +83,8 @@ body {
         Roboto,
         sans-serif;
 
-    -webkit-tap-highlight-color: transparent;
+    -webkit-tap-highlight-color:
+        transparent;
 }
 
 body {
@@ -68,13 +93,26 @@ body {
 
 button,
 input,
-textarea {
+textarea,
+select {
     font: inherit;
 }
 
 button {
     border: none;
 }
+
+button,
+.card,
+.nav-item {
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+
+/* =========================================================
+   APP SHELL
+========================================================= */
 
 .app {
     width: 100%;
@@ -94,8 +132,14 @@ button {
         var(--bg);
 }
 
+
+/* =========================================================
+   MAIN
+========================================================= */
+
 main {
     position: relative;
+
     flex: 1;
     min-height: 0;
 
@@ -118,12 +162,17 @@ main {
     padding:
         16px
         16px
-        calc(var(--nav-height) + 18px);
+        calc(
+            var(--nav-height)
+            + 20px
+            + var(--safe-bottom)
+        );
 
     opacity: 0;
     visibility: hidden;
 
-    transform: translate3d(12px, 0, 0);
+    transform:
+        translate3d(12px, 0, 0);
 
     pointer-events: none;
 
@@ -137,18 +186,17 @@ main {
     opacity: 1;
     visibility: visible;
 
-    transform: translate3d(0, 0, 0);
+    transform:
+        translate3d(0, 0, 0);
 
     pointer-events: auto;
 }
 
-.view::-webkit-scrollbar,
-.messages::-webkit-scrollbar {
+.view::-webkit-scrollbar {
     width: 4px;
 }
 
-.view::-webkit-scrollbar-thumb,
-.messages::-webkit-scrollbar-thumb {
+.view::-webkit-scrollbar-thumb {
     background: #263652;
     border-radius: 10px;
 }
@@ -160,6 +208,7 @@ main {
 
 .header {
     display: flex;
+
     align-items: center;
     justify-content: space-between;
 
@@ -168,6 +217,7 @@ main {
 
 .brand {
     display: flex;
+
     align-items: center;
 
     gap: 10px;
@@ -177,10 +227,14 @@ main {
     width: 40px;
     height: 40px;
 
+    flex: 0 0 40px;
+
     border-radius: 13px;
 
     display: grid;
     place-items: center;
+
+    color: white;
 
     background:
         linear-gradient(
@@ -190,7 +244,8 @@ main {
         );
 
     box-shadow:
-        0 8px 28px rgba(79,140,255,.22);
+        0 8px 28px
+        rgba(79,140,255,.22);
 }
 
 .logo i {
@@ -199,6 +254,7 @@ main {
 
 .title {
     font-size: 15px;
+
     font-weight: 800;
 }
 
@@ -206,6 +262,7 @@ main {
     margin-top: 2px;
 
     font-size: 10px;
+
     color: var(--muted);
 }
 
@@ -238,6 +295,8 @@ main {
 .hero {
     padding: 18px;
 
+    margin-bottom: 14px;
+
     border-radius: 20px;
 
     border: 1px solid var(--line);
@@ -248,8 +307,6 @@ main {
             #0e1930,
             #080e1a
         );
-
-    margin-bottom: 14px;
 }
 
 .hero h1 {
@@ -270,11 +327,12 @@ main {
 
 
 /* =========================================================
-   INPUT
+   COMPOSER
 ========================================================= */
 
 .composer {
     display: flex;
+
     align-items: center;
 
     gap: 8px;
@@ -283,7 +341,8 @@ main {
 
     background: #070d19;
 
-    border: 1px solid var(--line);
+    border:
+        1px solid var(--line);
 
     border-radius: 14px;
 }
@@ -300,6 +359,7 @@ main {
     background: transparent;
 
     border: none;
+
     outline: none;
 
     font-size: 12px;
@@ -310,9 +370,12 @@ main {
     width: 38px;
     height: 38px;
 
+    flex: 0 0 38px;
+
     border-radius: 11px;
 
     display: grid;
+
     place-items: center;
 
     cursor: pointer;
@@ -323,7 +386,8 @@ main {
 
     background: #101a2d;
 
-    border: 1px solid var(--line);
+    border:
+        1px solid var(--line);
 }
 
 .send {
@@ -337,7 +401,8 @@ main {
         );
 
     box-shadow:
-        0 5px 18px rgba(79,140,255,.22);
+        0 5px 18px
+        rgba(79,140,255,.22);
 }
 
 .send:disabled {
@@ -348,14 +413,14 @@ main {
 
 
 /* =========================================================
-   DASHBOARD CARDS
+   GRID
 ========================================================= */
 
 .grid {
     display: grid;
 
     grid-template-columns:
-        repeat(2, 1fr);
+        repeat(2, minmax(0, 1fr));
 
     gap: 10px;
 }
@@ -372,7 +437,8 @@ main {
             #09101d
         );
 
-    border: 1px solid var(--line);
+    border:
+        1px solid var(--line);
 
     cursor: pointer;
 
@@ -390,6 +456,8 @@ main {
 }
 
 .card i {
+    display: block;
+
     margin-bottom: 10px;
 
     font-size: 16px;
@@ -413,7 +481,7 @@ main {
 
 
 /* =========================================================
-   SECTION
+   SECTION TITLES
 ========================================================= */
 
 .section-title {
@@ -445,7 +513,7 @@ main {
     display: grid;
 
     grid-template-columns:
-        repeat(2, 1fr);
+        repeat(2, minmax(0, 1fr));
 
     gap: 10px;
 }
@@ -457,7 +525,8 @@ main {
 
     background: #0a1221;
 
-    border: 1px solid var(--line);
+    border:
+        1px solid var(--line);
 }
 
 .stat b {
@@ -474,80 +543,89 @@ main {
 
 
 /* =========================================================
-   CHAT
+   LIST
 ========================================================= */
 
-.chat-wrap {
-    height: 100%;
+.list {
+    display: grid;
 
-    display: flex;
-
-    flex-direction: column;
+    gap: 9px;
 }
 
-.chat-header {
+.list-row {
     display: flex;
 
     align-items: center;
 
     gap: 10px;
 
-    padding:
-        2px 0 12px;
+    padding: 12px;
+
+    border-radius: 14px;
+
+    background: #0a1220;
+
+    border:
+        1px solid var(--line);
 }
 
-.chat-header .title {
-    flex: 1;
-}
+.list-icon {
+    width: 36px;
+    height: 36px;
 
-.messages {
-    flex: 1;
-
-    min-height: 0;
-
-    overflow-y: auto;
-
-    padding:
-        4px 0 12px;
-
-    scroll-behavior: smooth;
-}
-
-.msg {
-    max-width: 92%;
-
-    margin-bottom: 12px;
-
-    display: flex;
-
-    align-items: flex-start;
-
-    gap: 8px;
-}
-
-.msg.user {
-    margin-left: auto;
-
-    flex-direction: row-reverse;
-}
-
-.avatar {
-    width: 30px;
-    height: 30px;
-
-    flex: 0 0 30px;
+    flex: 0 0 36px;
 
     display: grid;
+
     place-items: center;
 
-    border-radius: 10px;
-
-    background: #111d33;
+    border-radius: 11px;
 
     color: var(--accent);
+
+    background: #111d32;
 }
 
-.user .avatar {
+.list-info {
+    flex: 1;
+
+    min-width: 0;
+}
+
+.list-info b {
+    display: block;
+
+    font-size: 12px;
+}
+
+.list-info small {
+    display: block;
+
+    margin-top: 3px;
+
+    font-size: 9px;
+
+    color: var(--muted);
+
+    white-space: nowrap;
+
+    overflow: hidden;
+
+    text-overflow: ellipsis;
+}
+
+
+/* =========================================================
+   BUTTONS
+========================================================= */
+
+.primary {
+    min-height: 42px;
+
+    padding: 0 16px;
+
+    border-radius: 12px;
+
     color: white;
 
     background:
@@ -556,166 +634,44 @@ main {
             var(--accent),
             var(--accent2)
         );
+
+    font-weight: 700;
+
+    cursor: pointer;
 }
 
-.bubble {
-    padding:
-        11px 12px;
+.primary:disabled {
+    opacity: .55;
 
-    border-radius: 14px;
-
-    background: #0c1526;
-
-    border: 1px solid var(--line);
-
-    font-size: 12px;
-
-    line-height: 1.55;
-
-    overflow-wrap: anywhere;
+    cursor: not-allowed;
 }
 
-.user .bubble {
-    background: #12244a;
+.secondary {
+    min-height: 40px;
 
-    border-color: #24457e;
-}
+    padding: 0 14px;
 
-.bubble strong {
-    color: white;
-}
-
-.bubble code {
-    padding:
-        2px 5px;
-
-    border-radius: 5px;
-
-    background: #060b14;
-}
-
-.bubble pre {
-    margin-top: 8px;
-
-    padding: 10px;
-
-    overflow: auto;
-
-    white-space: pre-wrap;
-
-    border-radius: 10px;
-
-    background: #050a12;
-
-    border: 1px solid #18253b;
-
-    font-size: 10px;
-}
-
-.chat-composer {
-    display: flex;
-
-    gap: 8px;
-
-    padding-top: 7px;
-
-    border-top:
-        1px solid #101a2a;
-}
-
-.chat-composer textarea {
-    flex: 1;
-
-    min-height: 42px;
-    max-height: 110px;
-
-    resize: none;
-
-    padding: 11px;
+    border-radius: 12px;
 
     color: var(--text);
 
-    background: #0a1221;
+    background: #101a2d;
 
     border:
         1px solid var(--line);
 
-    border-radius: 13px;
-
-    outline: none;
-
-    font-size: 12px;
+    cursor: pointer;
 }
 
+.danger {
+    color: white;
 
-/* =========================================================
-   AGENTS
-========================================================= */
-
-.agent-list {
-    display: grid;
-
-    gap: 9px;
-}
-
-.agent-row {
-    display: flex;
-
-    align-items: center;
-
-    gap: 11px;
-
-    padding: 12px;
-
-    border-radius: 14px;
-
-    background: #0a1220;
-
-    border: 1px solid var(--line);
-}
-
-.agent-icon {
-    width: 34px;
-    height: 34px;
-
-    border-radius: 10px;
-
-    display: grid;
-    place-items: center;
-
-    color: var(--accent);
-
-    background: #111d32;
-}
-
-.agent-row .info {
-    flex: 1;
-}
-
-.agent-row b {
-    font-size: 12px;
-}
-
-.agent-row small {
-    display: block;
-
-    margin-top: 2px;
-
-    font-size: 9px;
-
-    color: var(--muted);
-}
-
-.status {
-    width: 7px;
-    height: 7px;
-
-    border-radius: 50%;
-
-    background: var(--green);
-
-    box-shadow:
-        0 0 8px rgba(50,213,131,.5);
+    background:
+        linear-gradient(
+            135deg,
+            #ff4f70,
+            #c92f52
+        );
 }
 
 
@@ -757,52 +713,23 @@ main {
     font-size: 12px;
 }
 
+.field:focus {
+    border-color: #355a91;
+
+    box-shadow:
+        0 0 0 3px
+        rgba(79,140,255,.08);
+}
+
 textarea.field {
     min-height: 130px;
 
     resize: vertical;
 }
 
-.primary {
-    height: 44px;
-
-    border-radius: 13px;
-
-    color: white;
-
-    background:
-        linear-gradient(
-            135deg,
-            var(--accent),
-            var(--accent2)
-        );
-
-    font-weight: 700;
-
-    cursor: pointer;
-}
-
-.primary:disabled {
-    opacity: .55;
-}
-
-.secondary {
-    height: 40px;
-
-    border-radius: 12px;
-
-    color: var(--text);
-
-    background: #101a2d;
-
-    border: 1px solid var(--line);
-
-    cursor: pointer;
-}
-
 
 /* =========================================================
-   RESULTS
+   RESULT BOX
 ========================================================= */
 
 .result {
@@ -814,33 +741,153 @@ textarea.field {
 
     background: #080f1b;
 
-    border: 1px solid var(--line);
+    border:
+        1px solid var(--line);
 
     font-size: 11px;
 
     line-height: 1.5;
+
+    overflow-wrap: anywhere;
 }
 
-.result summary {
-    list-style: none;
-}
-
-.result summary::-webkit-details-marker {
-    display: none;
-}
-
-.mermaid-wrap {
-    margin-top: 10px;
+.result pre {
+    margin-top: 8px;
 
     padding: 10px;
 
     overflow: auto;
 
-    border-radius: 12px;
+    white-space: pre-wrap;
 
-    background: #060b14;
+    border-radius: 10px;
 
-    border: 1px solid var(--line);
+    background: #050a12;
+
+    border:
+        1px solid #18253b;
+
+    font-size: 10px;
+}
+
+
+/* =========================================================
+   PROGRESS
+========================================================= */
+
+.progress {
+    width: 100%;
+
+    height: 7px;
+
+    overflow: hidden;
+
+    border-radius: 999px;
+
+    background: #182338;
+}
+
+.progress-bar {
+    height: 100%;
+
+    border-radius: inherit;
+
+    background:
+        linear-gradient(
+            90deg,
+            var(--accent),
+            var(--accent2)
+        );
+
+    transition:
+        width .3s ease;
+}
+
+
+/* =========================================================
+   BADGES
+========================================================= */
+
+.badge {
+    display: inline-flex;
+
+    align-items: center;
+
+    gap: 5px;
+
+    padding: 5px 8px;
+
+    border-radius: 999px;
+
+    font-size: 9px;
+
+    color: var(--muted);
+
+    background: #0c1526;
+
+    border:
+        1px solid var(--line);
+}
+
+.badge.green {
+    color: var(--green);
+
+    border-color:
+        rgba(50,213,131,.22);
+}
+
+.badge.yellow {
+    color: var(--yellow);
+
+    border-color:
+        rgba(253,176,34,.22);
+}
+
+.badge.red {
+    color: var(--red);
+
+    border-color:
+        rgba(255,92,122,.22);
+}
+
+
+/* =========================================================
+   EMPTY STATE
+========================================================= */
+
+.empty {
+    padding: 30px 18px;
+
+    text-align: center;
+
+    border-radius: 16px;
+
+    background: #09111e;
+
+    border:
+        1px dashed #223451;
+}
+
+.empty i {
+    margin-bottom: 10px;
+
+    font-size: 28px;
+
+    color: var(--muted);
+}
+
+.empty h3 {
+    font-size: 13px;
+}
+
+.empty p {
+    margin-top: 5px;
+
+    font-size: 10px;
+
+    line-height: 1.5;
+
+    color: var(--muted);
 }
 
 
@@ -853,12 +900,12 @@ textarea.field {
 
     align-items: center;
 
-    gap: 4px;
+    gap: 5px;
 
     color: var(--muted);
 }
 
-.loading i {
+.loading span {
     width: 5px;
     height: 5px;
 
@@ -867,120 +914,29 @@ textarea.field {
     background: currentColor;
 
     animation:
-        bounce .9s infinite
-        ease-in-out;
+        loadingPulse 1s infinite ease-in-out;
 }
 
-.loading i:nth-child(2) {
-    animation-delay: .12s;
+.loading span:nth-child(2) {
+    animation-delay: .15s;
 }
 
-.loading i:nth-child(3) {
-    animation-delay: .24s;
+.loading span:nth-child(3) {
+    animation-delay: .30s;
 }
 
-@keyframes bounce {
-
+@keyframes loadingPulse {
     0%,
-    70%,
+    80%,
     100% {
-        transform: translateY(0);
-        opacity: .45;
+        opacity: .25;
+        transform: scale(.8);
     }
 
-    35% {
-        transform: translateY(-4px);
+    40% {
         opacity: 1;
+        transform: scale(1);
     }
-}
-
-
-/* =========================================================
-   BOTTOM NAV
-========================================================= */
-
-.bottom {
-    position: absolute;
-
-    left: 0;
-    right: 0;
-    bottom: 0;
-
-    z-index: 50;
-
-    height: var(--nav-height);
-
-    padding-bottom:
-        var(--safe-bottom);
-
-    display: flex;
-
-    align-items: center;
-
-    justify-content: space-around;
-
-    background:
-        rgba(5,8,17,.92);
-
-    backdrop-filter:
-        blur(16px);
-
-    border-top:
-        1px solid var(--line);
-}
-
-.tab {
-    width: 62px;
-    height: 52px;
-
-    display: flex;
-
-    flex-direction: column;
-
-    align-items: center;
-    justify-content: center;
-
-    gap: 4px;
-
-    color: #64728a;
-
-    font-size: 9px;
-
-    cursor: pointer;
-}
-
-.tab i {
-    font-size: 15px;
-}
-
-.tab.active {
-    color: #73a5ff;
-}
-
-.center-tab {
-    width: 46px;
-    height: 46px;
-
-    margin-top: -18px;
-
-    border-radius: 15px;
-
-    display: grid;
-
-    place-items: center;
-
-    color: white !important;
-
-    background:
-        linear-gradient(
-            135deg,
-            var(--accent),
-            var(--accent2)
-        );
-
-    box-shadow:
-        0 10px 28px
-        rgba(79,140,255,.28);
 }
 
 
@@ -996,31 +952,42 @@ textarea.field {
     bottom:
         calc(
             var(--nav-height)
-            + 14px
+            + 18px
+            + var(--safe-bottom)
         );
 
-    z-index: 100;
+    transform:
+        translate(-50%, 15px);
 
-    padding:
-        9px 13px;
+    z-index: 9999;
 
-    border-radius: 10px;
+    max-width:
+        calc(100% - 32px);
 
-    background: #101a2d;
+    padding: 11px 15px;
 
-    border: 1px solid var(--line);
+    border-radius: 12px;
 
-    font-size: 10px;
+    color: white;
+
+    background: #111d31;
+
+    border:
+        1px solid #294268;
+
+    box-shadow:
+        0 10px 30px
+        rgba(0,0,0,.35);
+
+    font-size: 11px;
 
     opacity: 0;
 
     pointer-events: none;
 
-    transform:
-        translate(-50%, 10px);
-
     transition:
-        .18s ease;
+        opacity .2s ease,
+        transform .2s ease;
 }
 
 .toast.show {
@@ -1032,17 +999,111 @@ textarea.field {
 
 
 /* =========================================================
+   BOTTOM NAVIGATION
+========================================================= */
+
+.bottom-nav {
+    position: fixed;
+
+    left: 0;
+    right: 0;
+    bottom: 0;
+
+    z-index: 500;
+
+    height:
+        calc(
+            var(--nav-height)
+            + var(--safe-bottom)
+        );
+
+    padding:
+        8px
+        8px
+        var(--safe-bottom);
+
+    display: grid;
+
+    grid-template-columns:
+        repeat(5, 1fr);
+
+    gap: 5px;
+
+    background:
+        rgba(7,12,22,.94);
+
+    border-top:
+        1px solid var(--line);
+
+    backdrop-filter:
+        blur(18px);
+
+    -webkit-backdrop-filter:
+        blur(18px);
+}
+
+.nav-item {
+    display: flex;
+
+    flex-direction: column;
+
+    align-items: center;
+
+    justify-content: center;
+
+    gap: 4px;
+
+    border-radius: 12px;
+
+    color: var(--muted);
+
+    background: transparent;
+
+    cursor: pointer;
+
+    transition:
+        background .15s ease,
+        color .15s ease;
+}
+
+.nav-item i {
+    font-size: 15px;
+}
+
+.nav-item span {
+    font-size: 8px;
+}
+
+.nav-item.active {
+    color: white;
+
+    background:
+        rgba(79,140,255,.12);
+}
+
+.nav-item.active i {
+    color: var(--accent);
+}
+
+
+/* =========================================================
    DESKTOP
 ========================================================= */
 
 @media (min-width: 700px) {
 
     .view {
-        width:
-            min(820px, 100%);
+        max-width: 1100px;
+
+        margin: 0 auto;
 
         left: 50%;
         right: auto;
+
+        width: min(
+            100%,
+            1100px
+        );
 
         transform:
             translate3d(
@@ -1063,35 +1124,96 @@ textarea.field {
 
     .grid {
         grid-template-columns:
-            repeat(4, 1fr);
+            repeat(3, minmax(0, 1fr));
     }
 
     .stats {
         grid-template-columns:
-            repeat(4, 1fr);
+            repeat(4, minmax(0, 1fr));
     }
+
+    .bottom-nav {
+        left: 50%;
+
+        right: auto;
+
+        width: min(
+            700px,
+            100%
+        );
+
+        transform:
+            translateX(-50%);
+
+        border:
+            1px solid var(--line);
+
+        border-bottom: none;
+
+        border-radius:
+            18px 18px 0 0;
+    }
+}
+
+
+/* =========================================================
+   ACCESSIBILITY
+========================================================= */
+
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+    outline:
+        2px solid var(--accent);
+
+    outline-offset: 2px;
 }
 
 </style>
 </head>
 
-
 <body>
 
 <div class="app">
 
-<main>
+    <main id="main">
 
+        <!--
+            PART 2 WILL ADD
+            THE HOME SCREEN HERE.
+        -->
 
-<!-- =====================================================
-     HOME
-===================================================== -->
+    </main>
 
-<section
-    class="view active"
-    id="home"
->
+    <!--
+        PART 2 WILL ADD
+        THE BOTTOM NAVIGATION.
+    -->
 
+</div>
+
+<div
+    id="toast"
+    class="toast"
+    role="status"
+    aria-live="polite">
+</div>
+
+<!--
+    PART 9 WILL ADD
+    THE ENGINEER AI JAVASCRIPT.
+-->
+
+</body>
+      </html>
+      <!-- =========================================================
+     PART 2 — HOME SCREEN
+========================================================= -->
+
+<section id="homeView" class="view active">
+
+    <!-- HEADER -->
     <div class="header">
 
         <div class="brand">
@@ -1101,137 +1223,238 @@ textarea.field {
             </div>
 
             <div>
-
                 <div class="title">
                     Engineer AI
                 </div>
 
                 <div class="subtitle">
-                    Engineering intelligence engine
+                    Engineering Intelligence Platform
                 </div>
-
             </div>
 
         </div>
 
-        <div
-            class="pill online"
-            id="healthPill"
-        >
-            ● Online
+        <div class="pill online">
+            <i class="fa-solid fa-circle"
+               style="font-size:6px;"></i>
+            Online
         </div>
 
     </div>
 
 
+    <!-- HERO -->
     <div class="hero">
 
         <h1>
-            Build smarter. ⚡
+            Build smarter. 🚀
         </h1>
 
         <p>
-            Ask engineering questions, design systems,
-            review code, and run multi-agent reasoning.
+            Your AI engineering workspace for coding,
+            debugging, projects, security and intelligent
+            development.
         </p>
 
 
+        <!-- HOME AI COMPOSER -->
         <div class="composer">
 
-            <i
-                class="fa-solid fa-sparkles"
-                style="color:var(--accent)"
-            ></i>
+            <button
+                class="icon-btn"
+                type="button"
+                onclick="showToast('Voice input coming soon')"
+                aria-label="Voice input">
+
+                <i class="fa-solid fa-microphone"></i>
+
+            </button>
+
 
             <input
-                id="homeInput"
+                id="homePrompt"
+                type="text"
+                placeholder="Ask Engineer AI anything..."
                 autocomplete="off"
-                placeholder="Ask Engineer AI anything…"
+                onkeydown="
+                    if(event.key === 'Enter'){
+                        sendHomePrompt();
+                    }
+                "
             >
 
+
             <button
-                class="send"
                 id="homeSend"
-            >
+                class="send"
+                type="button"
+                onclick="sendHomePrompt()"
+                aria-label="Send">
+
                 <i class="fa-solid fa-arrow-up"></i>
+
             </button>
 
         </div>
+
+    </div>
+
+
+    <!-- QUICK ACCESS -->
+    <div class="section-title">
+
+        <h2>
+            Quick Access
+        </h2>
+
+        <span>
+            Tools
+        </span>
 
     </div>
 
 
     <div class="grid">
 
+        <!-- AI CHAT -->
         <div
             class="card"
-            onclick="openAgent()"
-        >
+            onclick="navigateTo('chat')">
 
-            <i class="fa-solid fa-diagram-project"></i>
+            <i class="fa-solid fa-message"></i>
 
             <h3>
-                Multi-Agent
+                AI Chat
             </h3>
 
             <p>
-                Plan → build → test → audit → verify.
+                Ask engineering questions and get AI help.
             </p>
 
         </div>
 
 
+        <!-- CODE STUDIO -->
         <div
             class="card"
-            onclick="showView('review')"
-        >
+            onclick="navigateTo('code')">
 
             <i class="fa-solid fa-code"></i>
 
             <h3>
-                Code Review
+                Code Studio
             </h3>
 
             <p>
-                Find bugs, security issues and improvements.
+                Write, run and improve your code.
             </p>
 
         </div>
 
 
+        <!-- DEBUGGER -->
         <div
             class="card"
-            onclick="showView('analytics');loadAnalytics()"
-        >
+            onclick="navigateTo('debugger')">
 
-            <i class="fa-solid fa-chart-line"></i>
+            <i class="fa-solid fa-bug"></i>
 
             <h3>
-                Telemetry
+                Debugger
             </h3>
 
             <p>
-                Monitor latency and agent activity.
+                Find bugs and understand errors faster.
             </p>
 
         </div>
 
 
+        <!-- PROJECTS -->
         <div
             class="card"
-            onclick="quickAsk(
-                'Explain the architecture of a modern engineering AI platform.'
-            )"
-        >
+            onclick="navigateTo('projects')">
 
-            <i class="fa-solid fa-brain"></i>
+            <i class="fa-solid fa-folder-open"></i>
 
             <h3>
-                Architecture
+                Projects
             </h3>
 
             <p>
-                Design systems with clear trade-offs.
+                Manage your engineering projects.
+            </p>
+
+        </div>
+
+
+        <!-- AGENTS -->
+        <div
+            class="card"
+            onclick="navigateTo('agents')">
+
+            <i class="fa-solid fa-robot"></i>
+
+            <h3>
+                AI Agents
+            </h3>
+
+            <p>
+                Use specialized engineering agents.
+            </p>
+
+        </div>
+
+
+        <!-- SECURITY -->
+        <div
+            class="card"
+            onclick="navigateTo('review')">
+
+            <i class="fa-solid fa-shield-halved"></i>
+
+            <h3>
+                Security
+            </h3>
+
+            <p>
+                Scan and review code for vulnerabilities.
+            </p>
+
+        </div>
+
+
+        <!-- PERFORMANCE -->
+        <div
+            class="card"
+            onclick="navigateTo('tools')">
+
+            <i class="fa-solid fa-gauge-high"></i>
+
+            <h3>
+                Performance
+            </h3>
+
+            <p>
+                Analyze code performance and efficiency.
+            </p>
+
+        </div>
+
+
+        <!-- CALCULATOR -->
+        <div
+            class="card"
+            onclick="navigateTo('calculator')">
+
+            <i class="fa-solid fa-calculator"></i>
+
+            <h3>
+                Calculator
+            </h3>
+
+            <p>
+                Engineering calculations made simple.
             </p>
 
         </div>
@@ -1239,14 +1462,185 @@ textarea.field {
     </div>
 
 
+    <!-- RECENT PROJECTS -->
     <div class="section-title">
 
         <h2>
-            System snapshot
+            Recent Projects
         </h2>
 
         <span>
-            Live backend
+            View all
+        </span>
+
+    </div>
+
+
+    <div class="list">
+
+
+        <!-- PROJECT 1 -->
+        <div
+            class="list-row"
+            onclick="openProject('OS Kernel')">
+
+            <div class="list-icon">
+
+                <i class="fa-solid fa-microchip"></i>
+
+            </div>
+
+
+            <div class="list-info">
+
+                <b>
+                    OS Kernel
+                </b>
+
+                <small>
+                    C • Last edited recently
+                </small>
+
+            </div>
+
+
+            <span class="badge green">
+                65%
+            </span>
+
+        </div>
+
+
+        <!-- PROJECT 2 -->
+        <div
+            class="list-row"
+            onclick="openProject('AI Chat App')">
+
+            <div class="list-icon">
+
+                <i class="fa-brands fa-js"></i>
+
+            </div>
+
+
+            <div class="list-info">
+
+                <b>
+                    AI Chat App
+                </b>
+
+                <small>
+                    JavaScript • Last edited recently
+                </small>
+
+            </div>
+
+
+            <span class="badge green">
+                80%
+            </span>
+
+        </div>
+
+
+        <!-- PROJECT 3 -->
+        <div
+            class="list-row"
+            onclick="openProject('Web Scraper')">
+
+            <div class="list-icon">
+
+                <i class="fa-brands fa-python"></i>
+
+            </div>
+
+
+            <div class="list-info">
+
+                <b>
+                    Web Scraper
+                </b>
+
+                <small>
+                    Python • Last edited recently
+                </small>
+
+            </div>
+
+
+            <span class="badge yellow">
+                40%
+            </span>
+
+        </div>
+
+    </div>
+
+
+    <!-- DAILY PROGRESS -->
+    <div class="section-title">
+
+        <h2>
+            Daily Progress
+        </h2>
+
+        <span>
+            Today
+        </span>
+
+    </div>
+
+
+    <div class="stat">
+
+        <div
+            style="
+                display:flex;
+                justify-content:space-between;
+                align-items:center;
+                margin-bottom:9px;
+            ">
+
+            <div>
+
+                <b style="font-size:19px;">
+                    72%
+                </b>
+
+                <span>
+                    Engineering goal
+                </span>
+
+            </div>
+
+            <span class="badge green">
+                +12%
+            </span>
+
+        </div>
+
+
+        <div class="progress">
+
+            <div
+                class="progress-bar"
+                style="width:72%;">
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- SYSTEM STATS -->
+    <div class="section-title">
+
+        <h2>
+            System Overview
+        </h2>
+
+        <span>
+            Live
         </span>
 
     </div>
@@ -1256,12 +1650,12 @@ textarea.field {
 
         <div class="stat">
 
-            <b id="statRequests">
-                —
+            <b id="homeProjectsCount">
+                3
             </b>
 
             <span>
-                Requests
+                Projects
             </span>
 
         </div>
@@ -1269,12 +1663,12 @@ textarea.field {
 
         <div class="stat">
 
-            <b id="statSuccess">
-                —
+            <b id="homeAgentsCount">
+                6
             </b>
 
             <span>
-                Success rate
+                AI Agents
             </span>
 
         </div>
@@ -1282,12 +1676,12 @@ textarea.field {
 
         <div class="stat">
 
-            <b id="statLatency">
-                —
+            <b id="homeTasksCount">
+                24
             </b>
 
             <span>
-                Avg latency
+                Tasks
             </span>
 
         </div>
@@ -1295,671 +1689,41 @@ textarea.field {
 
         <div class="stat">
 
-            <b id="statAgents">
-                —
+            <b id="homeSuccessRate">
+                98%
             </b>
 
             <span>
-                Agent runs
+                Success Rate
             </span>
 
         </div>
 
     </div>
+
+
+    <!-- SPACE -->
+    <div style="height:10px;"></div>
 
 </section>
 
 
+<!-- =========================================================
+     PART 2 — BOTTOM NAVIGATION
+========================================================= -->
 
-<!-- =====================================================
-     CHAT
-===================================================== -->
-
-<section
-    class="view"
-    id="chat"
->
-
-    <div class="chat-wrap">
+<nav
+    class="bottom-nav"
+    id="bottomNav"
+    aria-label="Main navigation">
 
 
-        <div class="chat-header">
-
-            <button
-                class="icon-btn"
-                onclick="showView('home')"
-            >
-                <i class="fa-solid fa-chevron-left"></i>
-            </button>
-
-
-            <div
-                class="brand"
-                style="gap:8px"
-            >
-
-                <div
-                    class="logo"
-                    style="
-                        width:34px;
-                        height:34px;
-                        border-radius:10px
-                    "
-                >
-
-                    <i
-                        class="fa-solid fa-microchip"
-                        style="font-size:14px"
-                    ></i>
-
-                </div>
-
-
-                <div>
-
-                    <div class="title">
-                        Engineer AI
-                    </div>
-
-                    <div class="subtitle">
-                        Ready
-                    </div>
-
-                </div>
-
-            </div>
-
-
-            <button
-                class="icon-btn"
-                onclick="clearChat()"
-            >
-
-                <i class="fa-solid fa-trash-can"></i>
-
-            </button>
-
-        </div>
-
-
-        <div
-        <div class="messages" id="messages">
-
-    <!-- Initial AI message -->
-    <div class="msg">
-
-        <div class="avatar">
-            <i class="fa-solid fa-microchip"></i>
-        </div>
-
-        <div class="bubble">
-            <strong>Engineer AI</strong><br>
-            Ready to help with engineering, architecture,
-            coding, debugging and technical analysis. ⚡
-        </div>
-
-    </div>
-
-</div>
-
-
-<div class="chat-composer">
-
-    <textarea
-        id="chatInput"
-        placeholder="Ask an engineering question..."
-        rows="1"
-    ></textarea>
-
+    <!-- HOME -->
     <button
-        class="send"
-        id="chatSend"
-        onclick="sendChat()"
-    >
-        <i class="fa-solid fa-arrow-up"></i>
-    </button>
-
-</div>
-
-</div>
-
-</section>
-
-
-<!-- =====================================================
-     MULTI AGENT
-===================================================== -->
-
-<section
-    class="view"
-    id="agent"
->
-
-    <div class="header">
-
-        <div class="brand">
-
-            <button
-                class="icon-btn"
-                onclick="showView('home')"
-            >
-                <i class="fa-solid fa-chevron-left"></i>
-            </button>
-
-            <div
-                class="logo"
-                style="
-                    width:38px;
-                    height:38px;
-                    border-radius:12px
-                "
-            >
-                <i class="fa-solid fa-diagram-project"></i>
-            </div>
-
-            <div>
-
-                <div class="title">
-                    Multi-Agent
-                </div>
-
-                <div class="subtitle">
-                    Engineering workflow
-                </div>
-
-            </div>
-
-        </div>
-
-    </div>
-
-
-    <div class="hero">
-
-        <h1 style="font-size:20px;">
-            Agent workflow 🧠
-        </h1>
-
-        <p>
-            Give Engineer AI a technical task and let the
-            specialized agents analyze it step by step.
-        </p>
-
-    </div>
-
-
-    <div class="form">
-
-        <div class="label">
-            ENGINEERING TASK
-        </div>
-
-        <textarea
-            class="field"
-            id="agentTask"
-            placeholder="Example: Design a scalable AI coding platform..."
-        ></textarea>
-
-
-        <div class="label">
-            OPTIONS
-        </div>
-
-
-        <label class="agent-row">
-
-            <div class="agent-icon">
-                <i class="fa-solid fa-flask"></i>
-            </div>
-
-            <div class="info">
-
-                <b>
-                    Generate tests
-                </b>
-
-                <small>
-                    Create validation and test suggestions
-                </small>
-
-            </div>
-
-            <input
-                type="checkbox"
-                id="includeTests"
-                checked
-            >
-
-        </label>
-
-
-        <label class="agent-row">
-
-            <div class="agent-icon">
-                <i class="fa-solid fa-shield-halved"></i>
-            </div>
-
-            <div class="info">
-
-                <b>
-                    Security audit
-                </b>
-
-                <small>
-                    Analyze security and engineering risks
-                </small>
-
-            </div>
-
-            <input
-                type="checkbox"
-                id="includeSecurity"
-                checked
-            >
-
-        </label>
-
-
-        <button
-            class="primary"
-            id="agentRun"
-            onclick="runAgentWorkflow()"
-        >
-
-            <i class="fa-solid fa-play"></i>
-            Run Multi-Agent Workflow
-
-        </button>
-
-    </div>
-
-
-    <div
-        class="section-title"
-        style="margin-top:22px;"
-    >
-
-        <h2>
-            Agents
-        </h2>
-
-        <span>
-            Milestone 1
-        </span>
-
-    </div>
-
-
-    <div class="agent-list">
-
-        <div class="agent-row">
-
-            <div class="agent-icon">
-                <i class="fa-solid fa-map"></i>
-            </div>
-
-            <div class="info">
-
-                <b>
-                    Planner
-                </b>
-
-                <small>
-                    Breaks the engineering problem into steps
-                </small>
-
-            </div>
-
-            <span
-                class="status"
-                id="statusPlanner"
-            ></span>
-
-        </div>
-
-
-        <div class="agent-row">
-
-            <div class="agent-icon">
-                <i class="fa-solid fa-code"></i>
-            </div>
-
-            <div class="info">
-
-                <b>
-                    Executor
-                </b>
-
-                <small>
-                    Produces implementation and technical output
-                </small>
-
-            </div>
-
-            <span
-                class="status"
-                id="statusExecutor"
-            ></span>
-
-        </div>
-
-
-        <div class="agent-row">
-
-            <div class="agent-icon">
-                <i class="fa-solid fa-vial"></i>
-            </div>
-
-            <div class="info">
-
-                <b>
-                    Tester
-                </b>
-
-                <small>
-                    Generates validation and test logic
-                </small>
-
-            </div>
-
-            <span
-                class="status"
-                id="statusTester"
-            ></span>
-
-        </div>
-
-
-        <div class="agent-row">
-
-            <div class="agent-icon">
-                <i class="fa-solid fa-shield"></i>
-            </div>
-
-            <div class="info">
-
-                <b>
-                    Security
-                </b>
-
-                <small>
-                    Reviews security and engineering risks
-                </small>
-
-            </div>
-
-            <span
-                class="status"
-                id="statusSecurity"
-            ></span>
-
-        </div>
-
-    </div>
-
-
-    <div
-        id="agentResult"
-        class="result"
-        style="display:none;"
-    ></div>
-
-</section>
-
-
-<!-- =====================================================
-     ANALYTICS
-===================================================== -->
-
-<section
-    class="view"
-    id="analytics"
->
-
-    <div class="header">
-
-        <div class="brand">
-
-            <button
-                class="icon-btn"
-                onclick="showView('home')"
-            >
-                <i class="fa-solid fa-chevron-left"></i>
-            </button>
-
-            <div>
-
-                <div class="title">
-                    Telemetry
-                </div>
-
-                <div class="subtitle">
-                    Engineer AI system metrics
-                </div>
-
-            </div>
-
-        </div>
-
-        <button
-            class="icon-btn"
-            onclick="loadAnalytics()"
-        >
-            <i class="fa-solid fa-rotate"></i>
-        </button>
-
-    </div>
-
-
-    <div class="stats">
-
-        <div class="stat">
-
-            <b id="analyticsRequests">
-                —
-            </b>
-
-            <span>
-                Total requests
-            </span>
-
-        </div>
-
-
-        <div class="stat">
-
-            <b id="analyticsSuccess">
-                —
-            </b>
-
-            <span>
-                Successful
-            </span>
-
-        </div>
-
-
-        <div class="stat">
-
-            <b id="analyticsLatency">
-                —
-            </b>
-
-            <span>
-                Avg latency
-            </span>
-
-        </div>
-
-
-        <div class="stat">
-
-            <b id="analyticsAgents">
-                —
-            </b>
-
-            <span>
-                Agent runs
-            </span>
-
-        </div>
-
-    </div>
-
-
-    <div class="section-title">
-
-        <h2>
-            Backend status
-        </h2>
-
-    </div>
-
-
-    <div
-        class="result"
-        id="analyticsResult"
-    >
-        Loading telemetry...
-    </div>
-
-</section>
-
-
-<!-- =====================================================
-     CODE REVIEW
-===================================================== -->
-
-<section
-    class="view"
-    id="review"
->
-
-    <div class="header">
-
-        <div class="brand">
-
-            <button
-                class="icon-btn"
-                onclick="showView('home')"
-            >
-                <i class="fa-solid fa-chevron-left"></i>
-            </button>
-
-            <div>
-
-                <div class="title">
-                    Code Review
-                </div>
-
-                <div class="subtitle">
-                    Analyze engineering code
-                </div>
-
-            </div>
-
-        </div>
-
-    </div>
-
-
-    <div class="form">
-
-        <div class="label">
-            LANGUAGE
-        </div>
-
-        <select
-            class="field"
-            id="reviewLanguage"
-        >
-
-            <option value="python">
-                Python
-            </option>
-
-            <option value="javascript">
-                JavaScript
-            </option>
-
-            <option value="typescript">
-                TypeScript
-            </option>
-
-            <option value="java">
-                Java
-            </option>
-
-            <option value="cpp">
-                C++
-            </option>
-
-            <option value="c">
-                C
-            </option>
-
-            <option value="html">
-                HTML
-            </option>
-
-            <option value="css">
-                CSS
-            </option>
-
-            <option value="other">
-                Other
-            </option>
-
-        </select>
-
-
-        <div class="label">
-            CODE
-        </div>
-
-        <textarea
-            class="field"
-            id="reviewCode"
-            placeholder="Paste your code here..."
-            style="min-height:260px;"
-        ></textarea>
-
-
-        <button
-            class="primary"
-            id="reviewButton"
-            onclick="runCodeReview()"
-        >
-
-            <i class="fa-solid fa-magnifying-glass"></i>
-
-            Review Code
-
-        </button>
-
-    </div>
-
-
-    <div
-        class="result"
-        id="reviewResult"
-        style="display:none;"
-    ></div>
-
-</section>
-
-
-<!-- =====================================================
-     BOTTOM NAV
-===================================================== -->
-
-<nav class="bottom">
-
-    <button
-        class="tab active"
+        class="nav-item active"
+        type="button"
         data-view="home"
-        onclick="showView('home')"
-    >
+        onclick="navigateTo('home')">
 
         <i class="fa-solid fa-house"></i>
 
@@ -1970,1954 +1734,1502 @@ textarea.field {
     </button>
 
 
+    <!-- AI CHAT -->
     <button
-        class="tab"
-        data-view="analytics"
-        onclick="
-            showView('analytics');
-            loadAnalytics();
-        "
-    >
-
-        <i class="fa-solid fa-chart-line"></i>
-
-        <span>
-            Stats
-        </span>
-
-    </button>
-
-
-    <button
-        class="tab center-tab"
+        class="nav-item"
+        type="button"
         data-view="chat"
-        onclick="showView('chat')"
-    >
+        onclick="navigateTo('chat')">
 
-        <i class="fa-solid fa-microchip"></i>
-
-    </button>
-
-
-    <button
-        class="tab"
-        data-view="agent"
-        onclick="showView('agent')"
-    >
-
-        <i class="fa-solid fa-diagram-project"></i>
+        <i class="fa-solid fa-message"></i>
 
         <span>
-            Agents
+            AI Chat
         </span>
 
     </button>
 
 
+    <!-- CODE -->
     <button
-        class="tab"
-        data-view="review"
-        onclick="showView('review')"
-    >
+        class="nav-item"
+        type="button"
+        data-view="code"
+        onclick="navigateTo('code')">
 
         <i class="fa-solid fa-code"></i>
 
         <span>
-            Review
+            Code
         </span>
 
     </button>
 
-</nav>
 
+    <!-- TOOLS -->
+    <button
+        class="nav-item"
+        type="button"
+        data-view="tools"
+        onclick="navigateTo('tools')">
 
-<!-- =====================================================
-     TOAST
-===================================================== -->
+        <i class="fa-solid fa-toolbox"></i>
 
-<div
-    class="toast"
-    id="toast"
-></div>
+        <span>
+            Tools
+        </span>
 
+    </button>
 
-</main>
 
-</div>
+    <!-- PROFILE -->
+    <button
+        class="nav-item"
+        type="button"
+        data-view="profile"
+        onclick="navigateTo('profile')">
 
+        <i class="fa-solid fa-user"></i>
 
-<script>
+        <span>
+            Profile
+        </span>
 
-/* =========================================================
-   CONFIGURATION
-========================================================= */
+    </button>
 
-const API_BASE = "";
+      </nav>
+      <!-- =========================================================
+     PART 3 — AI CHAT SCREEN
+========================================================= -->
 
+<section id="chatView" class="view">
 
-/* =========================================================
-   DOM HELPERS
-========================================================= */
+    <!-- HEADER -->
+    <div class="header">
 
-const $ = (id) =>
-    document.getElementById(id);
+        <div class="brand">
 
-
-/* =========================================================
-   TOAST
-========================================================= */
-
-let toastTimer;
-
-function toast(message) {
-
-    const element = $("toast");
-
-    if (!element) return;
-
-    element.textContent = message;
-
-    element.classList.add("show");
-
-    clearTimeout(toastTimer);
-
-    toastTimer = setTimeout(() => {
-
-        element.classList.remove("show");
-
-    }, 2400);
-}
-
-
-/* =========================================================
-   VIEW SYSTEM
-========================================================= */
-
-function showView(viewName) {
-
-    document
-        .querySelectorAll(".view")
-        .forEach(view => {
-
-            view.classList.toggle(
-                "active",
-                view.id === viewName
-            );
-
-        });
-
-
-    document
-        .querySelectorAll(".tab")
-        .forEach(tab => {
-
-            tab.classList.toggle(
-                "active",
-                tab.dataset.view === viewName
-            );
-
-        });
-
-}
-
-
-/* =========================================================
-   AGENT NAVIGATION
-========================================================= */
-
-function openAgent() {
-
-    showView("agent");
-
-    $("agentTask")?.focus();
-
-}
-
-
-/* =========================================================
-   API REQUEST
-========================================================= */
-
-async function apiRequest(
-    endpoint,
-    options = {},
-    timeout = 90000
-) {
-
-    const controller =
-        new AbortController();
-
-    const timer =
-        setTimeout(
-            () => controller.abort(),
-            timeout
-        );
-
-
-    try {
-
-        const response =
-            await fetch(
-                API_BASE + endpoint,
-                {
-                    ...options,
-
-                    signal:
-                        controller.signal,
-
-                    headers: {
-                        "Content-Type":
-                            "application/json",
-
-                        ...(options.headers || {})
-                    }
-                }
-            );
-
-
-        const text =
-            await response.text();
-
-        let data = {};
-
-        try {
-
-            data =
-                text
-                    ? JSON.parse(text)
-                    : {};
-
-        } catch {
-
-            data = {
-                raw: text
-            };
-
-        }
-
-
-        if (!response.ok) {
-
-            throw new Error(
-                data.detail ||
-                data.message ||
-                data.raw ||
-                `HTTP ${response.status}`
-            );
-
-        }
-
-
-        return data;
-
-    } catch (error) {
-
-        if (
-            error.name ===
-            "AbortError"
-        ) {
-
-            throw new Error(
-                "Request timed out. The AI engine may still be processing."
-            );
-
-        }
-
-        throw error;
-
-    } finally {
-
-        clearTimeout(timer);
-
-    }
-
-}
-
-
-/* =========================================================
-   CHAT
-========================================================= */
-
-function addMessage(
-    text,
-    role = "assistant"
-) {
-
-    const container =
-        $("messages");
-
-    if (!container) return;
-
-
-    const message =
-        document.createElement("div");
-
-    message.className =
-        "msg " +
-        (role === "user"
-            ? "user"
-            : "");
-
-
-    const avatar =
-        document.createElement("div");
-
-    avatar.className =
-        "avatar";
-
-    avatar.innerHTML =
-        role === "user"
-            ? '<i class="fa-solid fa-user"></i>'
-            : '<i class="fa-solid fa-microchip"></i>';
-
-
-    const bubble =
-        document.createElement("div");
-
-    bubble.className =
-        "bubble";
-
-
-    bubble.innerHTML =
-        formatAIText(text);
-
-
-    message.appendChild(avatar);
-
-    message.appendChild(bubble);
-
-    container.appendChild(message);
-
-
-    container.scrollTop =
-        container.scrollHeight;
-
-}
-
-
-/* =========================================================
-   AI TEXT FORMATTER
-========================================================= */
-
-function escapeHTML(text) {
-
-    return String(text)
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
-
-}
-
-
-function formatAIText(text) {
-
-    if (!text) return "";
-
-    let output =
-        escapeHTML(text);
-
-
-    /*
-       Code blocks
-    */
-
-    output =
-        output.replace(
-            /```([\s\S]*?)```/g,
-            "<pre>$1</pre>"
-        );
-
-
-    /*
-       Inline code
-    */
-
-    output =
-        output.replace(
-            /`([^`]+)`/g,
-            "<code>$1</code>"
-        );
-
-
-    /*
-       Basic markdown
-    */
-
-    output =
-        output.replace(
-            /\*\*(.*?)\*\*/g,
-            "<strong>$1</strong>"
-        );
-
-
-    output =
-        output.replace(
-            /\n/g,
-            "<br>"
-        );
-
-
-    return output;
-
-}
-
-
-/* =========================================================
-   CHAT SEND
-========================================================= */
-
-let chatBusy = false;
-
-
-async function sendChat() {
-
-    if (chatBusy) return;
-
-
-    const input =
-        $("chatInput");
-
-    const text =
-        input?.value.trim();
-
-
-    if (!text) return;
-
-
-    input.value = "";
-
-    addMessage(
-        text,
-        "user"
-    );
-
-
-    chatBusy = true;
-
-
-    const button =
-        $("chatSend");
-
-    if (button) {
-
-        button.disabled = true;
-
-        button.innerHTML =
-            '<i class="fa-solid fa-spinner fa-spin"></i>';
-
-    }
-
-
-    const loadingId =
-        "chat-loading-" +
-        Date.now();
-
-
-    const container =
-        $("messages");
-
-
-    const loading =
-        document.createElement("div");
-
-    loading.id =
-        loadingId;
-
-    loading.className =
-        "msg";
-
-
-    loading.innerHTML = `
-        <div class="avatar">
-            <i class="fa-solid fa-microchip"></i>
-        </div>
-
-        <div class="bubble">
-
-            <span class="loading">
-                <i></i>
-                <i></i>
-                <i></i>
-            </span>
-
-        </div>
-    `;
-
-
-    container.appendChild(loading);
-
-    container.scrollTop =
-        container.scrollHeight;
-
-
-    try {
-
-        const data =
-            await apiRequest(
-                "/api/chat",
-                {
-                    method: "POST",
-
-                    body:
-                        JSON.stringify({
-                            prompt: text
-                        })
-                }
-            );
-
-
-        $(loadingId)?.remove();
-
-
-        const response =
-            data.response ||
-            data.output ||
-            data.message ||
-            "No response received.";
-
-
-        addMessage(
-            response,
-            "assistant"
-        );
-
-
-    } catch (error) {
-
-        $(loadingId)?.remove();
-
-        addMessage(
-            "⚠️ " +
-            error.message,
-            "assistant"
-        );
-
-        toast(
-            "AI request failed"
-        );
-
-    } finally {
-
-        chatBusy = false;
-
-        if (button) {
-
-            button.disabled = false;
-
-            button.innerHTML =
-                '<i class="fa-solid fa-arrow-up"></i>';
-
-        }
-
-    }
-
-}
-
-
-/* =========================================================
-   HOME QUICK ASK
-========================================================= */
-
-function quickAsk(prompt) {
-
-    showView("chat");
-
-    setTimeout(() => {
-
-        addMessage(
-            prompt,
-            "user"
-        );
-
-        sendDirectChat(prompt);
-
-    }, 120);
-
-}
-
-
-async function sendDirectChat(prompt) {
-
-    if (chatBusy) return;
-
-    chatBusy = true;
-
-
-    const container =
-        $("messages");
-
-
-    const loading =
-        document.createElement("div");
-
-    loading.className =
-        "msg";
-
-
-    loading.innerHTML = `
-        <div class="avatar">
-            <i class="fa-solid fa-microchip"></i>
-        </div>
-
-        <div class="bubble">
-
-            <span class="loading">
-                <i></i>
-                <i></i>
-                <i></i>
-            </span>
-
-        </div>
-    `;
-
-
-    container.appendChild(loading);
-
-
-    t
-    const loadingId =
-        "direct-loading-" +
-        Date.now();
-
-    loading.id = loadingId;
-
-    container.appendChild(loading);
-
-    container.scrollTop =
-        container.scrollHeight;
-
-
-    try {
-
-        const data =
-            await apiRequest(
-                "/api/chat",
-                {
-                    method: "POST",
-
-                    body:
-                        JSON.stringify({
-                            prompt: prompt
-                        })
-                }
-            );
-
-
-        $(loadingId)?.remove();
-
-
-        const response =
-            data.response ||
-            data.output ||
-            data.message ||
-            "No response received.";
-
-
-        addMessage(
-            response,
-            "assistant"
-        );
-
-
-    } catch (error) {
-
-        $(loadingId)?.remove();
-
-        addMessage(
-            "⚠️ " +
-            error.message,
-            "assistant"
-        );
-
-        toast(
-            "AI request failed"
-        );
-
-    } finally {
-
-        chatBusy = false;
-
-    }
-
-}
-
-
-/* =========================================================
-   CLEAR CHAT
-========================================================= */
-
-function clearChat() {
-
-    const container =
-        $("messages");
-
-    if (!container) return;
-
-
-    container.innerHTML = `
-
-        <div class="msg">
-
-            <div class="avatar">
-                <i class="fa-solid fa-microchip"></i>
+            <div class="logo">
+                <i class="fa-solid fa-robot"></i>
             </div>
 
-            <div class="bubble">
-
-                <strong>
-                    Engineer AI
-                </strong>
-
-                <br>
-
-                Ready to help with engineering,
-                architecture, coding, debugging
-                and technical analysis. ⚡
-
-            </div>
-
-        </div>
-
-    `;
-
-    toast(
-        "Chat cleared"
-    );
-
-}
-
-
-/* =========================================================
-   ENTER KEY — CHAT
-========================================================= */
-
-$("chatInput")?.addEventListener(
-    "keydown",
-    event => {
-
-        if (
-            event.key === "Enter" &&
-            !event.shiftKey
-        ) {
-
-            event.preventDefault();
-
-            sendChat();
-
-        }
-
-    }
-);
-
-
-/* =========================================================
-   AUTO RESIZE CHAT TEXTAREA
-========================================================= */
-
-$("chatInput")?.addEventListener(
-    "input",
-    function () {
-
-        this.style.height =
-            "auto";
-
-        this.style.height =
-            Math.min(
-                this.scrollHeight,
-                110
-            ) + "px";
-
-    }
-);
-
-
-/* =========================================================
-   HOME INPUT
-========================================================= */
-
-$("homeInput")?.addEventListener(
-    "keydown",
-    event => {
-
-        if (
-            event.key === "Enter"
-        ) {
-
-            event.preventDefault();
-
-            sendHomePrompt();
-
-        }
-
-    }
-);
-
-
-$("homeSend")?.addEventListener(
-    "click",
-    sendHomePrompt
-);
-
-
-function sendHomePrompt() {
-
-    const input =
-        $("homeInput");
-
-    const prompt =
-        input?.value.trim();
-
-
-    if (!prompt) {
-
-        toast(
-            "Enter an engineering question"
-        );
-
-        return;
-
-    }
-
-
-    input.value = "";
-
-    showView("chat");
-
-
-    setTimeout(() => {
-
-        addMessage(
-            prompt,
-            "user"
-        );
-
-        sendDirectChat(
-            prompt
-        );
-
-    }, 120);
-
-}
-
-
-/* =========================================================
-   MULTI-AGENT WORKFLOW
-========================================================= */
-
-let agentBusy = false;
-
-
-function resetAgentStatuses() {
-
-    const ids = [
-        "statusPlanner",
-        "statusExecutor",
-        "statusTester",
-        "statusSecurity"
-    ];
-
-
-    ids.forEach(id => {
-
-        const element =
-            $(id);
-
-        if (!element) return;
-
-        element.style.background =
-            "var(--green)";
-
-        element.style.boxShadow =
-            "0 0 8px rgba(50,213,131,.5)";
-
-    });
-
-}
-
-
-function setAgentStatus(
-    id,
-    state
-) {
-
-    const element =
-        $(id);
-
-    if (!element) return;
-
-
-    if (state === "running") {
-
-        element.style.background =
-            "var(--yellow)";
-
-        element.style.boxShadow =
-            "0 0 10px rgba(253,176,34,.7)";
-
-    }
-
-
-    else if (state === "success") {
-
-        element.style.background =
-            "var(--green)";
-
-        element.style.boxShadow =
-            "0 0 10px rgba(50,213,131,.7)";
-
-    }
-
-
-    else if (state === "error") {
-
-        element.style.background =
-            "var(--red)";
-
-        element.style.boxShadow =
-            "0 0 10px rgba(255,92,122,.7)";
-
-    }
-
-}
-
-
-async function runAgentWorkflow() {
-
-    if (agentBusy) return;
-
-
-    const task =
-        $("agentTask")?.value.trim();
-
-
-    if (!task) {
-
-        toast(
-            "Enter an engineering task first"
-        );
-
-        $("agentTask")?.focus();
-
-        return;
-
-    }
-
-
-    agentBusy = true;
-
-
-    const button =
-        $("agentRun");
-
-
-    if (button) {
-
-        button.disabled = true;
-
-        button.innerHTML = `
-            <i class="fa-solid fa-spinner fa-spin"></i>
-            Running agents...
-        `;
-
-    }
-
-
-    const result =
-        $("agentResult");
-
-
-    if (result) {
-
-        result.style.display =
-            "block";
-
-        result.innerHTML = `
-            <span class="loading">
-                <i></i>
-                <i></i>
-                <i></i>
-            </span>
-
-            Starting multi-agent workflow...
-        `;
-
-    }
-
-
-    resetAgentStatuses();
-
-
-    setAgentStatus(
-        "statusPlanner",
-        "running"
-    );
-
-
-    try {
-
-        /*
-         * Milestone 1 backend endpoint
-         */
-
-        const data =
-            await apiRequest(
-                "/api/agent/execute",
-                {
-                    method: "POST",
-
-                    body:
-                        JSON.stringify({
-
-                            task: task,
-
-                            include_tests:
-                                Boolean(
-                                    $("includeTests")?.checked
-                                ),
-
-                            include_security:
-                                Boolean(
-                                    $("includeSecurity")?.checked
-                                )
-
-                        })
-                }
-            );
-
-
-        /*
-         * Mark agents based on
-         * returned backend results.
-         */
-
-        setAgentStatus(
-            "statusPlanner",
-            "success"
-        );
-
-        setAgentStatus(
-            "statusExecutor",
-            "success"
-        );
-
-
-        if (
-            $("includeTests")?.checked
-        ) {
-
-            setAgentStatus(
-                "statusTester",
-                "success"
-            );
-
-        }
-
-
-        if (
-            $("includeSecurity")?.checked
-        ) {
-
-            setAgentStatus(
-                "statusSecurity",
-                "success"
-            );
-
-        }
-
-
-        renderAgentResult(
-            data
-        );
-
-
-        toast(
-            "Multi-agent workflow completed"
-        );
-
-
-    } catch (error) {
-
-        setAgentStatus(
-            "statusPlanner",
-            "error"
-        );
-
-        setAgentStatus(
-            "statusExecutor",
-            "error"
-        );
-
-
-        if (
-            $("includeTests")?.checked
-        ) {
-
-            setAgentStatus(
-                "statusTester",
-                "error"
-            );
-
-        }
-
-
-        if (
-            $("includeSecurity")?.checked
-        ) {
-
-            setAgentStatus(
-                "statusSecurity",
-                "error"
-            );
-
-        }
-
-
-        if (result) {
-
-            result.style.display =
-                "block";
-
-            result.innerHTML = `
-                <strong>
-                    ⚠️ Workflow failed
-                </strong>
-
-                <br><br>
-
-                ${escapeHTML(
-                    error.message
-                )}
-            `;
-
-        }
-
-
-        toast(
-            "Multi-agent workflow failed"
-        );
-
-    } finally {
-
-        agentBusy = false;
-
-
-        if (button) {
-
-            button.disabled = false;
-
-            button.innerHTML = `
-                <i class="fa-solid fa-play"></i>
-                Run Multi-Agent Workflow
-            `;
-
-        }
-
-    }
-
-}
-
-
-/* =========================================================
-   AGENT RESULT RENDERER
-========================================================= */
-
-function renderAgentResult(data) {
-
-    const result =
-        $("agentResult");
-
-    if (!result) return;
-
-
-    const workflow =
-        data.workflow ||
-        {};
-
-
-    let html = "";
-
-
-    html += `
-        <strong>
-            Multi-Agent Result
-        </strong>
-
-        <br><br>
-    `;
-
-
-    if (
-        data.status
-    ) {
-
-        html += `
             <div>
-                <b>Status:</b>
-                ${escapeHTML(
-                    String(data.status)
-                )}
+
+                <div class="title">
+                    AI Chat
+                </div>
+
+                <div class="subtitle">
+                    Engineer AI Assistant
+                </div>
+
             </div>
-        `;
 
-    }
+        </div>
 
+        <div class="pill online">
 
-    if (
-        workflow.planner
-    ) {
+            <i
+                class="fa-solid fa-circle"
+                style="font-size:6px;">
+            </i>
 
-        html += `
-            <details open
-                style="margin-top:10px">
+            AI Ready
 
-                <summary>
-                    🧠 Planner
-                </summary>
+        </div>
 
-                <div
-                    style="margin-top:7px"
-                >
-                    ${formatAIText(
-                        workflow.planner.output ||
-                        ""
-                    )}
-                </div>
+    </div>
 
-            </details>
-        `;
 
-    }
+    <!-- CHAT INTRO -->
+    <div
+        id="chatWelcome"
+        class="hero"
+        style="margin-bottom:12px;">
 
+        <h1>
+            How can I help? 🤖
+        </h1>
 
-    if (
-        workflow.executor
-    ) {
+        <p>
+            Ask me about programming, system design,
+            debugging, security, algorithms, AI,
+            operating systems or engineering.
+        </p>
 
-        html += `
-            <details
-                style="margin-top:10px">
+    </div>
 
-                <summary>
-                    💻 Executor
-                </summary>
 
-                <div
-                    style="margin-top:7px"
-                >
-                    ${formatAIText(
-                        workflow.executor.output ||
-                        ""
-                    )}
-                </div>
+    <!-- CHAT MESSAGES -->
+    <div
+        id="chatMessages"
+        class="list"
+        style="gap:10px;">
 
-            </details>
-        `;
+        <!-- USER MESSAGE EXAMPLE -->
 
-    }
+        <div
+            class="list-row"
+            style="
+                align-items:flex-start;
+                background:#0b1425;
+            ">
 
+            <div
+                class="list-icon"
+                style="color:var(--accent);">
 
-    if (
-        workflow.tester
-    ) {
+                <i class="fa-solid fa-robot"></i>
 
-        html += `
-            <details
-                style="margin-top:10px">
+            </div>
 
-                <summary>
-                    🧪 Tester
-                </summary>
+            <div class="list-info">
 
-                <div
-                    style="margin-top:7px"
-                >
-                    ${formatAIText(
-                        workflow.tester.output ||
-                        ""
-                    )}
-                </div>
+                <b>
+                    Engineer AI
+                </b>
 
-            </details>
-        `;
+                <small
+                    style="
+                        white-space:normal;
+                        overflow:visible;
+                    ">
 
-    }
+                    Welcome! Ask me anything about
+                    engineering or coding.
 
+                </small>
 
-    if (
-        workflow.security
-    ) {
+            </div>
 
-        html += `
-            <details
-                style="margin-top:10px">
+        </div>
 
-                <summary>
-                    🛡️ Security
-                </summary>
+    </div>
 
-                <div
-                    style="margin-top:7px"
-                >
-                    ${formatAIText(
-                        workflow.security.output ||
-                        ""
-                    )}
-                </div>
 
-            </details>
-        `;
+    <!-- CHAT RESULT -->
+    <div
+        id="chatLoading"
+        class="result"
+        style="display:none;">
 
-    }
+        <div class="loading">
 
+            <span></span>
+            <span></span>
+            <span></span>
 
-    if (
-        workflow.debugger
-    ) {
-
-        html += `
-            <details
-                style="margin-top:10px">
-
-                <summary>
-                    🐞 Debugger
-                </summary>
-
-                <div
-                    style="margin-top:7px"
-                >
-                    ${formatAIText(
-                        workflow.debugger.output ||
-                        ""
-                    )}
-                </div>
-
-            </details>
-        `;
-
-    }
-
-
-    if (
-        workflow.verifier
-    ) {
-
-        html += `
-            <details
-                style="margin-top:10px">
-
-                <summary>
-                    ✅ Verifier
-                </summary>
-
-                <div
-                    style="margin-top:7px"
-                >
-                    ${formatAIText(
-                        workflow.verifier.output ||
-                        ""
-                    )}
-                </div>
-
-            </details>
-        `;
-
-    }
-
-
-    /*
-     * Milestone 1 does not execute
-     * arbitrary code on the host.
-     */
-
-    if (
-        data.execution
-    ) {
-
-        html += `
-            <details
-                style="margin-top:10px">
-
-                <summary>
-                    ⚙️ Execution
-                </summary>
-
-                <div
-                    style="margin-top:7px"
-                >
-                    ${formatAIText(
-                        JSON.stringify(
-                            data.execution,
-                            null,
-                            2
-                        )
-                    )}
-                </div>
-
-            </details>
-        `;
-
-    }
-
-
-    result.innerHTML =
-        html;
-
-
-    result.style.display =
-        "block";
-
-}
-
-
-/* =========================================================
-   CODE REVIEW
-========================================================= */
-
-let reviewBusy = false;
-
-
-async function runCodeReview() {
-
-    if (reviewBusy) return;
-
-
-    const code =
-        $("reviewCode")?.value.trim();
-
-
-    const language =
-        $("reviewLanguage")?.value ||
-        "other";
-
-
-    if (!code) {
-
-        toast(
-            "Paste some code first"
-        );
-
-        $("reviewCode")?.focus();
-
-        return;
-
-    }
-
-
-    reviewBusy = true;
-
-
-    const button =
-        $("reviewButton");
-
-
-    if (button) {
-
-        button.disabled = true;
-
-        button.innerHTML = `
-            <i class="fa-solid fa-spinner fa-spin"></i>
-            Reviewing...
-        `;
-
-    }
-
-
-    const result =
-        $("reviewResult");
-
-
-    if (result) {
-
-        result.style.display =
-            "block";
-
-        result.innerHTML = `
-            <span class="loading">
-                <i></i>
-                <i></i>
-                <i></i>
+            <span style="margin-left:4px;">
+                Engineer AI is thinking...
             </span>
 
-            Analyzing code...
-        `;
+        </div>
 
-    }
+    </div>
 
 
-    try {
+    <!-- CHAT COMPOSER -->
+    <div
+        class="composer"
+        style="
+            position:sticky;
+            bottom:0;
+            margin-top:12px;
+            z-index:10;
+        ">
 
-        const data =
-            await apiRequest(
-                "/api/code/review",
-                {
-                    method: "POST",
+        <button
+            class="icon-btn"
+            type="button"
+            onclick="showToast('Voice input coming soon')"
+            aria-label="Voice input">
 
-                    body:
-                        JSON.stringify({
+            <i class="fa-solid fa-microphone"></i>
 
-                            code_snippet:
-                                code,
+        </button>
 
-                            language:
-                                language
 
-                        })
+        <input
+            id="chatInput"
+            type="text"
+            placeholder="Message Engineer AI..."
+            autocomplete="off"
+            onkeydown="
+                if(event.key === 'Enter'){
+                    sendChat();
                 }
-            );
+            "
+        >
 
 
-        const output =
-            data.review?.output ||
-            data.output ||
-            data.response ||
-            "No review returned.";
+        <button
+            id="chatSend"
+            class="send"
+            type="button"
+            onclick="sendChat()"
+            aria-label="Send message">
+
+            <i class="fa-solid fa-arrow-up"></i>
+
+        </button>
+
+    </div>
 
 
-        if (result) {
+    <!-- QUICK PROMPTS -->
+    <div
+        class="section-title"
+        style="margin-top:14px;">
 
-            result.innerHTML = `
-                <strong>
+        <h2>
+            Quick Prompts
+        </h2>
+
+    </div>
+
+
+    <div class="grid">
+
+        <div
+            class="card"
+            onclick="useChatPrompt('Explain this code to me')">
+
+            <i class="fa-solid fa-lightbulb"></i>
+
+            <h3>
+                Explain Code
+            </h3>
+
+            <p>
+                Understand how code works.
+            </p>
+
+        </div>
+
+
+        <div
+            class="card"
+            onclick="useChatPrompt('Find bugs in my code')">
+
+            <i class="fa-solid fa-bug"></i>
+
+            <h3>
+                Find Bugs
+            </h3>
+
+            <p>
+                Analyze code and identify problems.
+            </p>
+
+        </div>
+
+
+        <div
+            class="card"
+            onclick="useChatPrompt('Design a software architecture')">
+
+            <i class="fa-solid fa-diagram-project"></i>
+
+            <h3>
+                Architecture
+            </h3>
+
+            <p>
+                Design scalable systems.
+            </p>
+
+        </div>
+
+
+        <div
+            class="card"
+            onclick="useChatPrompt('Review my code for security issues')">
+
+            <i class="fa-solid fa-shield-halved"></i>
+
+            <h3>
+                Security Review
+            </h3>
+
+            <p>
+                Find common security problems.
+            </p>
+
+        </div>
+
+    </div>
+
+
+    <!-- CHAT ACTIONS -->
+    <div
+        style="
+            display:flex;
+            gap:8px;
+            margin-top:12px;
+            flex-wrap:wrap;
+        ">
+
+        <button
+            class="secondary"
+            type="button"
+            onclick="clearChat()">
+
+            <i class="fa-solid fa-trash"></i>
+            Clear Chat
+
+        </button>
+
+
+        <button
+            class="secondary"
+            type="button"
+            onclick="showToast('Chat history feature coming soon')">
+
+            <i class="fa-solid fa-clock-rotate-left"></i>
+            History
+
+        </button>
+
+    </div>
+
+
+    <div style="height:10px;"></div>
+
+</section>
+<!-- =========================================================
+     PART 4 — CODE STUDIO
+========================================================= -->
+
+<section id="codeView" class="view">
+
+    <!-- HEADER -->
+    <div class="header">
+
+        <div class="brand">
+
+            <div class="logo">
+                <i class="fa-solid fa-code"></i>
+            </div>
+
+            <div>
+
+                <div class="title">
+                    Code Studio
+                </div>
+
+                <div class="subtitle">
+                    AI-Powered Development Workspace
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="pill online">
+
+            <i
+                class="fa-solid fa-circle"
+                style="font-size:6px;">
+            </i>
+
+            Ready
+
+        </div>
+
+    </div>
+
+
+    <!-- PROJECT / FILE BAR -->
+    <div
+        class="list-row"
+        style="
+            justify-content:space-between;
+            margin-bottom:10px;
+        ">
+
+        <div
+            style="
+                display:flex;
+                align-items:center;
+                gap:9px;
+                min-width:0;
+            ">
+
+            <div class="list-icon">
+
+                <i class="fa-brands fa-python"></i>
+
+            </div>
+
+            <div class="list-info">
+
+                <b id="currentFileName">
+                    main.py
+                </b>
+
+                <small id="currentLanguage">
+                    Python
+                </small>
+
+            </div>
+
+        </div>
+
+
+        <button
+            class="secondary"
+            type="button"
+            onclick="newFile()">
+
+            <i class="fa-solid fa-plus"></i>
+            New
+
+        </button>
+
+    </div>
+
+
+    <!-- EDITOR -->
+    <div
+        class="result"
+        style="
+            padding:0;
+            overflow:hidden;
+        ">
+
+        <!-- EDITOR HEADER -->
+        <div
+            style="
+                display:flex;
+                align-items:center;
+                justify-content:space-between;
+                padding:10px 12px;
+                background:#0b1424;
+                border-bottom:1px solid var(--line);
+            ">
+
+            <div
+                style="
+                    display:flex;
+                    align-items:center;
+                    gap:7px;
+                ">
+
+                <span
+                    style="
+                        width:8px;
+                        height:8px;
+                        border-radius:50%;
+                        background:var(--green);
+                    ">
+                </span>
+
+                <span
+                    style="
+                        font-size:10px;
+                        color:var(--muted);
+                    ">
+
+                    Editor
+
+                </span>
+
+            </div>
+
+
+            <span
+                id="editorStatus"
+                class="badge green">
+
+                Saved
+
+            </span>
+
+        </div>
+
+
+        <!-- CODE AREA -->
+        <div
+            style="
+                display:grid;
+                grid-template-columns:42px minmax(0,1fr);
+                background:#050a12;
+                min-height:280px;
+            ">
+
+            <!-- LINE NUMBERS -->
+            <div
+                id="lineNumbers"
+                style="
+                    padding:12px 8px;
+                    text-align:right;
+                    color:#4e607b;
+                    border-right:1px solid #18253b;
+                    font-family:monospace;
+                    font-size:11px;
+                    line-height:1.65;
+                    white-space:pre;
+                    user-select:none;
+                ">
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+            </div>
+
+
+            <!-- CODE INPUT -->
+            <textarea
+                id="codeEditor"
+                spellcheck="false"
+                autocomplete="off"
+                autocapitalize="off"
+                autocorrect="off"
+                style="
+                    width:100%;
+                    min-height:280px;
+                    padding:12px;
+                    resize:vertical;
+                    border:none;
+                    outline:none;
+                    color:#dbe7ff;
+                    background:#050a12;
+                    font-family:
+                        "SFMono-Regular",
+                        Consolas,
+                        "Liberation Mono",
+                        monospace;
+                    font-size:11px;
+                    line-height:1.65;
+                "
+                oninput="updateLineNumbers()"
+                onkeydown="handleEditorKey(event)"
+>def greet(name):
+    return "Hello, " + name
+
+name = "Developer"
+
+print(greet(name))</textarea>
+
+        </div>
+
+    </div>
+
+
+    <!-- EDITOR ACTIONS -->
+    <div
+        style="
+            display:flex;
+            gap:8px;
+            margin-top:10px;
+            flex-wrap:wrap;
+        ">
+
+        <button
+            id="runCodeButton"
+            class="primary"
+            type="button"
+            onclick="runCode()">
+
+            <i class="fa-solid fa-play"></i>
+            Run Code
+
+        </button>
+
+
+        <button
+            class="secondary"
+            type="button"
+            onclick="saveCurrentCode()">
+
+            <i class="fa-solid fa-floppy-disk"></i>
+            Save
+
+        </button>
+
+
+        <button
+            class="secondary"
+            type="button"
+            onclick="formatCode()">
+
+            <i class="fa-solid fa-wand-magic-sparkles"></i>
+            Format
+
+        </button>
+
+    </div>
+
+
+    <!-- EXECUTION OUTPUT -->
+    <div class="section-title">
+
+        <h2>
+            Execution Output
+        </h2>
+
+        <span id="executionStatus">
+            Ready
+        </span>
+
+    </div>
+
+
+    <div
+        id="executionOutput"
+        class="result">
+
+        <span style="color:var(--muted);">
+            Run your code to see the output here.
+        </span>
+
+    </div>
+
+
+    <!-- AI CODING ASSISTANT -->
+    <div class="section-title">
+
+        <h2>
+            AI Coding Assistant
+        </h2>
+
+        <span>
+            Engineer AI
+        </span>
+
+    </div>
+
+
+    <div class="composer">
+
+        <input
+            id="codeAiInput"
+            type="text"
+            placeholder="Ask AI about your code..."
+            autocomplete="off"
+            onkeydown="
+                if(event.key === 'Enter'){
+                    askCodeAI();
+                }
+            "
+        >
+
+        <button
+            id="codeAiSend"
+            class="send"
+            type="button"
+            onclick="askCodeAI()"
+            aria-label="Ask AI">
+
+            <i class="fa-solid fa-arrow-up"></i>
+
+        </button>
+
+    </div>
+
+
+    <div
+        id="codeAiResult"
+        class="result"
+        style="display:none;">
+    </div>
+
+
+    <!-- AI ACTIONS -->
+    <div
+        style="
+            display:grid;
+            grid-template-columns:
+                repeat(2,minmax(0,1fr));
+            gap:8px;
+            margin-top:10px;
+        ">
+
+        <button
+            class="secondary"
+            type="button"
+            onclick="
+                askCodeQuick(
+                    'Explain this code step by step'
+                )
+            ">
+
+            <i class="fa-solid fa-lightbulb"></i>
+            Explain
+
+        </button>
+
+
+        <button
+            class="secondary"
+            type="button"
+            onclick="
+                askCodeQuick(
+                    'Find bugs and possible fixes'
+                )
+            ">
+
+            <i class="fa-solid fa-bug"></i>
+            Find Bugs
+
+        </button>
+
+
+        <button
+            class="secondary"
+            type="button"
+            onclick="
+                askCodeQuick(
+                    'Improve the performance of this code'
+                )
+            ">
+
+            <i class="fa-solid fa-gauge-high"></i>
+            Optimize
+
+        </button>
+
+
+        <button
+            class="secondary"
+            type="button"
+            onclick="
+                askCodeQuick(
+                    'Review this code for security problems'
+                )
+            ">
+
+            <i class="fa-solid fa-shield-halved"></i>
+            Security
+
+        </button>
+
+    </div>
+
+
+    <!-- TERMINAL -->
+    <div class="section-title">
+
+        <h2>
+            Terminal
+        </h2>
+
+        <span>
+            Safe Mode
+        </span>
+
+    </div>
+
+
+    <div
+        class="result"
+        style="
+            padding:0;
+            overflow:hidden;
+        ">
+
+        <div
+            style="
+                padding:8px 11px;
+                background:#0b1424;
+                border-bottom:1px solid var(--line);
+                font-family:monospace;
+                font-size:9px;
+                color:var(--muted);
+            ">
+
+            Engineer AI Terminal
+
+        </div>
+
+
+        <div
+            id="terminalOutput"
+            style="
+                min-height:130px;
+                max-height:220px;
+                overflow:auto;
+                padding:11px;
+                background:#03070d;
+                color:#b9c8df;
+                font-family:monospace;
+                font-size:10px;
+                line-height:1.6;
+                white-space:pre-wrap;
+            ">Engineer AI terminal ready.
+Type "help" to see supported commands.</div>
+
+
+        <div
+            style="
+                display:flex;
+                align-items:center;
+                gap:6px;
+                padding:8px;
+                border-top:1px solid var(--line);
+                background:#070d17;
+            ">
+
+            <span
+                style="
+                    color:var(--green);
+                    font-family:monospace;
+                    font-size:10px;
+                ">
+                $
+            </span>
+
+
+            <input
+                id="terminalInput"
+                type="text"
+                placeholder="Enter command..."
+                autocomplete="off"
+                style="
+                    flex:1;
+                    min-width:0;
+                    border:none;
+                    outline:none;
+                    color:var(--text);
+                    background:transparent;
+                    font-family:monospace;
+                    font-size:10px;
+                "
+                onkeydown="
+                    if(event.key === 'Enter'){
+                        executeTerminalCommand();
+                    }
+                "
+            >
+
+
+            <button
+                class="icon-btn"
+                type="button"
+                onclick="executeTerminalCommand()"
+                aria-label="Execute command">
+
+                <i class="fa-solid fa-terminal"></i>
+
+            </button>
+
+        </div>
+
+    </div>
+
+
+    <!-- CODE FILE ACTIONS -->
+    <div
+        style="
+            display:flex;
+            gap:8px;
+            margin-top:12px;
+            flex-wrap:wrap;
+        ">
+
+        <button
+            class="secondary"
+            type="button"
+            onclick="showToast('File upload coming soon')">
+
+            <i class="fa-solid fa-upload"></i>
+            Import File
+
+        </button>
+
+
+        <button
+            class="secondary"
+            type="button"
+            onclick="downloadCurrentCode()">
+
+            <i class="fa-solid fa-download"></i>
+            Export
+
+        </button>
+
+    </div>
+
+
+    <div style="height:10px;"></div>
+
+              </section>
+              <!-- =========================================================
+     PART 5 — DEBUGGER + CODE REVIEW + SECURITY
+========================================================= -->
+
+
+<!-- =========================================================
+     DEBUGGER
+========================================================= -->
+
+<section id="debuggerView" class="view">
+
+    <!-- HEADER -->
+    <div class="header">
+
+        <div class="brand">
+
+            <div class="logo">
+                <i class="fa-solid fa-bug"></i>
+            </div>
+
+            <div>
+
+                <div class="title">
+                    Debugger
+                </div>
+
+                <div class="subtitle">
+                    AI Error Analysis
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="pill">
+            Smart Debug
+        </div>
+
+    </div>
+
+
+    <!-- INTRO -->
+    <div class="hero">
+
+        <h1>
+            Find the problem. 🔎
+        </h1>
+
+        <p>
+            Paste your code or error message and
+            Engineer AI will analyze the problem,
+            explain the cause and suggest fixes.
+        </p>
+
+    </div>
+
+
+    <!-- ERROR INPUT -->
+    <div class="form">
+
+        <div class="label">
+            Error Message
+        </div>
+
+        <textarea
+            id="debugError"
+            class="field"
+            placeholder="Paste the error message here..."
+        ></textarea>
+
+
+        <div class="label">
+            Code
+        </div>
+
+        <textarea
+            id="debugCode"
+            class="field"
+            placeholder="Paste the code that caused the error..."
+        ></textarea>
+
+
+        <div class="label">
+            Programming Language
+        </div>
+
+        <select
+            id="debugLanguage"
+            class="field">
+
+            <option value="Python">
+                Python
+            </option>
+
+            <option value="JavaScript">
+                JavaScript
+            </option>
+
+            <option value="TypeScript">
+                TypeScript
+            </option>
+
+            <option value="C">
+                C
+            </option>
+
+            <option value="C++">
+                C++
+            </option>
+
+            <option value="Java">
+                Java
+            </option>
+
+            <option value="Go">
+                Go
+            </option>
+
+            <option value="Rust">
+                Rust
+            </option>
+
+        </select>
+
+
+        <button
+            id="debugButton"
+            class="primary"
+            type="button"
+            onclick="runDebugger()">
+
+            <i class="fa-solid fa-magnifying-glass"></i>
+            Analyze Error
+
+        </button>
+
+    </div>
+
+
+    <!-- DEBUG RESULT -->
+    <div
+        id="debugResult"
+        class="result"
+        style="display:none;">
+    </div>
+
+
+    <!-- DEBUG ACTIONS -->
+    <div
+        style="
+            display:grid;
+            grid-template-columns:
+                repeat(2,minmax(0,1fr));
+            gap:8px;
+            margin-top:10px;
+        ">
+
+        <button
+            class="secondary"
+            type="button"
+            onclick="loadDebugExample()">
+
+            <i class="fa-solid fa-flask"></i>
+            Example
+
+        </button>
+
+
+        <button
+            class="secondary"
+            type="button"
+            onclick="clearDebugger()">
+
+            <i class="fa-solid fa-eraser"></i>
+            Clear
+
+        </button>
+
+    </div>
+
+
+    <!-- DEBUG CHECKLIST -->
+    <div class="section-title">
+
+        <h2>
+            Debugging Checks
+        </h2>
+
+        <span>
+            AI Analysis
+        </span>
+
+    </div>
+
+
+    <div class="list">
+
+        <div class="list-row">
+
+            <div class="list-icon">
+                <i class="fa-solid fa-circle-check"></i>
+            </div>
+
+            <div class="list-info">
+
+                <b>
+                    Syntax Analysis
+                </b>
+
+                <small>
+                    Check for syntax and parsing problems.
+                </small>
+
+            </div>
+
+        </div>
+
+
+        <div class="list-row">
+
+            <div class="list-icon">
+                <i class="fa-solid fa-code"></i>
+            </div>
+
+            <div class="list-info">
+
+                <b>
+                    Logic Analysis
+                </b>
+
+                <small>
+                    Look for incorrect program behavior.
+                </small>
+
+            </div>
+
+        </div>
+
+
+        <div class="list-row">
+
+            <div class="list-icon">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+
+            <div class="list-info">
+
+                <b>
+                    Runtime Analysis
+                </b>
+
+                <small>
+                    Identify likely runtime failures.
+                </small>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <div style="height:10px;"></div>
+
+</section>
+
+
+
+<!-- =========================================================
+     CODE REVIEW + SECURITY
+========================================================= -->
+
+<section id="reviewView" class="view">
+
+    <!-- HEADER -->
+    <div class="header">
+
+        <div class="brand">
+
+            <div class="logo">
+                <i class="fa-solid fa-shield-halved"></i>
+            </div>
+
+            <div>
+
+                <div class="title">
                     Code Review
-                </strong>
+                </div>
 
-                <br><br>
+                <div class="subtitle">
+                    Quality • Security • Performance
+                </div>
 
-                ${formatAIText(
-                    output
-                )}
-            `;
+            </div>
 
-        }
+        </div>
 
+        <div class="pill">
+            AI Review
+        </div>
 
-        toast(
-            "Code review completed"
-        );
+    </div>
 
 
-    } catch (error) {
+    <!-- INTRO -->
+    <div class="hero">
 
-        if (result) {
+        <h1>
+            Review your code. 🛡️
+        </h1>
 
-            result.innerHTML = `
-                <strong>
-                    ⚠️ Review failed
-                </strong>
+        <p>
+            Engineer AI can inspect your code for
+            quality problems, security risks,
+            performance issues and maintainability.
+        </p>
 
-                <br><br>
+    </div>
 
-                ${escapeHTML(
-                    error.message
-                )}
-            `;
 
-        }
+    <!-- REVIEW TYPE -->
+    <div class="section-title">
 
+        <h2>
+            Review Type
+        </h2>
 
-        toast(
-            "Code review failed"
-        );
+    </div>
 
-    } finally {
 
-        reviewBusy = false;
+    <div
+        style="
+            display:grid;
+            grid-template-columns:
+                repeat(2,minmax(0,1fr));
+            gap:8px;
+        ">
 
 
-        if (button) {
+        <button
+            id="reviewTab"
+            class="secondary"
+            type="button"
+            onclick="setReviewMode('review')">
 
-            button.disabled = false;
+            <i class="fa-solid fa-code"></i>
+            Code Review
 
-            button.innerHTML = `
-                <i class="fa-solid fa-magnifying-glass"></i>
-                Review Code
-            `;
+        </button>
 
-        }
 
-    }
+        <button
+            id="securityTab"
+            class="secondary"
+            type="button"
+            onclick="setReviewMode('security')">
 
-}
+            <i class="fa-solid fa-shield"></i>
+            Security
 
+        </button>
 
-/* =========================================================
-   ANALYTICS
-========================================================= */
 
-let analyticsBusy = false;
+        <button
+            id="performanceTab"
+            class="secondary"
+            type="button"
+            onclick="setReviewMode('performance')">
 
+            <i class="fa-solid fa-gauge-high"></i>
+            Performance
 
-async function loadAnalytics() {
+        </button>
 
-    if (analyticsBusy) return;
 
+        <button
+            class="secondary"
+            type="button"
+            onclick="setReviewMode('all')">
 
-    analyticsBusy = true;
+            <i class="fa-solid fa-layer-group"></i>
+            Full Review
 
+        </button>
 
-    const result =
-        $("analyticsResult");
+    </div>
 
 
-    if (result) {
+    <!-- REVIEW FORM -->
+    <div
+        class="form"
+        style="margin-top:12px;">
 
-        result.innerHTML = `
-            <span class="loading">
-                <i></i>
-                <i></i>
-                <i></i>
-            </span>
+        <div class="label">
+            File Name
+        </div>
 
-            Loading telemetry...
-        `;
+        <input
+            id="reviewFileName"
+            class="field"
+            type="text"
+            value="main.py"
+            placeholder="example.py"
+        >
 
-    }
 
+        <div class="label">
+            Code
+        </div>
 
-    try {
+        <textarea
+            id="reviewCode"
+            class="field"
+            style="min-height:220px;"
+            placeholder="Paste your code here..."
+        ></textarea>
 
-        const data =
-            await apiRequest(
-                "/api/ops/analytics",
-                {
-                    method: "GET"
-                },
-                15000
-            );
 
+        <button
+            id="reviewButton"
+            class="primary"
+            type="button"
+            onclick="runCodeReview()">
 
-        const requests =
-            data.total_requests ??
-            0;
+            <i class="fa-solid fa-wand-magic-sparkles"></i>
+            Run AI Review
 
+        </button>
 
-        const success =
-            data.success_rate_percent ??
-            0;
+    </div>
 
 
-        const latency =
-            data.average_latency_seconds ??
-            0;
+    <!-- REVIEW RESULT -->
+    <div
+        id="reviewResult"
+        class="result"
+        style="display:none;">
+    </div>
 
 
-        const agents =
-            data.agent_tasks_executed ??
-            0;
+    <!-- STATIC SECURITY SCANNER -->
+    <div class="section-title">
 
+        <h2>
+            Security Scanner
+        </h2>
 
-        $("analyticsRequests").textContent =
-            requests;
+        <span>
+            Static Analysis
+        </span>
 
+    </div>
 
-        $("analyticsSuccess").textContent =
-            Number(success).toFixed(1) +
-            "%";
 
+    <div
+        class="list-row">
 
-        $("analyticsLatency").textContent =
-            Number(latency).toFixed(2) +
-            "s";
+        <div class="list-icon">
 
+            <i class="fa-solid fa-lock"></i>
 
-        $("analyticsAgents").textContent =
-            agents;
+        </div>
 
 
-        $("statRequests").textContent =
-            requests;
+        <div class="list-info">
 
+            <b>
+                Quick Security Scan
+            </b>
 
-        $("statSuccess").textContent =
-            Number(success).toFixed(1) +
-            "%";
+            <small>
+                Detect common unsafe coding patterns.
+            </small>
 
+        </div>
 
-        $("statLatency").textContent =
-            Number(latency).toFixed(2) +
-            "s";
 
+        <button
+            class="secondary"
+            type="button"
+            onclick="runSecurityScan()">
 
-        $("statAgents").textContent =
-            agents;
+            Scan
 
+        </button>
 
-        if (result) {
+    </div>
 
-            result.innerHTML = `
 
-                <strong>
-                    Backend telemetry
-                </strong>
+    <div
+        id="securityResult"
+        class="result"
+        style="display:none;">
+    </div>
 
-                <br><br>
 
-                Requests:
-                ${escapeHTML(
-                    String(requests)
-                )}
+    <!-- REVIEW SUMMARY -->
+    <div class="section-title">
 
-                <br>
+        <h2>
+            What We Check
+        </h2>
 
-                Success rate:
-                ${escapeHTML(
-                    String(success)
-                )}%
+    </div>
 
-                <br>
 
-                Average latency:
-                ${escapeHTML(
-                    String(latency)
-                )} seconds
+    <div class="grid">
 
-                <br>
+        <div class="card">
 
-                Agent runs:
-                ${escapeHTML(
-                    String(agents)
-                )}
+            <i class="fa-solid fa-bug"></i>
 
-            `;
+            <h3>
+                Bugs
+            </h3>
 
-        }
+            <p>
+                Potential errors and incorrect logic.
+            </p>
 
+        </div>
 
-    } catch (error) {
 
-        if (result) {
+        <div class="card">
 
-            result.innerHTML = `
-                ⚠️ Unable to load telemetry.
+            <i class="fa-solid fa-shield-halved"></i>
 
-                <br><br>
+            <h3>
+                Security
+            </h3>
 
-                ${escapeHTML(
-                    error.message
-                )}
-            `;
+            <p>
+                Common security vulnerabilities.
+            </p>
 
-        }
+        </div>
 
-    } finally {
 
-        analyticsBusy = false;
+        <div class="card">
 
-    }
+            <i class="fa-solid fa-gauge-high"></i>
 
-}
+            <h3>
+                Performance
+            </h3>
 
+            <p>
+                Inefficient code and bottlenecks.
+            </p>
 
-/* =========================================================
-   HEALTH CHECK
-========================================================= */
+        </div>
 
-async function checkHealth() {
 
-    const pill =
-        $("healthPill");
+        <div class="card">
 
+            <i class="fa-solid fa-screwdriver-wrench"></i>
 
-    try {
+            <h3>
+                Maintainability
+            </h3>
 
-        const data =
-            await apiRequest(
-                "/api/health",
-                {
-                    method: "GET"
-                },
-                10000
-            );
+            <p>
+                Code quality and long-term maintainability.
+            </p>
 
+        </div>
 
-        if (
-            data.status === "ok" ||
-            data.status === "healthy"
-        ) {
+    </div>
 
-            if (pill) {
 
-                pill.textContent =
-                    "● Online";
+    <div style="height:10px;"></div>
 
-                pill.classList.add(
-                    "online"
-                );
-
-            }
-
-            return;
-
-        }
-
-
-        throw new Error(
-            "Backend unavailable"
-        );
-
-
-    } catch {
-
-        if (pill) {
-
-            pill.textContent =
-                "● Offline";
-
-            pill.classList.remove(
-                "online"
-            );
-
-            pill.style.color =
-                "var(--red)";
-
-        }
-
-    }
-
-}
-
-
-/* =========================================================
-   MERMAID SUPPORT
-========================================================= */
-
-if (
-    typeof mermaid !==
-    "undefined"
-) {
-
-    mermaid.initialize({
-
-        startOnLoad: false,
-
-        securityLevel:
-            "strict",
-
-        theme:
-            "dark"
-
-    });
-
-}
-
-
-/* =========================================================
-   PAGE STARTUP
-========================================================= */
-
-document.addEventListener(
-    "DOMContentLoaded",
-    () => {
-
-        /*
-         * Check backend
-                  checkHealth();
-
-        /*
-         * Load analytics after a short delay
-         * so the UI becomes responsive first.
-         */
-
-        setTimeout(() => {
-            loadAnalytics();
-        }, 300);
-
-
-        /*
-         * Refresh backend health periodically.
-         */
-
-        setInterval(() => {
-            checkHealth();
-        }, 30000);
-
-
-        /*
-         * Refresh analytics periodically.
-         */
-
-        setInterval(() => {
-            loadAnalytics();
-        }, 60000);
-
-
-        /*
-         * Initialize default view.
-         */
-
-        showView("home");
-
-
-        /*
-         * Keyboard shortcut:
-         * Ctrl + K / Cmd + K
-         * focuses the main chat input.
-         */
-
-        document.addEventListener(
-            "keydown",
-            event => {
-
-                if (
-                    (event.ctrlKey ||
-                     event.metaKey) &&
-                    event.key.toLowerCase() === "k"
-                ) {
-
-                    event.preventDefault();
-
-                    showView("chat");
-
-                    setTimeout(() => {
-
-                        $("chatInput")?.focus();
-
-                    }, 100);
-
-                }
-
-            }
-        );
-
-    }
-);
-
-
-/* =========================================================
-   GLOBAL ERROR HANDLER
-========================================================= */
-
-window.addEventListener(
-    "error",
-    event => {
-
-        console.error(
-            "Engineer AI UI error:",
-            event.error || event.message
-        );
-
-    }
-);
-
-
-/* =========================================================
-   UNHANDLED PROMISE ERRORS
-========================================================= */
-
-window.addEventListener(
-    "unhandledrejection",
-    event => {
-
-        console.error(
-            "Unhandled promise rejection:",
-            event.reason
-        );
-
-    }
-);
-
-</script>
-
-</body>
-</html>
+      </section>
