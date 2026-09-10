@@ -909,3 +909,1099 @@ LANGUAGE:
 CODE:
 ```{request.language}
 {code}
+
+Paste:
+
+```python
+Create a useful test plan.
+
+Include:
+
+- Normal cases
+- Edge cases
+- Invalid input cases
+- Expected results
+- Example tests when possible
+
+Do not claim that the tests were actually executed.
+"""
+
+        answer = await ask_ai(
+            prompt,
+            max_tokens=1600
+        )
+
+        return {
+            "status": "success",
+            "response": answer,
+            "output": answer,
+            "executed": False,
+            "test_status": "generated"
+        }
+
+    except ValueError as error:
+
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "Invalid code",
+                "message": str(error)
+            }
+        )
+
+    except Exception as error:
+
+        logger.exception(
+            "Test generation failed"
+        )
+
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "error": "Test generation failed",
+                "message": str(error)
+            }
+            # ============================================================
+# 🤖 MULTI-AGENT ENGINE
+# ============================================================
+
+@app.post("/api/agent/execute")
+async def execute_agent(
+    request: AgentRequest
+):
+
+    start_time = time.perf_counter()
+
+    try:
+
+        task = request.get_task()
+
+        analytics["agent_requests"] += 1
+
+        security_enabled = request.security_enabled()
+
+        context = request.project_context or "No additional project context provided."
+
+        prompt = f"""
+You are Engineer AI's multi-agent engineering system.
+
+USER TASK:
+{task}
+
+PROJECT CONTEXT:
+{context}
+
+Build a structured engineering solution.
+
+Use these specialist roles internally:
+
+1. PLANNER
+Break the task into clear engineering steps.
+
+2. ARCHITECT
+Choose a practical architecture, components, technologies,
+interfaces, and data flow.
+
+3. CODER
+Create implementation code when appropriate.
+
+4. DEBUGGER
+Identify likely bugs, failure points, and fixes.
+
+5. TESTER
+Design tests for normal, edge, and invalid cases.
+
+6. SECURITY ENGINEER
+Identify security risks and safer implementation practices.
+
+7. PERFORMANCE ENGINEER
+Identify possible performance bottlenecks and improvements.
+
+8. VERIFIER
+Check whether the proposed solution is internally consistent.
+
+SETTINGS:
+
+Include tests: {request.include_tests}
+
+Include security analysis: {security_enabled}
+
+Include debugger analysis: {request.include_debugger}
+
+Include verifier analysis: {request.include_verifier}
+
+Return the result using this structure:
+
+# Engineering Plan
+
+# Architecture
+
+# Implementation
+
+# Debug Analysis
+
+# Security Analysis
+
+# Performance Analysis
+
+# Testing Plan
+
+# Verification
+
+# Final Recommendation
+
+Important rules:
+
+- Do not claim that code was executed unless execution is actually
+  performed by a tool.
+- Do not claim that hardware was physically tested.
+- Clearly identify assumptions.
+- Prefer practical and maintainable solutions.
+- If code is requested, provide complete useful code where possible.
+"""
+
+        answer = await ask_ai(
+            prompt,
+            max_tokens=5000
+        )
+
+        record_request(
+            start_time,
+            True
+        )
+
+        return {
+            "status": "success",
+            "response": answer,
+            "output": answer,
+            "agent": "multi-agent-engineer",
+            "task": task,
+            "agents": [
+                "planner",
+                "architect",
+                "coder",
+                "debugger",
+                "tester",
+                "security",
+                "performance",
+                "verifier"
+            ]
+        }
+
+    except ValueError as error:
+
+        record_request(
+            start_time,
+            False
+        )
+
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "Invalid agent request",
+                "message": str(error)
+            }
+        )
+
+    except Exception as error:
+
+        record_request(
+            start_time,
+            False
+        )
+
+        logger.exception(
+            "Agent execution failed"
+        )
+
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "error": "Agent execution failed",
+                "message": str(error)
+            }
+        )
+
+
+# ============================================================
+# 📁 PROJECT MANAGEMENT
+# ============================================================
+
+class ProjectCreateRequest(BaseModel):
+
+    name: str = Field(
+        ...,
+        min_length=1,
+        max_length=120
+    )
+
+    language: str = Field(
+        default="text",
+        max_length=50
+    )
+
+    description: str = Field(
+        default="",
+        max_length=5000
+    )
+
+    code: str = Field(
+        default="",
+        max_length=MAX_CODE_CHARS
+    )
+
+
+class ProjectUpdateRequest(BaseModel):
+
+    name: Optional[str] = Field(
+        default=None,
+        min_length=1,
+        max_length=120
+    )
+
+    language: Optional[str] = Field(
+        default=None,
+        max_length=50
+    )
+
+    progress: Optional[int] = Field(
+        default=None,
+        ge=0,
+        le=100
+    )
+
+    description: Optional[str] = Field(
+        default=None,
+        max_length=5000
+    )
+
+    code: Optional[str] = Field(
+        default=None,
+        max_length=MAX_CODE_CHARS
+    )
+
+
+def make_project_id():
+
+    return (
+        datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
+        + "-"
+        + str(int(time.time() * 1000))[-6:]
+    )
+
+
+@app.get("/api/projects")
+async def list_projects():
+
+    start_time = time.perf_counter()
+
+    try:
+
+        analytics["project_requests"] += 1
+
+        connection = get_db()
+
+        rows = connection.execute(
+            """
+            SELECT
+                id,
+                name,
+                language,
+                progress,
+                description,
+                code,
+                created_at,
+                updated_at
+            FROM projects
+            ORDER BY updated_at DESC
+            """
+        ).fetchall()
+
+        connection.close()
+
+        projects = [
+            dict(row)
+            for row in rows
+        ]
+
+        record_request(
+            start_time,
+            True
+        )
+
+        return {
+            "status": "success",
+            "projects": projects,
+            "count": len(projects)
+        }
+
+    except Exception as error:
+
+        record_request(
+            start_time,
+            False
+        )
+
+        logger.exception(
+            "Project listing failed"
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": "Project listing failed",
+                "message": str(error)
+            }
+        )
+
+
+@app.post("/api/projects")
+async def create_project(
+    request: ProjectCreateRequest
+):
+
+    start_time = time.perf_counter()
+
+    project_id = make_project_id()
+
+    now = datetime.now(
+        timezone.utc
+    ).isoformat()
+
+    try:
+
+        analytics["project_requests"] += 1
+
+        connection = get_db()
+
+        connection.execute(
+            """
+            INSERT INTO projects (
+                id,
+                name,
+                language,
+                progress,
+                description,
+                code,
+                created_at,
+                updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                project_id,
+                request.name,
+                request.language,
+                0,
+                request.description,
+                request.code,
+                now,
+                now
+            )
+        )
+
+        connection.commit()
+        connection.close()
+
+        record_request(
+            start_time,
+            True
+        )
+
+        return {
+            "status": "success",
+            "project": {
+                "id": project_id,
+                "name": request.name,
+                "language": request.language,
+                "progress": 0,
+                "description": request.description,
+                "code": request.code,
+                "created_at": now,
+                "updated_at": now
+            }
+        }
+
+    except Exception as error:
+
+        record_request(
+            start_time,
+            False
+        )
+
+        logger.exception(
+            "Project creation failed"
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": "Project creation failed",
+                "message": str(error)
+            }
+        )
+
+
+@app.get("/api/projects/{project_id}")
+async def get_project(
+    project_id: str
+):
+
+    start_time = time.perf_counter()
+
+    try:
+
+        analytics["project_requests"] += 1
+
+        connection = get_db()
+
+        row = connection.execute(
+            """
+            SELECT
+                id,
+                name,
+                language,
+                progress,
+                description,
+                code,
+                created_at,
+                updated_at
+            FROM projects
+            WHERE id = ?
+            """,
+            (project_id,)
+        ).fetchone()
+
+        connection.close()
+
+        if row is None:
+
+            raise HTTPException(
+                status_code=404,
+                detail={
+                    "error": "Project not found"
+                }
+            )
+
+        record_request(
+            start_time,
+            True
+        )
+
+        return {
+            "status": "success",
+            "project": dict(row)
+        }
+
+    except HTTPException:
+        record_request(
+            start_time,
+            False
+        )
+        raise
+
+    except Exception as error:
+
+        record_request(
+            start_time,
+            False
+        )
+
+        logger.exception(
+            "Project retrieval failed"
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": "Project retrieval failed",
+                "message": str(error)
+            }
+        )
+
+
+@app.put("/api/projects/{project_id}")
+async def update_project(
+    project_id: str,
+    request: ProjectUpdateRequest
+):
+
+    start_time = time.perf_counter()
+
+    try:
+
+        analytics["project_requests"] += 1
+
+        connection = get_db()
+
+        existing = connection.execute(
+            """
+            SELECT *
+            FROM projects
+            WHERE id = ?
+            """,
+            (project_id,)
+        ).fetchone()
+
+        if existing is None:
+
+            connection.close()
+
+            raise HTTPException(
+                status_code=404,
+                detail={
+                    "error": "Project not found"
+                }
+            )
+
+        current = dict(existing)
+
+        name = (
+            request.name
+            if request.name is not None
+            else current["name"]
+        )
+
+        language = (
+            request.language
+            if request.language is not None
+            else current["language"]
+        )
+
+        progress = (
+            request.progress
+            if request.progress is not None
+            else current["progress"]
+        )
+
+        description = (
+            request.description
+            if request.description is not None
+            else current["description"]
+        )
+
+        code = (
+            request.code
+            if request.code is not None
+            else current["code"]
+        )
+
+        updated_at = datetime.now(
+            timezone.utc
+        ).isoformat()
+
+        connection.execute(
+            """
+            UPDATE projects
+            SET
+                name = ?,
+                language = ?,
+                progress = ?,
+                description = ?,
+                code = ?,
+                updated_at = ?
+            WHERE id = ?
+            """,
+            (
+                name,
+                language,
+                progress,
+                description,
+                code,
+                updated_at,
+                project_id
+            )
+        )
+
+        connection.commit()
+
+        row = connection.execute(
+            """
+            SELECT *
+            FROM projects
+            WHERE id = ?
+            """,
+            (project_id,)
+        ).fetchone()
+
+        connection.close()
+
+        record_request(
+            start_time,
+            True
+        )
+
+        return {
+            "status": "success",
+            "project": dict(row)
+        }
+
+    except HTTPException:
+        record_request(
+            start_time,
+            False
+        )
+        raise
+
+    except Exception as error:
+
+        record_request(
+            start_time,
+            False
+        )
+
+        logger.exception(
+            "Project update failed"
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": "Project update failed",
+                "message": str(error)
+            }
+        )
+
+
+@app.delete("/api/projects/{project_id}")
+async def delete_project(
+    project_id: str
+):
+
+    start_time = time.perf_counter()
+
+    try:
+
+        analytics["project_requests"] += 1
+
+        connection = get_db()
+
+        cursor = connection.execute(
+            """
+            DELETE FROM projects
+            WHERE id = ?
+            """,
+            (project_id,)
+        )
+
+        connection.commit()
+        connection.close()
+
+        if cursor.rowcount == 0:
+
+            raise HTTPException(
+                status_code=404,
+                detail={
+                    "error": "Project not found"
+                }
+            )
+
+        record_request(
+            start_time,
+            True
+        )
+
+        return {
+            "status": "success",
+            "deleted": project_id
+        }
+
+    except HTTPException:
+        record_request(
+            start_time,
+            False
+        )
+        raise
+
+    except Exception as error:
+
+        record_request(
+            start_time,
+            False
+        )
+
+        logger.exception(
+            "Project deletion failed"
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": "Project deletion failed",
+                "message": str(error)
+            }
+            # ============================================================
+# 🧠 PROJECT AI ASSISTANT
+# ============================================================
+
+class ProjectAIRequest(BaseModel):
+
+    prompt: str = Field(
+        ...,
+        min_length=1,
+        max_length=MAX_PROMPT_CHARS
+    )
+
+    project_id: Optional[str] = None
+
+    language: Optional[str] = "text"
+
+    code: Optional[str] = Field(
+        default="",
+        max_length=MAX_CODE_CHARS
+    )
+
+
+@app.post("/api/project/ask")
+async def project_ai(
+    request: ProjectAIRequest
+):
+
+    start_time = time.perf_counter()
+
+    try:
+
+        analytics["project_requests"] += 1
+
+        project_context = ""
+
+        if request.project_id:
+
+            connection = get_db()
+
+            row = connection.execute(
+                """
+                SELECT *
+                FROM projects
+                WHERE id = ?
+                """,
+                (request.project_id,)
+            ).fetchone()
+
+            connection.close()
+
+            if row:
+
+                project = dict(row)
+
+                project_context = f"""
+PROJECT NAME:
+{project["name"]}
+
+PROJECT LANGUAGE:
+{project["language"]}
+
+PROJECT DESCRIPTION:
+{project["description"]}
+
+PROJECT PROGRESS:
+{project["progress"]}%
+
+PROJECT CODE:
+{project["code"]}
+"""
+
+        prompt = f"""
+You are Engineer AI's project assistant.
+
+USER REQUEST:
+{request.prompt}
+
+LANGUAGE:
+{request.language}
+
+CURRENT CODE:
+{request.code}
+
+{project_context}
+
+Help the user improve, understand, debug, design,
+or extend the engineering project.
+
+Return:
+
+1. Understanding
+2. Recommended approach
+3. Implementation
+4. Testing
+5. Security considerations
+6. Performance considerations
+
+Do not claim that code was executed.
+"""
+
+        answer = await ask_ai(
+            prompt,
+            max_tokens=3000
+        )
+
+        record_request(
+            start_time,
+            True
+        )
+
+        return {
+            "status": "success",
+            "response": answer,
+            "output": answer
+        }
+
+    except Exception as error:
+
+        record_request(
+            start_time,
+            False
+        )
+
+        logger.exception(
+            "Project AI failed"
+        )
+
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "error": "Project AI failed",
+                "message": str(error)
+            }
+        )
+
+
+# ============================================================
+# 🧪 SAFE TERMINAL
+# ============================================================
+
+class TerminalRequest(BaseModel):
+
+    command: str = Field(
+        ...,
+        min_length=1,
+        max_length=4000
+    )
+
+    language: Optional[str] = "text"
+
+
+@app.post("/api/terminal/execute")
+async def terminal_execute(
+    request: TerminalRequest
+):
+
+    start_time = time.perf_counter()
+
+    dangerous_commands = [
+        "rm -rf",
+        "mkfs",
+        "shutdown",
+        "reboot",
+        "format",
+        "del /f",
+        "diskpart",
+        ":(){",
+        "fork bomb"
+    ]
+
+    command_lower = request.command.lower()
+
+    if any(
+        dangerous in command_lower
+        for dangerous in dangerous_commands
+    ):
+
+        record_request(
+            start_time,
+            False
+        )
+
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "Unsafe command blocked",
+                "message": "This command is not allowed."
+            }
+        )
+
+    try:
+
+        analytics["total_requests"] += 1
+
+        prompt = f"""
+You are Engineer AI's terminal assistant.
+
+The user entered this command:
+
+{request.command}
+
+Language/environment:
+{request.language}
+
+Analyze the command safely.
+
+Return:
+
+1. What the command means
+2. What it would normally do
+3. Expected output
+4. Possible errors
+5. Safer alternatives if relevant
+
+IMPORTANT:
+
+Do not claim that the command was actually executed.
+Do not provide destructive system instructions.
+"""
+
+        answer = await ask_ai(
+            prompt,
+            max_tokens=1400
+        )
+
+        record_request(
+            start_time,
+            True
+        )
+
+        return {
+            "status": "success",
+            "response": answer,
+            "output": answer,
+            "executed": False
+        }
+
+    except Exception as error:
+
+        record_request(
+            start_time,
+            False
+        )
+
+        logger.exception(
+            "Terminal analysis failed"
+        )
+
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "error": "Terminal analysis failed",
+                "message": str(error)
+            }
+        )
+
+
+# ============================================================
+# 📊 ANALYTICS
+# ============================================================
+
+@app.get("/api/ops/analytics")
+async def get_analytics():
+
+    total = analytics["total_requests"]
+
+    average_latency = (
+        analytics["total_latency"] / total
+        if total > 0
+        else 0
+    )
+
+    return {
+        "status": "success",
+        "analytics": {
+            **analytics,
+            "average_latency": round(
+                average_latency,
+                4
+            )
+        }
+    }
+
+
+# ============================================================
+# 🧹 RESET ANALYTICS
+# ============================================================
+
+@app.post("/api/ops/analytics/reset")
+async def reset_analytics():
+
+    for key in analytics:
+
+        analytics[key] = 0.0 if (
+            key == "total_latency"
+        ) else 0
+
+    return {
+        "status": "success",
+        "message": "Analytics reset"
+    }
+
+
+# ============================================================
+# 🔍 API INFORMATION
+# ============================================================
+
+@app.get("/api")
+async def api_information():
+
+    return {
+        "name": APP_TITLE,
+        "version": APP_VERSION,
+        "status": "online",
+        "endpoints": [
+            "/api/health",
+            "/api/status",
+            "/api/chat",
+            "/api/ai/explain",
+            "/api/code/review",
+            "/api/security/scan",
+            "/api/security/review",
+            "/api/performance/analyze",
+            "/api/performance/review",
+            "/api/debug",
+            "/api/test/run",
+            "/api/agent/execute",
+            "/api/projects",
+            "/api/project/ask",
+            "/api/terminal/execute",
+            "/api/ops/analytics"
+        ]
+    }
+
+
+# ============================================================
+# ❌ GLOBAL ERROR HANDLER
+# ============================================================
+
+@app.exception_handler(Exception)
+async def global_exception_handler(
+    request,
+    exc
+):
+
+    logger.exception(
+        "Unhandled server error"
+    )
+
+    return JSONResponse(
+        status_code=500,
+        content={
+            "status": "error",
+            "error": "Internal server error",
+            "message": str(exc)
+        }
+    )
+
+
+# ============================================================
+# 🚀 SERVER START
+# ============================================================
+
+if __name__ == "__main__":
+
+    import uvicorn
+
+    uvicorn.run(
+        "server:app",
+        host="0.0.0.0",
+        port=PORT,
+        reload=False
+)
+)
+    )
