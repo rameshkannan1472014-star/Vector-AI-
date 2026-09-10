@@ -961,7 +961,7 @@ Do not claim that the tests were actually executed.
                 "error": "Test generation failed",
                 "message": str(error)
             }
-        )
+        
             # ============================================================
 # 🤖 MULTI-AGENT ENGINE
 # ============================================================
