@@ -4963,3 +4963,3140 @@ Type "help" to see supported commands.</div>
     <div style="height:10px;"></div>
 
         </section>
+<script>
+/* =========================================================
+   PART 9 — JAVASCRIPT + BACKEND INTEGRATION
+   1/3 — CORE ENGINE + NAVIGATION + HOME + CHAT + CODE
+========================================================= */
+
+const API_BASE = "";
+
+let currentView = "home";
+let selectedProjectId = null;
+let projects = [];
+let chatHistory = [];
+let reviewMode = "review";
+let terminalHistory = [];
+let calculatorExpression = "";
+
+
+/* =========================================================
+   BASIC HELPERS
+========================================================= */
+
+function $(id) {
+    return document.getElementById(id);
+}
+
+function show(id) {
+    const el = $(id);
+    if (el) el.style.display = "";
+}
+
+function hide(id) {
+    const el = $(id);
+    if (el) el.style.display = "none";
+}
+
+function safeStringify(value) {
+    if (value === null || value === undefined) {
+        return "";
+    }
+
+    if (typeof value === "string") {
+        return value;
+    }
+
+    try {
+        return JSON.stringify(value, null, 2);
+    } catch {
+        return String(value);
+    }
+}
+
+function getApiText(data) {
+    if (!data) return "";
+
+    if (typeof data === "string") {
+        return data;
+    }
+
+    return (
+        data.response ??
+        data.message ??
+        data.output ??
+        data.result ??
+        data.answer ??
+        data.detail ??
+        safeStringify(data)
+    );
+}
+
+function toast(message) {
+    const el = $("toast");
+
+    if (!el) return;
+
+    el.textContent = message;
+    el.classList.add("show");
+
+    clearTimeout(window.__toastTimer);
+
+    window.__toastTimer = setTimeout(() => {
+        el.classList.remove("show");
+    }, 2400);
+}
+
+
+/* =========================================================
+   API REQUEST HELPER
+========================================================= */
+
+async function apiRequest(
+    path,
+    options = {}
+) {
+    const response = await fetch(
+        API_BASE + path,
+        {
+            ...options,
+
+            headers: {
+                "Content-Type": "application/json",
+                ...(options.headers || {})
+            }
+        }
+    );
+
+    let data;
+
+    const contentType =
+        response.headers.get("content-type") || "";
+
+    if (contentType.includes("application/json")) {
+        data = await response.json();
+    } else {
+        data = await response.text();
+    }
+
+    if (!response.ok) {
+        throw new Error(
+            getApiText(data) ||
+            `Request failed: ${response.status}`
+        );
+    }
+
+    return data;
+}
+
+
+/* =========================================================
+   NAVIGATION
+========================================================= */
+
+function navigateTo(viewName) {
+    currentView = viewName;
+
+    document
+        .querySelectorAll(".view")
+        .forEach(view => {
+            view.classList.remove("active");
+        });
+
+    const target = $(viewName + "View");
+
+    if (target) {
+        target.classList.add("active");
+    }
+
+    updateNavigation();
+
+    if (viewName === "projects") {
+        loadProjects();
+    }
+
+    if (viewName === "profile") {
+        updateProfile();
+    }
+
+    window.scrollTo(0, 0);
+}
+
+
+function updateNavigation() {
+    document
+        .querySelectorAll(".nav-item")
+        .forEach(item => {
+            item.classList.remove("active");
+
+            if (
+                item.dataset.view === currentView
+            ) {
+                item.classList.add("active");
+            }
+        });
+}
+
+
+/* =========================================================
+   HOME
+========================================================= */
+
+function openHomePrompt(prompt) {
+    navigateTo("chat");
+
+    const input = $("chatInput");
+
+    if (!input) return;
+
+    input.value = prompt;
+    input.focus();
+}
+
+
+function openProject(projectId) {
+    selectedProjectId = projectId;
+
+    navigateTo("projects");
+
+    setTimeout(() => {
+        renderProjects();
+    }, 50);
+}
+
+
+/* =========================================================
+   CHAT
+========================================================= */
+
+function useChatPrompt(prompt) {
+    const input = $("chatInput");
+
+    if (!input) return;
+
+    input.value = prompt;
+    input.focus();
+}
+
+
+function addChatMessage(
+    role,
+    message
+) {
+    const container = $("chatMessages");
+
+    if (!container) return;
+
+    const wrapper =
+        document.createElement("div");
+
+    wrapper.className =
+        "chat-message " + role;
+
+    const label =
+        role === "user"
+            ? "You"
+            : "Engineer AI";
+
+    wrapper.innerHTML = `
+        <div class="chat-label">
+            ${label}
+        </div>
+
+        <div class="chat-bubble">
+            ${escapeHtml(message)}
+        </div>
+    `;
+
+    container.appendChild(wrapper);
+
+    container.scrollTop =
+        container.scrollHeight;
+}
+
+
+async function sendChat() {
+    const input = $("chatInput");
+    const button = $("chatSend");
+    const loading = $("chatLoading");
+
+    if (!input) return;
+
+    const message =
+        input.value.trim();
+
+    if (!message) {
+        toast("Type a message first.");
+        return;
+    }
+
+    addChatMessage(
+        "user",
+        message
+    );
+
+    chatHistory.push({
+        role: "user",
+        content: message
+    });
+
+    input.value = "";
+
+    if (button) {
+        button.disabled = true;
+    }
+
+    if (loading) {
+        show("chatLoading");
+    }
+
+    try {
+        const data =
+            await apiRequest(
+                "/api/chat",
+                {
+                    method: "POST",
+
+                    body: JSON.stringify({
+                        message: message,
+                        history: chatHistory
+                    })
+                }
+            );
+
+        const answer =
+            getApiText(data);
+
+        addChatMessage(
+            "assistant",
+            answer
+        );
+
+        chatHistory.push({
+            role: "assistant",
+            content: answer
+        });
+
+        saveChatHistory();
+
+    } catch (error) {
+
+        addChatMessage(
+            "assistant",
+            "Error: " + error.message
+        );
+
+        toast("AI request failed.");
+
+    } finally {
+
+        if (button) {
+            button.disabled = false;
+        }
+
+        if (loading) {
+            hide("chatLoading");
+        }
+    }
+}
+
+
+function clearChat() {
+    chatHistory = [];
+
+    const container =
+        $("chatMessages");
+
+    if (container) {
+        container.innerHTML = "";
+    }
+
+    localStorage.removeItem(
+        "engineer_ai_chat"
+    );
+
+    toast("Chat cleared.");
+}
+
+
+function saveChatHistory() {
+    try {
+        localStorage.setItem(
+            "engineer_ai_chat",
+            JSON.stringify(chatHistory)
+        );
+    } catch {
+        console.warn(
+            "Could not save chat history."
+        );
+    }
+}
+
+
+function loadChatHistory() {
+    try {
+        const saved =
+            localStorage.getItem(
+                "engineer_ai_chat"
+            );
+
+        if (!saved) return;
+
+        const parsed =
+            JSON.parse(saved);
+
+        if (!Array.isArray(parsed)) {
+            return;
+        }
+
+        chatHistory = parsed;
+
+        const container =
+            $("chatMessages");
+
+        if (!container) return;
+
+        container.innerHTML = "";
+
+        parsed.forEach(item => {
+
+            if (
+                item.role === "user" ||
+                item.role === "assistant"
+            ) {
+                addChatMessage(
+                    item.role,
+                    item.content || ""
+                );
+            }
+
+        });
+
+    } catch {
+        chatHistory = [];
+    }
+}
+
+
+/* =========================================================
+   CODE STUDIO
+========================================================= */
+
+function getSelectedLanguage() {
+    const language =
+        $("currentLanguage");
+
+    if (!language) {
+        return "python";
+    }
+
+    return (
+        language.value ||
+        language.dataset.language ||
+        language.textContent ||
+        "python"
+    )
+    .toString()
+    .trim()
+    .toLowerCase();
+}
+
+
+async function runCode() {
+    const editor =
+        $("codeEditor");
+
+    const output =
+        $("executionOutput");
+
+    const status =
+        $("executionStatus");
+
+    if (!editor || !output) {
+        return;
+    }
+
+    const code =
+        editor.value.trim();
+
+    if (!code) {
+        toast("Write some code first.");
+        return;
+    }
+
+    output.textContent =
+        "Running...";
+
+    if (status) {
+        status.textContent =
+            "Executing";
+    }
+
+    try {
+
+        const data =
+            await apiRequest(
+                "/api/execute",
+                {
+                    method: "POST",
+
+                    body: JSON.stringify({
+                        code: code,
+                        language:
+                            getSelectedLanguage()
+                    })
+                }
+            );
+
+        output.textContent =
+            getApiText(data);
+
+        if (status) {
+            status.textContent =
+                "Completed";
+        }
+
+    } catch (error) {
+
+        output.textContent =
+            "Execution error:\n" +
+            error.message;
+
+        if (status) {
+            status.textContent =
+                "Error";
+        }
+    }
+}
+
+
+function saveCode() {
+    const editor =
+        $("codeEditor");
+
+    if (!editor) return;
+
+    localStorage.setItem(
+        "engineer_ai_code",
+        editor.value
+    );
+
+    toast("Code saved locally.");
+}
+
+
+function loadCode() {
+    const editor =
+        $("codeEditor");
+
+    if (!editor) return;
+
+    const saved =
+        localStorage.getItem(
+            "engineer_ai_code"
+        );
+
+    if (saved !== null) {
+        editor.value = saved;
+    }
+}
+
+
+function formatCode() {
+    const editor =
+        $("codeEditor");
+
+    if (!editor) return;
+
+    const language =
+        getSelectedLanguage();
+
+    let code =
+        editor.value;
+
+    /*
+       Lightweight formatter.
+       This intentionally does not try
+       to fully parse programming languages.
+    */
+
+    code =
+        code
+            .split("\n")
+            .map(line => line.trimEnd())
+            .join("\n");
+
+    if (
+        language === "json"
+    ) {
+        try {
+            code =
+                JSON.stringify(
+                    JSON.parse(code),
+                    null,
+                    2
+                );
+        } catch {
+            toast(
+                "Invalid JSON."
+            );
+        }
+    }
+
+    editor.value =
+        code;
+
+    toast("Code formatted.");
+}
+
+
+/* =========================================================
+   CODE AI ASSISTANT
+========================================================= */
+
+async function codeAI(action) {
+    const editor =
+        $("codeEditor");
+
+    if (!editor) return;
+
+    const code =
+        editor.value.trim();
+
+    if (!code) {
+        toast("Write some code first.");
+        return;
+    }
+
+    const input =
+        $("codeAiInput");
+
+    if (input) {
+        input.value =
+            action + " this code";
+    }
+
+    await sendCodeAI(action);
+}
+
+
+async function sendCodeAI(action = "help") {
+    const input =
+        $("codeAiInput");
+
+    const editor =
+        $("codeEditor");
+
+    const result =
+        $("codeAiResult");
+
+    if (!input || !editor) {
+        return;
+    }
+
+    const request =
+        input.value.trim();
+
+    const code =
+        editor.value;
+
+    if (!request) {
+        toast(
+            "Tell Engineer AI what to do."
+        );
+        return;
+    }
+
+    if (result) {
+        result.textContent =
+            "Thinking...";
+    }
+
+    try {
+
+        const data =
+            await apiRequest(
+                "/api/ai/explain",
+                {
+                    method: "POST",
+
+                    body: JSON.stringify({
+                        prompt: request,
+                        code: code,
+                        language:
+                            getSelectedLanguage(),
+                        action: action
+                    })
+                }
+            );
+
+        if (result) {
+            result.textContent =
+                getApiText(data);
+        }
+
+    } catch (error) {
+
+        if (result) {
+            result.textContent =
+                "Error: " +
+                error.message;
+        }
+
+        toast("Code AI failed.");
+    }
+}
+
+
+/* =========================================================
+   TERMINAL
+========================================================= */
+
+async function runTerminal() {
+    const input =
+        $("terminalInput");
+
+    const output =
+        $("terminalOutput");
+
+    if (!input || !output) {
+        return;
+    }
+
+    const command =
+        input.value.trim();
+
+    if (!command) return;
+
+    terminalHistory.push(
+        "$ " + command
+    );
+
+    output.textContent =
+        terminalHistory.join("\n");
+
+    input.value = "";
+
+    try {
+
+        const data =
+            await apiRequest(
+                "/api/terminal/execute",
+                {
+                    method: "POST",
+
+                    body: JSON.stringify({
+                        command: command
+                    })
+                }
+            );
+
+        const response =
+            getApiText(data);
+
+        terminalHistory.push(
+            response
+        );
+
+        output.textContent =
+            terminalHistory.join("\n");
+
+    } catch (error) {
+
+        terminalHistory.push(
+            "Error: " +
+            error.message
+        );
+
+        output.textContent =
+            terminalHistory.join("\n");
+    }
+}
+
+
+/* =========================================================
+   GENERAL HTML ESCAPER
+========================================================= */
+
+function escapeHtml(value) {
+    return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+
+/* =========================================================
+   END OF PART 9 — 1/3
+   NEXT PART:
+   - DEBUGGER
+   - CODE REVIEW
+   - SECURITY
+   - PERFORMANCE
+   - AI AGENTS
+========================================================= */
+    </script>
+<script>
+
+/* =========================================================
+   PART 9 — 2/3
+   DEBUGGER + CODE REVIEW + SECURITY
+   + PERFORMANCE + AI AGENTS
+========================================================= */
+
+
+/* =========================================================
+   DEBUGGER
+========================================================= */
+
+async function runDebugger() {
+
+    const errorInput =
+        $("debugError");
+
+    const codeInput =
+        $("debugCode");
+
+    const languageInput =
+        $("debugLanguage");
+
+    const result =
+        $("debugResult");
+
+    const button =
+        $("debugButton");
+
+    const error =
+        errorInput
+            ? errorInput.value.trim()
+            : "";
+
+    const code =
+        codeInput
+            ? codeInput.value.trim()
+            : "";
+
+    const language =
+        languageInput
+            ? languageInput.value
+            : "python";
+
+    if (!error && !code) {
+
+        toast(
+            "Enter an error or some code to debug."
+        );
+
+        return;
+    }
+
+    if (result) {
+        result.textContent =
+            "🔎 Analyzing your code...";
+    }
+
+    if (button) {
+        button.disabled = true;
+        button.textContent =
+            "Debugging...";
+    }
+
+    try {
+
+        const data =
+            await apiRequest(
+                "/api/debug",
+                {
+                    method: "POST",
+
+                    body: JSON.stringify({
+                        error: error,
+                        code: code,
+                        language: language
+                    })
+                }
+            );
+
+        const answer =
+            getApiText(data);
+
+        if (result) {
+            result.textContent =
+                answer;
+        }
+
+    } catch (err) {
+
+        if (result) {
+            result.textContent =
+                "Debugger error:\n" +
+                err.message;
+        }
+
+        toast("Debugger request failed.");
+
+    } finally {
+
+        if (button) {
+            button.disabled = false;
+            button.textContent =
+                "Run Debugger";
+        }
+    }
+}
+
+
+/* =========================================================
+   CODE REVIEW MODE
+========================================================= */
+
+function setReviewMode(mode) {
+
+    reviewMode = mode;
+
+    document
+        .querySelectorAll(
+            "[data-review-mode]"
+        )
+        .forEach(button => {
+
+            button.classList.toggle(
+                "active",
+                button.dataset.reviewMode === mode
+            );
+
+        });
+
+    toast(
+        "Review mode: " +
+        mode
+    );
+}
+
+
+/* =========================================================
+   CODE REVIEW
+========================================================= */
+
+async function runCodeReview() {
+
+    const codeInput =
+        $("reviewCode");
+
+    const fileInput =
+        $("reviewFileName");
+
+    const result =
+        $("reviewResult");
+
+    const button =
+        $("reviewButton");
+
+    const code =
+        codeInput
+            ? codeInput.value.trim()
+            : "";
+
+    const fileName =
+        fileInput
+            ? fileInput.value.trim()
+            : "code";
+
+    if (!code) {
+
+        toast(
+            "Paste some code to review."
+        );
+
+        return;
+    }
+
+    if (result) {
+        result.textContent =
+            "🧠 Reviewing code...";
+    }
+
+    if (button) {
+        button.disabled = true;
+        button.textContent =
+            "Reviewing...";
+    }
+
+    try {
+
+        const endpoint =
+            reviewMode === "security"
+                ? "/api/security/review"
+                : reviewMode === "performance"
+                    ? "/api/performance/review"
+                    : "/api/code/review";
+
+        const data =
+            await apiRequest(
+                endpoint,
+                {
+                    method: "POST",
+
+                    body: JSON.stringify({
+                        code: code,
+                        file_name: fileName,
+                        mode: reviewMode
+                    })
+                }
+            );
+
+        const answer =
+            getApiText(data);
+
+        if (result) {
+            result.textContent =
+                answer;
+        }
+
+    } catch (err) {
+
+        if (result) {
+            result.textContent =
+                "Review error:\n" +
+                err.message;
+        }
+
+        toast("Code review failed.");
+
+    } finally {
+
+        if (button) {
+            button.disabled = false;
+            button.textContent =
+                "Run Review";
+        }
+    }
+}
+
+
+/* =========================================================
+   SECURITY SCANNER
+========================================================= */
+
+async function runSecurityScan() {
+
+    const codeInput =
+        $("reviewCode");
+
+    const result =
+        $("securityResult");
+
+    const button =
+        document.querySelector(
+            "[onclick*='runSecurityScan']"
+        );
+
+    const code =
+        codeInput
+            ? codeInput.value.trim()
+            : "";
+
+    if (!code) {
+
+        toast(
+            "Paste code before scanning."
+        );
+
+        return;
+    }
+
+    if (result) {
+        result.textContent =
+            "🛡️ Scanning for security issues...";
+    }
+
+    if (button) {
+        button.disabled = true;
+    }
+
+    try {
+
+        const data =
+            await apiRequest(
+                "/api/security/scan",
+                {
+                    method: "POST",
+
+                    body: JSON.stringify({
+                        code: code
+                    })
+                }
+            );
+
+        const answer =
+            getApiText(data);
+
+        if (result) {
+            result.textContent =
+                answer;
+        }
+
+    } catch (err) {
+
+        if (result) {
+            result.textContent =
+                "Security scan error:\n" +
+                err.message;
+        }
+
+        toast("Security scan failed.");
+
+    } finally {
+
+        if (button) {
+            button.disabled = false;
+        }
+    }
+}
+
+
+/* =========================================================
+   PERFORMANCE ANALYSIS
+========================================================= */
+
+async function runPerformanceAnalysis() {
+
+    const codeInput =
+        $("reviewCode");
+
+    const result =
+        $("reviewResult");
+
+    const code =
+        codeInput
+            ? codeInput.value.trim()
+            : "";
+
+    if (!code) {
+
+        toast(
+            "Paste code before analyzing."
+        );
+
+        return;
+    }
+
+    if (result) {
+        result.textContent =
+            "⚡ Analyzing performance...";
+    }
+
+    try {
+
+        const data =
+            await apiRequest(
+                "/api/performance/analyze",
+                {
+                    method: "POST",
+
+                    body: JSON.stringify({
+                        code: code
+                    })
+                }
+            );
+
+        if (result) {
+            result.textContent =
+                getApiText(data);
+        }
+
+    } catch (err) {
+
+        if (result) {
+            result.textContent =
+                "Performance error:\n" +
+                err.message;
+        }
+
+        toast(
+            "Performance analysis failed."
+        );
+    }
+}
+
+
+/* =========================================================
+   AI AGENTS
+========================================================= */
+
+function selectAgent(agent) {
+
+    const selector =
+        $("agentType");
+
+    if (!selector) return;
+
+    selector.value =
+        agent;
+
+    document
+        .querySelectorAll(
+            "[data-agent]"
+        )
+        .forEach(card => {
+
+            card.classList.toggle(
+                "active",
+                card.dataset.agent === agent
+            );
+
+        });
+
+    toast(
+        agent === "all"
+            ? "Full engineering team selected."
+            : agent + " agent selected."
+    );
+}
+
+
+function selectFullTeam() {
+
+    selectAgent("all");
+
+    const task =
+        $("agentTask");
+
+    if (task && !task.value.trim()) {
+
+        task.value =
+            "Analyze this engineering task using the full multi-agent workflow.";
+    }
+
+    if (task) {
+        task.focus();
+    }
+}
+
+
+function clearAgentTask() {
+
+    const task =
+        $("agentTask");
+
+    const result =
+        $("agentResult");
+
+    if (task) {
+        task.value = "";
+    }
+
+    if (result) {
+        result.textContent =
+            "Agent output will appear here.";
+    }
+
+    toast(
+        "Agent task cleared."
+    );
+}
+
+
+/* =========================================================
+   RUN AI AGENT
+========================================================= */
+
+async function runAgent() {
+
+    const task =
+        $("agentTask");
+
+    const agent =
+        $("agentType");
+
+    const result =
+        $("agentResult");
+
+    const button =
+        $("agentRunButton");
+
+    const taskText =
+        task
+            ? task.value.trim()
+            : "";
+
+    if (!taskText) {
+
+        toast(
+            "Enter an engineering task first."
+        );
+
+        return;
+    }
+
+    const agentType =
+        agent
+            ? agent.value
+            : "all";
+
+    if (result) {
+        result.textContent =
+            "🤖 Engineer AI is working...";
+    }
+
+    if (button) {
+        button.disabled = true;
+        button.textContent =
+            "Running...";
+    }
+
+    try {
+
+        const data =
+            await apiRequest(
+                "/api/agent/execute",
+                {
+                    method: "POST",
+
+                    body: JSON.stringify({
+                        task: taskText,
+                        agent: agentType,
+                        project_id:
+                            selectedProjectId
+                    })
+                }
+            );
+
+        let output = "";
+
+        if (data && data.response) {
+
+            output =
+                safeStringify(
+                    data.response
+                );
+
+        } else if (
+            data &&
+            data.message
+        ) {
+
+            output =
+                safeStringify(
+                    data.message
+                );
+
+        } else {
+
+            output =
+                getApiText(data);
+        }
+
+
+        /*
+           Workflow may be an object.
+           Never directly assign an object
+           to textContent.
+        */
+
+        if (
+            data &&
+            data.workflow
+        ) {
+
+            output +=
+                "\n\n" +
+                "━━━━━━━━ WORKFLOW ━━━━━━━━\n\n" +
+                safeStringify(
+                    data.workflow
+                );
+        }
+
+
+        if (result) {
+            result.textContent =
+                output;
+        }
+
+    } catch (err) {
+
+        if (result) {
+            result.textContent =
+                "Agent error:\n" +
+                err.message;
+        }
+
+        toast(
+            "Agent execution failed."
+        );
+
+    } finally {
+
+        if (button) {
+            button.disabled = false;
+            button.textContent =
+                "Run Agent";
+        }
+    }
+}
+
+
+/* =========================================================
+   END OF PART 9 — 2/3
+   NEXT:
+   PART 9 — 3/3
+   - PROJECTS
+   - TOOLS
+   - PROFILE
+   - SETTINGS
+   - INITIALIZATION
+========================================================= */
+
+    </script>
+/* =========================================================
+   PART 9 — 3/3
+   PROJECTS + TOOLS + PROFILE + SETTINGS
+   + INITIALIZATION
+========================================================= */
+
+
+/* =========================================================
+   PROJECTS
+========================================================= */
+
+async function loadProjects() {
+
+    const list =
+        $("projectList");
+
+    if (!list) return;
+
+    try {
+
+        const data =
+            await apiRequest(
+                "/api/projects"
+            );
+
+        if (Array.isArray(data)) {
+            projects = data;
+        } else if (
+            data &&
+            Array.isArray(data.projects)
+        ) {
+            projects = data.projects;
+        } else {
+            projects = [];
+        }
+
+        renderProjects();
+
+    } catch (error) {
+
+        projects = [];
+
+        renderProjects();
+
+        toast(
+            "Could not load projects."
+        );
+    }
+}
+
+
+function renderProjects() {
+
+    const list =
+        $("projectList");
+
+    const empty =
+        $("projectEmpty");
+
+    const count =
+        $("projectCountLabel");
+
+    if (!list) return;
+
+    const searchInput =
+        $("projectSearch");
+
+    const search =
+        searchInput
+            ? searchInput.value
+                .trim()
+                .toLowerCase()
+            : "";
+
+    const filtered =
+        projects.filter(project => {
+
+            const name =
+                String(
+                    project.name ??
+                    project.title ??
+                    ""
+                ).toLowerCase();
+
+            const language =
+                String(
+                    project.language ??
+                    ""
+                ).toLowerCase();
+
+            return (
+                !search ||
+                name.includes(search) ||
+                language.includes(search)
+            );
+        });
+
+
+    if (count) {
+        count.textContent =
+            `${filtered.length} project${filtered.length === 1 ? "" : "s"}`;
+    }
+
+
+    if (!filtered.length) {
+
+        list.innerHTML = "";
+
+        if (empty) {
+            show("projectEmpty");
+        }
+
+        return;
+    }
+
+
+    if (empty) {
+        hide("projectEmpty");
+    }
+
+
+    list.innerHTML =
+        filtered.map(project => {
+
+            const id =
+                project.id ??
+                project.project_id ??
+                "";
+
+            const name =
+                project.name ??
+                project.title ??
+                "Unnamed Project";
+
+            const language =
+                project.language ??
+                "Unknown";
+
+            const progress =
+                project.progress ??
+                project.completion ??
+                0;
+
+            const selected =
+                String(id) ===
+                String(selectedProjectId);
+
+            return `
+                <div
+                    class="list-row ${selected ? "selected" : ""}"
+                    onclick="openProject('${escapeHtml(id)}')"
+                >
+
+                    <div class="list-icon">
+                        <i class="fa-solid fa-folder"></i>
+                    </div>
+
+                    <div class="list-info">
+
+                        <b>
+                            ${escapeHtml(name)}
+                        </b>
+
+                        <small>
+                            ${escapeHtml(language)}
+                            •
+                            ${Number(progress) || 0}% complete
+                        </small>
+
+                    </div>
+
+                    <i class="fa-solid fa-chevron-right"></i>
+
+                </div>
+            `;
+        })
+        .join("");
+}
+
+
+function filterProjects() {
+    renderProjects();
+}
+
+
+async function createProject() {
+
+    const nameInput =
+        $("projectName");
+
+    const languageInput =
+        $("projectLanguage");
+
+    const name =
+        nameInput
+            ? nameInput.value.trim()
+            : "";
+
+    const language =
+        languageInput
+            ? languageInput.value
+            : "Python";
+
+    if (!name) {
+
+        toast(
+            "Enter a project name."
+        );
+
+        return;
+    }
+
+
+    try {
+
+        const data =
+            await apiRequest(
+                "/api/projects",
+                {
+                    method: "POST",
+
+                    body: JSON.stringify({
+                        name: name,
+                        language: language
+                    })
+                }
+            );
+
+        const newProject =
+            data &&
+            data.project
+                ? data.project
+                : data;
+
+
+        if (newProject) {
+
+            projects.unshift(
+                newProject
+            );
+
+            selectedProjectId =
+                newProject.id ??
+                newProject.project_id ??
+                null;
+        }
+
+
+        if (nameInput) {
+            nameInput.value = "";
+        }
+
+
+        renderProjects();
+
+        toast(
+            "Project created successfully."
+        );
+
+    } catch (error) {
+
+        toast(
+            "Project creation failed."
+        );
+    }
+}
+
+
+/* =========================================================
+   PROJECT INTELLIGENCE
+========================================================= */
+
+async function analyzeSelectedProject() {
+
+    if (!selectedProjectId) {
+
+        toast(
+            "Select a project first."
+        );
+
+        return;
+    }
+
+    const result =
+        $("projectResult");
+
+    if (result) {
+        result.textContent =
+            "🧠 Analyzing project...";
+    }
+
+
+    try {
+
+        const data =
+            await apiRequest(
+                "/api/project/analyze",
+                {
+                    method: "POST",
+
+                    body: JSON.stringify({
+                        project_id:
+                            selectedProjectId
+                    })
+                }
+            );
+
+        if (result) {
+            result.textContent =
+                getApiText(data);
+        }
+
+    } catch (error) {
+
+        if (result) {
+            result.textContent =
+                "Project analysis error:\n" +
+                error.message;
+        }
+
+        toast(
+            "Project analysis failed."
+        );
+    }
+}
+
+
+async function showProjectStats() {
+
+    if (!selectedProjectId) {
+
+        toast(
+            "Select a project first."
+        );
+
+        return;
+    }
+
+    const result =
+        $("projectResult");
+
+    if (result) {
+        result.textContent =
+            "📊 Loading project statistics...";
+    }
+
+
+    try {
+
+        const data =
+            await apiRequest(
+                "/api/project/stats?project_id=" +
+                encodeURIComponent(
+                    selectedProjectId
+                )
+            );
+
+        if (result) {
+            result.textContent =
+                safeStringify(data);
+        }
+
+    } catch (error) {
+
+        if (result) {
+            result.textContent =
+                "Stats error:\n" +
+                error.message;
+        }
+
+        toast(
+            "Could not load project stats."
+        );
+    }
+}
+
+
+async function askProjectQuestion() {
+
+    if (!selectedProjectId) {
+
+        toast(
+            "Select a project first."
+        );
+
+        return;
+    }
+
+    const question =
+        window.prompt(
+            "What do you want to ask about this project?"
+        );
+
+    if (!question) return;
+
+    const result =
+        $("projectResult");
+
+    if (result) {
+        result.textContent =
+            "💭 Thinking about your project...";
+    }
+
+
+    try {
+
+        const data =
+            await apiRequest(
+                "/api/project/ask",
+                {
+                    method: "POST",
+
+                    body: JSON.stringify({
+                        project_id:
+                            selectedProjectId,
+
+                        question:
+                            question
+                    })
+                }
+            );
+
+        if (result) {
+            result.textContent =
+                getApiText(data);
+        }
+
+    } catch (error) {
+
+        if (result) {
+            result.textContent =
+                "Project question error:\n" +
+                error.message;
+        }
+
+        toast(
+            "Project question failed."
+        );
+    }
+}
+
+
+async function openProjectMemory() {
+
+    if (!selectedProjectId) {
+
+        toast(
+            "Select a project first."
+        );
+
+        return;
+    }
+
+    const result =
+        $("projectResult");
+
+    if (result) {
+        result.textContent =
+            "🧠 Loading project memory...";
+    }
+
+
+    try {
+
+        const data =
+            await apiRequest(
+                "/api/project/memory/" +
+                encodeURIComponent(
+                    selectedProjectId
+                )
+            );
+
+        if (result) {
+            result.textContent =
+                safeStringify(data);
+        }
+
+    } catch (error) {
+
+        if (result) {
+            result.textContent =
+                "Memory error:\n" +
+                error.message;
+        }
+
+        toast(
+            "Could not load project memory."
+        );
+    }
+}
+
+
+/* =========================================================
+   TOOLS
+========================================================= */
+
+function openConverter() {
+
+    const value =
+        window.prompt(
+            "Enter a conversion, for example: 100 km to miles"
+        );
+
+    if (!value) return;
+
+    const result =
+        $("toolResult");
+
+    if (result) {
+        result.textContent =
+            "Converter request:\n\n" +
+            value +
+            "\n\nUse Engineer AI to calculate the conversion.";
+    }
+
+    navigateTo("tools");
+}
+
+
+function openJsonTool() {
+
+    const input =
+        window.prompt(
+            "Paste JSON to format:"
+        );
+
+    if (!input) return;
+
+    const result =
+        $("toolResult");
+
+    try {
+
+        const formatted =
+            JSON.stringify(
+                JSON.parse(input),
+                null,
+                2
+            );
+
+        if (result) {
+            result.textContent =
+                formatted;
+        }
+
+    } catch {
+
+        if (result) {
+            result.textContent =
+                "❌ Invalid JSON.";
+        }
+    }
+
+    navigateTo("tools");
+}
+
+
+function openRegexTool() {
+
+    const pattern =
+        window.prompt(
+            "Enter a regular expression:"
+        );
+
+    if (!pattern) return;
+
+    const text =
+        window.prompt(
+            "Enter text to test:"
+        );
+
+    if (text === null) return;
+
+    const result =
+        $("toolResult");
+
+    try {
+
+        const regex =
+            new RegExp(
+                pattern
+            );
+
+        const match =
+            text.match(regex);
+
+        if (result) {
+
+            result.textContent =
+                match
+                    ? "✅ Match found:\n\n" +
+                      safeStringify(match)
+                    : "❌ No match found.";
+        }
+
+    } catch (error) {
+
+        if (result) {
+            result.textContent =
+                "Invalid regular expression.";
+        }
+    }
+
+    navigateTo("tools");
+}
+
+
+function openTimestampTool() {
+
+    const now =
+        new Date();
+
+    const result =
+        $("toolResult");
+
+    if (result) {
+
+        result.textContent =
+            "Current timestamp:\n\n" +
+            now.toISOString() +
+            "\n\nUnix milliseconds:\n" +
+            now.getTime();
+    }
+
+    navigateTo("tools");
+}
+
+
+function openColorTool() {
+
+    const color =
+        window.prompt(
+            "Enter a color, for example #4f8cff:"
+        );
+
+    if (!color) return;
+
+    const result =
+        $("toolResult");
+
+    const valid =
+        /^#[0-9a-fA-F]{6}$/.test(
+            color
+        );
+
+    if (result) {
+
+        result.textContent =
+            valid
+                ? "✅ Valid HEX color:\n\n" +
+                  color
+                : "❌ Invalid HEX color.\nUse #RRGGBB.";
+    }
+
+    navigateTo("tools");
+}
+
+
+/* =========================================================
+   SIMPLE CALCULATOR
+========================================================= */
+
+function openCalculator() {
+
+    navigateTo("calculator");
+
+    calculatorExpression = "";
+
+    updateCalculatorDisplay();
+}
+
+
+function updateCalculatorDisplay() {
+
+    const display =
+        $("calculatorDisplay");
+
+    if (display) {
+        display.textContent =
+            calculatorExpression || "0";
+    }
+}
+
+
+function calculatorInput(value) {
+
+    if (
+        !/^[0-9+\-*/().% ]+$/.test(
+            String(value)
+        )
+    ) {
+        return;
+    }
+
+    calculatorExpression +=
+        String(value);
+
+    updateCalculatorDisplay();
+}
+
+
+function calculatorClear() {
+
+    calculatorExpression = "";
+
+    updateCalculatorDisplay();
+}
+
+
+function calculatorBackspace() {
+
+    calculatorExpression =
+        calculatorExpression.slice(
+            0,
+            -1
+        );
+
+    updateCalculatorDisplay();
+}
+
+
+/*
+   Safe basic arithmetic evaluator.
+   No eval() or Function() is used.
+*/
+
+function calculateExpression(expression) {
+
+    const tokens =
+        expression
+            .match(
+                /(?:\d+(?:\.\d+)?)|[+\-*/%()]/
+            );
+
+    if (!expression.trim()) {
+        return 0;
+    }
+
+    /*
+       Tokenize the complete expression.
+    */
+
+    const allTokens =
+        expression.match(
+            /\d+(?:\.\d+)?|[+\-*/%()]|\s+/g
+        );
+
+    if (!allTokens) {
+        throw new Error(
+            "Invalid expression"
+        );
+    }
+
+    const tokensClean =
+        allTokens.filter(
+            token =>
+                !/^\s+$/.test(token)
+        );
+
+    let position = 0;
+
+
+    function parseExpression() {
+
+        let value =
+            parseTerm();
+
+        while (
+            tokensClean[position] === "+" ||
+            tokensClean[position] === "-"
+        ) {
+
+            const operator =
+                tokensClean[position++];
+
+            const right =
+                parseTerm();
+
+            if (operator === "+") {
+                value += right;
+            } else {
+                value -= right;
+            }
+        }
+
+        return value;
+    }
+
+
+    function parseTerm() {
+
+        let value =
+            parseFactor();
+
+        while (
+            tokensClean[position] === "*" ||
+            tokensClean[position] === "/" ||
+            tokensClean[position] === "%"
+        ) {
+
+            const operator =
+                tokensClean[position++];
+
+            const right =
+                parseFactor();
+
+            if (operator === "*") {
+                value *= right;
+            }
+
+            if (operator === "/") {
+
+                if (right === 0) {
+                    throw new Error(
+                        "Cannot divide by zero."
+                    );
+                }
+
+                value /= right;
+            }
+
+            if (operator === "%") {
+                value %= right;
+            }
+        }
+
+        return value;
+    }
+
+
+    function parseFactor() {
+
+        const token =
+            tokensClean[position++];
+
+        if (
+            token === "+"
+        ) {
+            return parseFactor();
+        }
+
+        if (
+            token === "-"
+        ) {
+            return -parseFactor();
+        }
+
+        if (
+            token === "("
+        ) {
+
+            const value =
+                parseExpression();
+
+            if (
+                tokensClean[position++] !== ")"
+            ) {
+                throw new Error(
+                    "Missing closing parenthesis."
+                );
+            }
+
+            return value;
+        }
+
+        if (
+            /^\d+(?:\.\d+)?$/.test(token)
+        ) {
+            return Number(token);
+        }
+
+        throw new Error(
+            "Invalid expression."
+        );
+    }
+
+
+    const answer =
+        parseExpression();
+
+    if (
+        position !==
+        tokensClean.length
+    ) {
+        throw new Error(
+            "Invalid expression."
+        );
+    }
+
+    return answer;
+}
+
+
+function calculatorEquals() {
+
+    const result =
+        $("calculatorResult");
+
+    try {
+
+        const answer =
+            calculateExpression(
+                calculatorExpression
+            );
+
+        calculatorExpression =
+            String(answer);
+
+        updateCalculatorDisplay();
+
+        if (result) {
+            result.textContent =
+                "Result: " +
+                answer;
+        }
+
+    } catch (error) {
+
+        if (result) {
+            result.textContent =
+                "❌ " +
+                error.message;
+        }
+    }
+}
+
+
+/* =========================================================
+   PROFILE
+========================================================= */
+
+async function updateProfile() {
+
+    try {
+
+        const data =
+            await apiRequest(
+                "/api/ops/analytics"
+            );
+
+        const projectsCount =
+            data.projects ??
+            data.project_count ??
+            projects.length ??
+            0;
+
+        const tasksCount =
+            data.tasks ??
+            data.task_count ??
+            0;
+
+        const agentsCount =
+            data.agents ??
+            data.agent_count ??
+            0;
+
+
+        const projectEl =
+            $("profileProjects");
+
+        const taskEl =
+            $("profileTasks");
+
+        const agentEl =
+            $("profileAgents");
+
+
+        if (projectEl) {
+            projectEl.textContent =
+                projectsCount;
+        }
+
+        if (taskEl) {
+            taskEl.textContent =
+                tasksCount;
+        }
+
+        if (agentEl) {
+            agentEl.textContent =
+                agentsCount;
+        }
+
+
+    } catch {
+
+        /*
+           Keep local values if backend
+           analytics is temporarily unavailable.
+        */
+
+        const projectEl =
+            $("profileProjects");
+
+        if (projectEl) {
+            projectEl.textContent =
+                projects.length;
+        }
+    }
+}
+
+
+async function showAnalytics() {
+
+    const result =
+        $("profileResult");
+
+    if (result) {
+        result.textContent =
+            "📊 Loading analytics...";
+    }
+
+    try {
+
+        const data =
+            await apiRequest(
+                "/api/ops/analytics"
+            );
+
+        if (result) {
+            result.textContent =
+                safeStringify(data);
+        }
+
+    } catch (error) {
+
+        if (result) {
+            result.textContent =
+                "Analytics error:\n" +
+                error.message;
+        }
+    }
+}
+
+
+async function checkSystemStatus() {
+
+    const result =
+        $("profileResult");
+
+    if (result) {
+        result.textContent =
+            "🔄 Checking Engineer AI...";
+    }
+
+    try {
+
+        const data =
+            await apiRequest(
+                "/api/health"
+            );
+
+        if (result) {
+            result.textContent =
+                "🟢 System online\n\n" +
+                safeStringify(data);
+        }
+
+    } catch (error) {
+
+        if (result) {
+            result.textContent =
+                "🔴 System check failed\n\n" +
+                error.message;
+        }
+    }
+}
+
+
+function showAbout() {
+
+    const result =
+        $("profileResult");
+
+    if (result) {
+
+        result.textContent =
+            "Engineer AI\n\n" +
+            "An engineering-focused AI platform " +
+            "for coding, debugging, project intelligence, " +
+            "testing, security and performance analysis.";
+    }
+}
+
+
+/* =========================================================
+   SETTINGS
+========================================================= */
+
+function loadSettings() {
+
+    const theme =
+        localStorage.getItem(
+            "engineer_ai_theme"
+        );
+
+    const accent =
+        localStorage.getItem(
+            "engineer_ai_accent"
+        );
+
+    const fontSize =
+        localStorage.getItem(
+            "engineer_ai_font_size"
+        );
+    const themeSelect =
+        $("themeSelect");
+
+    const accentSelect =
+        $("accentSelect");
+
+    const fontSelect =
+        $("fontSizeSelect");
+
+
+    if (
+        themeSelect &&
+        theme
+    ) {
+        themeSelect.value =
+            theme;
+    }
+
+    if (
+        accentSelect &&
+        accent
+    ) {
+        accentSelect.value =
+            accent;
+    }
+
+    if (
+        fontSelect &&
+        fontSize
+    ) {
+        fontSelect.value =
+            fontSize;
+    }
+
+    applySettings();
+}
+
+
+/* =========================================================
+   APPLY SETTINGS
+========================================================= */
+
+function applySettings() {
+
+    const themeSelect =
+        $("themeSelect");
+
+    const accentSelect =
+        $("accentSelect");
+
+    const fontSelect =
+        $("fontSizeSelect");
+
+
+    const theme =
+        themeSelect
+            ? themeSelect.value
+            : "dark";
+
+    const accent =
+        accentSelect
+            ? accentSelect.value
+            : "#4f8cff";
+
+    const fontSize =
+        fontSelect
+            ? fontSelect.value
+            : "14";
+
+
+    /* -----------------------------------------------------
+       THEME
+    ----------------------------------------------------- */
+
+    if (theme === "light") {
+
+        document.documentElement.style.setProperty(
+            "--bg",
+            "#f5f7fb"
+        );
+
+        document.documentElement.style.setProperty(
+            "--panel",
+            "#ffffff"
+        );
+
+        document.documentElement.style.setProperty(
+            "--panel2",
+            "#eef2f7"
+        );
+
+        document.documentElement.style.setProperty(
+            "--card",
+            "#ffffff"
+        );
+
+        document.documentElement.style.setProperty(
+            "--line",
+            "#d9e0ea"
+        );
+
+        document.documentElement.style.setProperty(
+            "--text",
+            "#111827"
+        );
+
+        document.documentElement.style.setProperty(
+            "--muted",
+            "#667085"
+        );
+
+    } else {
+
+        document.documentElement.style.setProperty(
+            "--bg",
+            "#050811"
+        );
+
+        document.documentElement.style.setProperty(
+            "--panel",
+            "#0a1020"
+        );
+
+        document.documentElement.style.setProperty(
+            "--panel2",
+            "#0d1527"
+        );
+
+        document.documentElement.style.setProperty(
+            "--card",
+            "#101a2e"
+        );
+
+        document.documentElement.style.setProperty(
+            "--line",
+            "#1b2942"
+        );
+
+        document.documentElement.style.setProperty(
+            "--text",
+            "#f7f9ff"
+        );
+
+        document.documentElement.style.setProperty(
+            "--muted",
+            "#8290a8"
+        );
+    }
+
+
+    /* -----------------------------------------------------
+       ACCENT
+    ----------------------------------------------------- */
+
+    if (accent) {
+
+        document.documentElement.style.setProperty(
+            "--accent",
+            accent
+        );
+    }
+
+
+    /* -----------------------------------------------------
+       FONT SIZE
+    ----------------------------------------------------- */
+
+    document.documentElement.style.setProperty(
+        "--font-scale",
+        fontSize + "px"
+    );
+}
+
+
+/* =========================================================
+   SAVE SETTINGS
+========================================================= */
+
+function saveSettings() {
+
+    const themeSelect =
+        $("themeSelect");
+
+    const accentSelect =
+        $("accentSelect");
+
+    const fontSelect =
+        $("fontSizeSelect");
+
+
+    const theme =
+        themeSelect
+            ? themeSelect.value
+            : "dark";
+
+    const accent =
+        accentSelect
+            ? accentSelect.value
+            : "#4f8cff";
+
+    const fontSize =
+        fontSelect
+            ? fontSelect.value
+            : "14";
+
+
+    localStorage.setItem(
+        "engineer_ai_theme",
+        theme
+    );
+
+    localStorage.setItem(
+        "engineer_ai_accent",
+        accent
+    );
+
+    localStorage.setItem(
+        "engineer_ai_font_size",
+        fontSize
+    );
+
+
+    applySettings();
+
+
+    const result =
+        $("settingsResult");
+
+    if (result) {
+
+        result.textContent =
+            "✅ Settings saved successfully.";
+    }
+
+    toast(
+        "Settings saved."
+    );
+}
+
+
+/* =========================================================
+   CLEAR LOCAL DATA
+========================================================= */
+
+function clearLocalData() {
+
+    const confirmed =
+        window.confirm(
+            "Clear locally saved Engineer AI data?"
+        );
+
+    if (!confirmed) {
+        return;
+    }
+
+
+    localStorage.removeItem(
+        "engineer_ai_chat"
+    );
+
+    localStorage.removeItem(
+        "engineer_ai_code"
+    );
+
+    localStorage.removeItem(
+        "engineer_ai_theme"
+    );
+
+    localStorage.removeItem(
+        "engineer_ai_accent"
+    );
+
+    localStorage.removeItem(
+        "engineer_ai_font_size"
+    );
+
+
+    chatHistory = [];
+
+    terminalHistory = [];
+
+    calculatorExpression = "";
+
+
+    const chatMessages =
+        $("chatMessages");
+
+    if (chatMessages) {
+        chatMessages.innerHTML = "";
+    }
+
+
+    const codeEditor =
+        $("codeEditor");
+
+    if (codeEditor) {
+        codeEditor.value = "";
+    }
+
+
+    const result =
+        $("settingsResult");
+
+    if (result) {
+
+        result.textContent =
+            "✅ Local data cleared.";
+    }
+
+
+    toast(
+        "Local data cleared."
+    );
+}
+
+
+/* =========================================================
+   KEYBOARD SHORTCUTS
+========================================================= */
+
+function setupKeyboardShortcuts() {
+
+    /* -----------------------------------------------------
+       CHAT ENTER
+    ----------------------------------------------------- */
+
+    const chatInput =
+        $("chatInput");
+
+    if (chatInput) {
+
+        chatInput.addEventListener(
+            "keydown",
+            event => {
+
+                if (
+                    event.key === "Enter" &&
+                    !event.shiftKey
+                ) {
+
+                    event.preventDefault();
+
+                    sendChat();
+                }
+            }
+        );
+    }
+
+
+    /* -----------------------------------------------------
+       HOME PROMPT ENTER
+    ----------------------------------------------------- */
+
+    const homePrompt =
+        $("homePrompt");
+
+    if (homePrompt) {
+
+        homePrompt.addEventListener(
+            "keydown",
+            event => {
+
+                if (
+                    event.key === "Enter" &&
+                    !event.shiftKey
+                ) {
+
+                    event.preventDefault();
+
+                    const message =
+                        homePrompt.value.trim();
+
+                    if (!message) {
+                        return;
+                    }
+
+                    homePrompt.value = "";
+
+                    openHomePrompt(
+                        message
+                    );
+
+                    setTimeout(() => {
+
+                        const chatInput =
+                            $("chatInput");
+
+                        if (chatInput) {
+
+                            chatInput.value =
+                                message;
+
+                            sendChat();
+                        }
+
+                    }, 100);
+                }
+            }
+        );
+    }
+
+
+    /* -----------------------------------------------------
+       TERMINAL ENTER
+    ----------------------------------------------------- */
+
+    const terminalInput =
+        $("terminalInput");
+
+    if (terminalInput) {
+
+        terminalInput.addEventListener(
+            "keydown",
+            event => {
+
+                if (
+                    event.key === "Enter"
+                ) {
+
+                    event.preventDefault();
+
+                    runTerminal();
+                }
+            }
+        );
+    }
+
+
+    /* -----------------------------------------------------
+       PROJECT SEARCH
+    ----------------------------------------------------- */
+
+    const projectSearch =
+        $("projectSearch");
+
+    if (projectSearch) {
+
+        projectSearch.addEventListener(
+            "input",
+            () => {
+                filterProjects();
+            }
+        );
+    }
+
+
+    /* -----------------------------------------------------
+       CODE EDITOR SHORTCUTS
+    ----------------------------------------------------- */
+
+    const editor =
+        $("codeEditor");
+
+    if (editor) {
+
+        editor.addEventListener(
+            "keydown",
+            event => {
+
+                /*
+                   Ctrl/Cmd + S
+                */
+
+                if (
+                    (event.ctrlKey ||
+                     event.metaKey) &&
+                    event.key.toLowerCase() === "s"
+                ) {
+
+                    event.preventDefault();
+
+                    saveCode();
+
+                    return;
+                }
+
+
+                /*
+                   Tab inserts spaces instead
+                   of leaving the editor.
+                */
+
+                if (
+                    event.key === "Tab"
+                ) {
+
+                    event.preventDefault();
+
+                    const start =
+                        editor.selectionStart;
+
+                    const end =
+                        editor.selectionEnd;
+
+                    editor.value =
+                        editor.value.substring(
+                            0,
+                            start
+                        ) +
+                        "    " +
+                        editor.value.substring(
+                            end
+                        );
+
+                    editor.selectionStart =
+                        editor.selectionEnd =
+                            start + 4;
+                }
+            }
+        );
+    }
+}
+
+
+/* =========================================================
+   INITIALIZATION
+========================================================= */
+
+function initializeEngineerAI() {
+
+    console.log(
+        "🚀 Engineer AI initializing..."
+    );
+
+
+    /* -----------------------------------------------------
+       LOAD LOCAL DATA
+    ----------------------------------------------------- */
+
+    loadChatHistory();
+
+    loadCode();
+
+    loadSettings();
+
+
+    /* -----------------------------------------------------
+       KEYBOARD EVENTS
+    ----------------------------------------------------- */
+
+    setupKeyboardShortcuts();
+
+
+    /* -----------------------------------------------------
+       DEFAULT VIEW
+    ----------------------------------------------------- */
+
+    navigateTo(
+        "home"
+    );
+
+
+    /* -----------------------------------------------------
+       LOAD PROJECTS
+    ----------------------------------------------------- */
+
+    loadProjects();
+
+
+    /* -----------------------------------------------------
+       UPDATE PROFILE
+    ----------------------------------------------------- */
+
+    updateProfile();
+
+
+    /* -----------------------------------------------------
+       CHECK BACKEND
+    ----------------------------------------------------- */
+
+    apiRequest(
+        "/api/health"
+    )
+    .then(data => {
+
+        console.log(
+            "🟢 Engineer AI backend online.",
+            data
+        );
+
+
+        const status =
+            $("settingsBackendStatus");
+
+        if (status) {
+
+            status.textContent =
+                "Online";
+
+            status.className =
+                "badge success";
+        }
+
+    })
+    .catch(error => {
+
+        console.warn(
+            "🔴 Engineer AI backend unavailable.",
+            error
+        );
+
+
+        const status =
+            $("settingsBackendStatus");
+
+        if (status) {
+
+            status.textContent =
+                "Offline";
+
+            status.className =
+                "badge danger";
+        }
+    });
+
+
+    console.log(
+        "✅ Engineer AI initialized."
+    );
+}
+
+
+/* =========================================================
+   DOM READY
+========================================================= */
+
+if (
+    document.readyState ===
+    "loading"
+) {
+
+    document.addEventListener(
+        "DOMContentLoaded",
+        initializeEngineerAI
+    );
+
+} else {
+
+    initializeEngineerAI();
+}
+
+
+/* =========================================================
+   PART 9 — 3/3 COMPLETE 🎉
+========================================================= */
+
