@@ -1,0 +1,8270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+
+<meta
+    name="viewport"
+    content="width=device-width,
+             initial-scale=1,
+             maximum-scale=1,
+             viewport-fit=cover"
+>
+
+<meta name="theme-color" content="#050811">
+
+<title>Engineer AI</title>
+
+<link
+    rel="preconnect"
+    href="https://cdnjs.cloudflare.com"
+>
+
+<link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css"
+>
+
+<style>
+
+/* =========================================================
+   ENGINEER AI
+   GLOBAL DESIGN SYSTEM
+========================================================= */
+
+:root {
+    --bg: #050811;
+    --panel: #0a1020;
+    --panel2: #0d1527;
+    --card: #101a2e;
+
+    --line: #1b2942;
+
+    --text: #f7f9ff;
+    --muted: #8290a8;
+
+    --accent: #4f8cff;
+    --accent2: #7c5cff;
+
+    --green: #32d583;
+    --yellow: #fdb022;
+    --red: #ff5c7a;
+
+    --nav-height: 72px;
+
+    --safe-bottom:
+        env(safe-area-inset-bottom, 0px);
+}
+
+
+/* =========================================================
+   RESET
+========================================================= */
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html,
+body {
+    width: 100%;
+    height: 100%;
+
+    background: var(--bg);
+    color: var(--text);
+
+    font-family:
+        Inter,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        Roboto,
+        sans-serif;
+
+    -webkit-tap-highlight-color:
+        transparent;
+}
+
+body {
+    overflow: hidden;
+}
+
+button,
+input,
+textarea,
+select {
+    font: inherit;
+}
+
+button {
+    border: none;
+}
+
+button,
+.card,
+.nav-item {
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+
+/* =========================================================
+   APP SHELL
+========================================================= */
+
+.app {
+    width: 100%;
+    height: 100dvh;
+
+    display: flex;
+    flex-direction: column;
+
+    overflow: hidden;
+
+    background:
+        radial-gradient(
+            700px 400px at 80% -10%,
+            rgba(79,140,255,.13),
+            transparent 60%
+        ),
+        var(--bg);
+}
+
+
+/* =========================================================
+   MAIN
+========================================================= */
+
+main {
+    position: relative;
+
+    flex: 1;
+    min-height: 0;
+
+    overflow: hidden;
+}
+
+
+/* =========================================================
+   VIEWS
+========================================================= */
+
+.view {
+    position: absolute;
+
+    inset: 0;
+
+    overflow-y: auto;
+    overflow-x: hidden;
+
+    padding:
+        16px
+        16px
+        calc(
+            var(--nav-height)
+            + 20px
+            + var(--safe-bottom)
+        );
+
+    opacity: 0;
+    visibility: hidden;
+
+    transform:
+        translate3d(12px, 0, 0);
+
+    pointer-events: none;
+
+    transition:
+        opacity .18s ease,
+        transform .18s ease,
+        visibility .18s;
+}
+
+.view.active {
+    opacity: 1;
+    visibility: visible;
+
+    transform:
+        translate3d(0, 0, 0);
+
+    pointer-events: auto;
+}
+
+.view::-webkit-scrollbar {
+    width: 4px;
+}
+
+.view::-webkit-scrollbar-thumb {
+    background: #263652;
+    border-radius: 10px;
+}
+
+
+/* =========================================================
+   HEADER
+========================================================= */
+
+.header {
+    display: flex;
+
+    align-items: center;
+    justify-content: space-between;
+
+    margin-bottom: 16px;
+}
+
+.brand {
+    display: flex;
+
+    align-items: center;
+
+    gap: 10px;
+}
+
+.logo {
+    width: 40px;
+    height: 40px;
+
+    flex: 0 0 40px;
+
+    border-radius: 13px;
+
+    display: grid;
+    place-items: center;
+
+    color: white;
+
+    background:
+        linear-gradient(
+            135deg,
+            var(--accent),
+            var(--accent2)
+        );
+
+    box-shadow:
+        0 8px 28px
+        rgba(79,140,255,.22);
+}
+
+.logo i {
+    font-size: 18px;
+}
+
+.title {
+    font-size: 15px;
+
+    font-weight: 800;
+}
+
+.subtitle {
+    margin-top: 2px;
+
+    font-size: 10px;
+
+    color: var(--muted);
+}
+
+.pill {
+    padding: 6px 9px;
+
+    border-radius: 999px;
+
+    font-size: 10px;
+
+    color: var(--muted);
+
+    background: #09101e;
+
+    border: 1px solid var(--line);
+}
+
+.pill.online {
+    color: var(--green);
+
+    border-color:
+        rgba(50,213,131,.25);
+}
+
+
+/* =========================================================
+   HERO
+========================================================= */
+
+.hero {
+    padding: 18px;
+
+    margin-bottom: 14px;
+
+    border-radius: 20px;
+
+    border: 1px solid var(--line);
+
+    background:
+        linear-gradient(
+            145deg,
+            #0e1930,
+            #080e1a
+        );
+}
+
+.hero h1 {
+    font-size: 25px;
+
+    letter-spacing: -.6px;
+}
+
+.hero p {
+    margin: 7px 0 15px;
+
+    font-size: 12px;
+
+    line-height: 1.5;
+
+    color: var(--muted);
+}
+
+
+/* =========================================================
+   COMPOSER
+========================================================= */
+
+.composer {
+    display: flex;
+
+    align-items: center;
+
+    gap: 8px;
+
+    padding: 8px;
+
+    background: #070d19;
+
+    border:
+        1px solid var(--line);
+
+    border-radius: 14px;
+}
+
+.composer input {
+    flex: 1;
+
+    min-width: 0;
+
+    padding: 7px;
+
+    color: var(--text);
+
+    background: transparent;
+
+    border: none;
+
+    outline: none;
+
+    font-size: 12px;
+}
+
+.icon-btn,
+.send {
+    width: 38px;
+    height: 38px;
+
+    flex: 0 0 38px;
+
+    border-radius: 11px;
+
+    display: grid;
+
+    place-items: center;
+
+    cursor: pointer;
+}
+
+.icon-btn {
+    color: var(--muted);
+
+    background: #101a2d;
+
+    border:
+        1px solid var(--line);
+}
+
+.send {
+    color: white;
+
+    background:
+        linear-gradient(
+            135deg,
+            var(--accent),
+            #6b62ff
+        );
+
+    box-shadow:
+        0 5px 18px
+        rgba(79,140,255,.22);
+}
+
+.send:disabled {
+    opacity: .45;
+
+    box-shadow: none;
+}
+
+
+/* =========================================================
+   GRID
+========================================================= */
+
+.grid {
+    display: grid;
+
+    grid-template-columns:
+        repeat(2, minmax(0, 1fr));
+
+    gap: 10px;
+}
+
+.card {
+    padding: 14px;
+
+    border-radius: 16px;
+
+    background:
+        linear-gradient(
+            145deg,
+            #0c1424,
+            #09101d
+        );
+
+    border:
+        1px solid var(--line);
+
+    cursor: pointer;
+
+    transition:
+        transform .12s ease,
+        border-color .12s ease;
+}
+
+.card:active {
+    transform: scale(.98);
+}
+
+.card:hover {
+    border-color: #294268;
+}
+
+.card i {
+    display: block;
+
+    margin-bottom: 10px;
+
+    font-size: 16px;
+
+    color: var(--accent);
+}
+
+.card h3 {
+    font-size: 12px;
+}
+
+.card p {
+    margin-top: 4px;
+
+    font-size: 10px;
+
+    line-height: 1.4;
+
+    color: var(--muted);
+}
+
+
+/* =========================================================
+   SECTION TITLES
+========================================================= */
+
+.section-title {
+    display: flex;
+
+    align-items: center;
+    justify-content: space-between;
+
+    margin:
+        18px 2px 9px;
+}
+
+.section-title h2 {
+    font-size: 13px;
+}
+
+.section-title span {
+    font-size: 10px;
+
+    color: var(--muted);
+}
+
+
+/* =========================================================
+   STATS
+========================================================= */
+
+.stats {
+    display: grid;
+
+    grid-template-columns:
+        repeat(2, minmax(0, 1fr));
+
+    gap: 10px;
+}
+
+.stat {
+    padding: 13px;
+
+    border-radius: 14px;
+
+    background: #0a1221;
+
+    border:
+        1px solid var(--line);
+}
+
+.stat b {
+    display: block;
+
+    font-size: 19px;
+}
+
+.stat span {
+    font-size: 9px;
+
+    color: var(--muted);
+}
+
+
+/* =========================================================
+   LIST
+========================================================= */
+
+.list {
+    display: grid;
+
+    gap: 9px;
+}
+
+.list-row {
+    display: flex;
+
+    align-items: center;
+
+    gap: 10px;
+
+    padding: 12px;
+
+    border-radius: 14px;
+
+    background: #0a1220;
+
+    border:
+        1px solid var(--line);
+}
+
+.list-icon {
+    width: 36px;
+    height: 36px;
+
+    flex: 0 0 36px;
+
+    display: grid;
+
+    place-items: center;
+
+    border-radius: 11px;
+
+    color: var(--accent);
+
+    background: #111d32;
+}
+
+.list-info {
+    flex: 1;
+
+    min-width: 0;
+}
+
+.list-info b {
+    display: block;
+
+    font-size: 12px;
+}
+
+.list-info small {
+    display: block;
+
+    margin-top: 3px;
+
+    font-size: 9px;
+
+    color: var(--muted);
+
+    white-space: nowrap;
+
+    overflow: hidden;
+
+    text-overflow: ellipsis;
+}
+
+
+/* =========================================================
+   BUTTONS
+========================================================= */
+
+.primary {
+    min-height: 42px;
+
+    padding: 0 16px;
+
+    border-radius: 12px;
+
+    color: white;
+
+    background:
+        linear-gradient(
+            135deg,
+            var(--accent),
+            var(--accent2)
+        );
+
+    font-weight: 700;
+
+    cursor: pointer;
+
+    transition:
+        transform .12s ease,
+        filter .12s ease,
+        opacity .12s ease;
+}
+
+.primary:hover:not(:disabled) {
+    filter: brightness(1.08);
+}
+
+.primary:active:not(:disabled) {
+    transform: scale(.97);
+}
+
+.primary:disabled {
+    opacity: .55;
+
+    cursor: not-allowed;
+}
+
+.secondary {
+    min-height: 40px;
+
+    padding: 0 14px;
+
+    border-radius: 12px;
+
+    color: var(--text);
+
+    background: #101a2d;
+
+    border:
+        1px solid var(--line);
+
+    cursor: pointer;
+
+    transition:
+        background .12s ease,
+        border-color .12s ease,
+        transform .12s ease;
+}
+
+.secondary:hover:not(:disabled) {
+    background: #16233b;
+    border-color: var(--accent);
+}
+
+.secondary:active:not(:disabled) {
+    transform: scale(.97);
+}
+
+.secondary.active {
+    color: white;
+
+    background:
+        linear-gradient(
+            135deg,
+            var(--accent),
+            var(--accent2)
+        );
+
+    border-color: transparent;
+}
+
+.secondary:disabled {
+    opacity: .55;
+
+    cursor: not-allowed;
+}
+
+.danger {
+    color: white;
+
+    background:
+        linear-gradient(
+            135deg,
+            #ff4f70,
+            #c92f52
+        );
+}
+
+
+/* =========================================================
+   FORMS
+========================================================= */
+
+.form {
+    display: grid;
+
+    gap: 10px;
+}
+
+.label {
+    margin:
+        2px 2px -4px;
+
+    font-size: 10px;
+
+    color: var(--muted);
+}
+
+.field {
+    width: 100%;
+
+    padding: 11px;
+
+    color: var(--text);
+
+    background: #09111f;
+
+    border:
+        1px solid var(--line);
+
+    border-radius: 13px;
+
+    outline: none;
+
+    font-size: 12px;
+}
+
+.field:focus {
+    border-color: #355a91;
+
+    box-shadow:
+        0 0 0 3px
+        rgba(79,140,255,.08);
+}
+
+textarea.field {
+    min-height: 130px;
+
+    resize: vertical;
+}
+
+
+/* =========================================================
+   RESULT BOX
+========================================================= */
+
+.result {
+    margin-top: 12px;
+
+    padding: 12px;
+
+    border-radius: 14px;
+
+    background: #080f1b;
+
+    border:
+        1px solid var(--line);
+
+    font-size: var(--font-scale, 11px);
+
+    line-height: 1.5;
+
+    overflow-wrap: anywhere;
+}
+
+.result pre {
+    margin-top: 8px;
+
+    padding: 10px;
+
+    overflow: auto;
+
+    white-space: pre-wrap;
+
+    border-radius: 10px;
+
+    background: #050a12;
+
+    border:
+        1px solid #18253b;
+
+    font-size: 10px;
+}
+
+
+/* =========================================================
+   CHAT MESSAGES
+   (built by addChatMessage() in JS — previously unstyled)
+========================================================= */
+
+.chat-message {
+    display: flex;
+    flex-direction: column;
+
+    gap: 4px;
+
+    max-width: 88%;
+}
+
+.chat-message.user {
+    align-self: flex-end;
+    align-items: flex-end;
+    margin-left: auto;
+}
+
+.chat-message.assistant {
+    align-self: flex-start;
+    align-items: flex-start;
+    margin-right: auto;
+}
+
+.chat-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--muted);
+    padding: 0 4px;
+}
+
+.chat-bubble {
+    padding: 10px 13px;
+
+    border-radius: 16px;
+
+    font-size: 12px;
+    line-height: 1.5;
+
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.chat-message.user .chat-bubble {
+    color: white;
+    border-bottom-right-radius: 4px;
+
+    background:
+        linear-gradient(
+            135deg,
+            var(--accent),
+            var(--accent2)
+        );
+}
+
+.chat-message.assistant .chat-bubble {
+    color: var(--text);
+    border-bottom-left-radius: 4px;
+
+    background: var(--card);
+
+    border: 1px solid var(--line);
+}
+
+#chatMessages {
+    display: flex;
+    flex-direction: column;
+}
+
+
+/* =========================================================
+   PROGRESS
+========================================================= */
+
+.progress {
+    width: 100%;
+
+    height: 7px;
+
+    overflow: hidden;
+
+    border-radius: 999px;
+
+    background: #182338;
+}
+
+.progress-bar {
+    height: 100%;
+
+    border-radius: inherit;
+
+    background:
+        linear-gradient(
+            90deg,
+            var(--accent),
+            var(--accent2)
+        );
+
+    transition:
+        width .3s ease;
+}
+
+
+/* =========================================================
+   BADGES
+========================================================= */
+
+.badge {
+    display: inline-flex;
+
+    align-items: center;
+
+    gap: 5px;
+
+    padding: 5px 8px;
+
+    border-radius: 999px;
+
+    font-size: 9px;
+
+    color: var(--muted);
+
+    background: #0c1526;
+
+    border:
+        1px solid var(--line);
+}
+
+.badge.green {
+    color: var(--green);
+
+    border-color:
+        rgba(50,213,131,.22);
+}
+
+.badge.yellow {
+    color: var(--yellow);
+
+    border-color:
+        rgba(253,176,34,.22);
+}
+
+.badge.red {
+    color: var(--red);
+
+    border-color:
+        rgba(255,92,122,.22);
+}
+
+
+/* =========================================================
+   EMPTY STATE
+========================================================= */
+
+.empty {
+    padding: 30px 18px;
+
+    text-align: center;
+
+    border-radius: 16px;
+
+    background: #09111e;
+
+    border:
+        1px dashed #223451;
+}
+
+.empty i {
+    margin-bottom: 10px;
+
+    font-size: 28px;
+
+    color: var(--muted);
+}
+
+.empty h3 {
+    font-size: 13px;
+}
+
+.empty p {
+    margin-top: 5px;
+
+    font-size: 10px;
+
+    line-height: 1.5;
+
+    color: var(--muted);
+}
+
+
+/* =========================================================
+   LOADING
+========================================================= */
+
+.loading {
+    display: inline-flex;
+
+    align-items: center;
+
+    gap: 5px;
+
+    color: var(--muted);
+}
+
+.loading span {
+    width: 5px;
+    height: 5px;
+
+    border-radius: 50%;
+
+    background: currentColor;
+
+    animation:
+        loadingPulse 1s infinite ease-in-out;
+}
+
+.loading span:nth-child(2) {
+    animation-delay: .15s;
+}
+
+.loading span:nth-child(3) {
+    animation-delay: .30s;
+}
+
+@keyframes loadingPulse {
+    0%,
+    80%,
+    100% {
+        opacity: .25;
+        transform: scale(.8);
+    }
+
+    40% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+
+/* =========================================================
+   TOAST
+========================================================= */
+
+.toast {
+    position: fixed;
+
+    left: 50%;
+
+    bottom:
+        calc(
+            var(--nav-height)
+            + 18px
+            + var(--safe-bottom)
+        );
+
+    transform:
+        translate(-50%, 15px);
+
+    z-index: 9999;
+
+    max-width:
+        calc(100% - 32px);
+
+    padding: 11px 15px;
+
+    border-radius: 12px;
+
+    color: white;
+
+    background: #111d31;
+
+    border:
+        1px solid #294268;
+
+    box-shadow:
+        0 10px 30px
+        rgba(0,0,0,.35);
+
+    font-size: 11px;
+
+    opacity: 0;
+
+    pointer-events: none;
+
+    transition:
+        opacity .2s ease,
+        transform .2s ease;
+}
+
+.toast.show {
+    opacity: 1;
+
+    transform:
+        translate(-50%, 0);
+}
+
+
+/* =========================================================
+   BOTTOM NAVIGATION
+========================================================= */
+
+.bottom-nav {
+    position: fixed;
+
+    left: 0;
+    right: 0;
+    bottom: 0;
+
+    z-index: 500;
+
+    height:
+        calc(
+            var(--nav-height)
+            + var(--safe-bottom)
+        );
+
+    padding:
+        8px
+        8px
+        var(--safe-bottom);
+
+    display: grid;
+
+    grid-template-columns:
+        repeat(5, 1fr);
+
+    gap: 5px;
+
+    background:
+        rgba(7,12,22,.94);
+
+    border-top:
+        1px solid var(--line);
+
+    backdrop-filter:
+        blur(18px);
+
+    -webkit-backdrop-filter:
+        blur(18px);
+}
+
+.nav-item {
+    display: flex;
+
+    flex-direction: column;
+
+    align-items: center;
+
+    justify-content: center;
+
+    gap: 4px;
+
+    border-radius: 12px;
+
+    color: var(--muted);
+
+    background: transparent;
+
+    cursor: pointer;
+
+    transition:
+        background .15s ease,
+        color .15s ease;
+}
+
+.nav-item i {
+    font-size: 15px;
+}
+
+.nav-item span {
+    font-size: 8px;
+}
+
+.nav-item.active {
+    color: white;
+
+    background:
+        rgba(79,140,255,.12);
+}
+
+.nav-item.active i {
+    color: var(--accent);
+}
+
+
+/* =========================================================
+   DESKTOP
+========================================================= */
+
+@media (min-width: 700px) {
+
+    .view {
+        max-width: 1100px;
+
+        margin: 0 auto;
+
+        left: 50%;
+        right: auto;
+
+        width: min(
+            100%,
+            1100px
+        );
+
+        transform:
+            translate3d(
+                calc(-50% + 12px),
+                0,
+                0
+            );
+    }
+
+    .view.active {
+        transform:
+            translate3d(
+                -50%,
+                0,
+                0
+            );
+    }
+
+    .grid {
+        grid-template-columns:
+            repeat(3, minmax(0, 1fr));
+    }
+
+    .stats {
+        grid-template-columns:
+            repeat(4, minmax(0, 1fr));
+    }
+
+    .bottom-nav {
+        left: 50%;
+
+        right: auto;
+
+        width: min(
+            700px,
+            100%
+        );
+
+        transform:
+            translateX(-50%);
+
+        border:
+            1px solid var(--line);
+
+        border-bottom: none;
+
+        border-radius:
+            18px 18px 0 0;
+    }
+}
+
+
+/* =========================================================
+   ACCESSIBILITY
+========================================================= */
+
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+    outline:
+        2px solid var(--accent);
+
+    outline-offset: 2px;
+}
+
+</style>
+
+<style>
+#engineerBackButton{position:fixed;top:calc(10px + env(safe-area-inset-top));left:10px;z-index:9999;display:none;align-items:center;gap:6px;padding:10px 14px;border:1px solid var(--line);border-radius:14px;background:rgba(10,16,32,.94);color:var(--text);font-weight:700;box-shadow:0 8px 30px rgba(0,0,0,.35);backdrop-filter:blur(10px)}
+#engineerBackButton:active{transform:scale(.97)}
+</style>
+</head>
+
+<body>
+
+<div class="app">
+
+    <main id="main">
+
+        <!--
+            PART 2 WILL ADD
+            THE HOME SCREEN HERE.
+        -->
+
+    </main>
+
+    <!--
+        PART 2 WILL ADD
+        THE BOTTOM NAVIGATION.
+    -->
+
+</div>
+
+<div
+    id="toast"
+    class="toast"
+    role="status"
+    aria-live="polite">
+</div>
+
+<!--
+    PART 9 WILL ADD
+    THE ENGINEER AI JAVASCRIPT.
+-->
+
+<!-- =========================================================
+     PART 2 — HOME SCREEN
+========================================================= -->
+
+<section id="homeView" class="view active">
+
+    <!-- HEADER -->
+    <div class="header">
+
+        <div class="brand">
+
+            <div class="logo">
+                <i class="fa-solid fa-microchip"></i>
+            </div>
+
+            <div>
+                <div class="title">
+                    Engineer AI
+                </div>
+
+                <div class="subtitle">
+                    Engineering Intelligence Platform
+                </div>
+            </div>
+
+        </div>
+
+        <div class="pill online">
+            <i class="fa-solid fa-circle"
+               style="font-size:6px;"></i>
+            Online
+        </div>
+
+    </div>
+
+
+    <!-- HERO -->
+    <div class="hero">
+
+        <h1>
+            Build smarter. 🚀
+        </h1>
+
+        <p>
+            Your AI engineering workspace for coding,
+            debugging, projects, security and intelligent
+            development.
+        </p>
+
+
+        <!-- HOME AI COMPOSER -->
+        <div class="composer">
+
+            <button
+                class="icon-btn"
+                type="button"
+                onclick="showToast('Voice input coming soon')"
+                aria-label="Voice input">
+
+                <i class="fa-solid fa-microphone"></i>
+
+            </button>
+
+
+            <input
+                id="homePrompt"
+                type="text"
+                placeholder="Ask Engineer AI anything..."
+                autocomplete="off"
+                onkeydown="
+                    if(event.key === 'Enter'){
+                        sendHomePrompt();
+                    }
+                "
+            >
+
+
+            <button
+                id="homeSend"
+                class="send"
+                type="button"
+                onclick="sendHomePrompt()"
+                aria-label="Send">
+
+                <i class="fa-solid fa-arrow-up"></i>
+
+            </button>
+
+        </div>
+
+    </div>
+
+
+    <!-- QUICK ACCESS -->
+    <div class="section-title">
+
+        <h2>
+            Quick Access
+        </h2>
+
+        <span>
+            Tools
+        </span>
+
+    </div>
+
+
+    <div class="grid">
+
+        <!-- AI CHAT -->
+        <div
+            class="card"
+            onclick="navigateTo('chat')">
+
+            <i class="fa-solid fa-message"></i>
+
+            <h3>
+                AI Chat
+            </h3>
+
+            <p>
+                Ask engineering questions and get AI help.
+            </p>
+
+        </div>
+
+
+        <!-- CODE STUDIO -->
+        <div
+            class="card"
+            onclick="navigateTo('code')">
+
+            <i class="fa-solid fa-code"></i>
+
+            <h3>
+                Code Studio
+            </h3>
+
+            <p>
+                Write, run and improve your code.
+            </p>
+
+        </div>
+
+
+        <!-- DEBUGGER -->
+        <div
+            class="card"
+            onclick="navigateTo('debugger')">
+
+            <i class="fa-solid fa-bug"></i>
+
+            <h3>
+                Debugger
+            </h3>
+
+            <p>
+                Find bugs and understand errors faster.
+            </p>
+
+        </div>
+
+
+        <!-- PROJECTS -->
+        <div
+            class="card"
+            onclick="navigateTo('projects')">
+
+            <i class="fa-solid fa-folder-open"></i>
+
+            <h3>
+                Projects
+            </h3>
+
+            <p>
+                Manage your engineering projects.
+            </p>
+
+        </div>
+
+
+        <!-- AGENTS -->
+        <div
+            class="card"
+            onclick="navigateTo('agents')">
+
+            <i class="fa-solid fa-robot"></i>
+
+            <h3>
+                AI Agents
+            </h3>
+
+            <p>
+                Use specialized engineering agents.
+            </p>
+
+        </div>
+
+
+        <!-- SECURITY -->
+        <div
+            class="card"
+            onclick="navigateTo('review')">
+
+            <i class="fa-solid fa-shield-halved"></i>
+
+            <h3>
+                Security
+            </h3>
+
+            <p>
+                Scan and review code for vulnerabilities.
+            </p>
+
+        </div>
+
+
+        <!-- PERFORMANCE -->
+        <div
+            class="card"
+            onclick="navigateTo('tools')">
+
+            <i class="fa-solid fa-gauge-high"></i>
+
+            <h3>
+                Performance
+            </h3>
+
+            <p>
+                Analyze code performance and efficiency.
+            </p>
+
+        </div>
+
+
+        <!-- CALCULATOR -->
+        <div
+            class="card"
+            onclick="navigateTo('calculator')">
+
+            <i class="fa-solid fa-calculator"></i>
+
+            <h3>
+                Calculator
+            </h3>
+
+            <p>
+                Engineering calculations made simple.
+            </p>
+
+        </div>
+
+    </div>
+
+
+    <!-- RECENT PROJECTS -->
+    <div class="section-title">
+
+        <h2>
+            Recent Projects
+        </h2>
+
+        <span>
+            View all
+        </span>
+
+    </div>
+
+
+    <div class="list">
+
+
+        <!-- PROJECT 1 -->
+        <div
+            class="list-row"
+            onclick="openProject('OS Kernel')">
+
+            <div class="list-icon">
+
+                <i class="fa-solid fa-microchip"></i>
+
+            </div>
+
+
+            <div class="list-info">
+
+                <b>
+                    OS Kernel
+                </b>
+
+                <small>
+                    C • Last edited recently
+                </small>
+
+            </div>
+
+
+            <span class="badge green">
+                65%
+            </span>
+
+        </div>
+
+
+        <!-- PROJECT 2 -->
+        <div
+            class="list-row"
+            onclick="openProject('AI Chat App')">
+
+            <div class="list-icon">
+
+                <i class="fa-brands fa-js"></i>
+
+            </div>
+
+
+            <div class="list-info">
+
+                <b>
+                    AI Chat App
+                </b>
+
+                <small>
+                    JavaScript • Last edited recently
+                </small>
+
+            </div>
+
+
+            <span class="badge green">
+                80%
+            </span>
+
+        </div>
+
+
+        <!-- PROJECT 3 -->
+        <div
+            class="list-row"
+            onclick="openProject('Web Scraper')">
+
+            <div class="list-icon">
+
+                <i class="fa-brands fa-python"></i>
+
+            </div>
+
+
+            <div class="list-info">
+
+                <b>
+                    Web Scraper
+                </b>
+
+                <small>
+                    Python • Last edited recently
+                </small>
+
+            </div>
+
+
+            <span class="badge yellow">
+                40%
+            </span>
+
+        </div>
+
+    </div>
+
+
+    <!-- DAILY PROGRESS -->
+    <div class="section-title">
+
+        <h2>
+            Daily Progress
+        </h2>
+
+        <span>
+            Today
+        </span>
+
+    </div>
+
+
+    <div class="stat">
+
+        <div
+            style="
+                display:flex;
+                justify-content:space-between;
+                align-items:center;
+                margin-bottom:9px;
+            ">
+
+            <div>
+
+                <b style="font-size:19px;">
+                    72%
+                </b>
+
+                <span>
+                    Engineering goal
+                </span>
+
+            </div>
+
+            <span class="badge green">
+                +12%
+            </span>
+
+        </div>
+
+
+        <div class="progress">
+
+            <div
+                class="progress-bar"
+                style="width:72%;">
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- SYSTEM STATS -->
+    <div class="section-title">
+
+        <h2>
+            System Overview
+        </h2>
+
+        <span>
+            Live
+        </span>
+
+    </div>
+
+
+    <div class="stats">
+
+        <div class="stat">
+
+            <b id="homeProjectsCount">
+                3
+            </b>
+
+            <span>
+                Projects
+            </span>
+
+        </div>
+
+
+        <div class="stat">
+
+            <b id="homeAgentsCount">
+                6
+            </b>
+
+            <span>
+                AI Agents
+            </span>
+
+        </div>
+
+
+        <div class="stat">
+
+            <b id="homeTasksCount">
+                24
+            </b>
+
+            <span>
+                Tasks
+            </span>
+
+        </div>
+
+
+        <div class="stat">
+
+            <b id="homeSuccessRate">
+                98%
+            </b>
+
+            <span>
+                Success Rate
+            </span>
+
+        </div>
+
+    </div>
+
+
+    <!-- SPACE -->
+    <div style="height:10px;"></div>
+
+</section>
+
+
+<!-- =========================================================
+     PART 2 — BOTTOM NAVIGATION
+========================================================= -->
+
+<nav
+    class="bottom-nav"
+    id="bottomNav"
+    aria-label="Main navigation">
+
+
+    <!-- HOME -->
+    <button
+        class="nav-item active"
+        type="button"
+        data-view="home"
+        onclick="navigateTo('home')">
+
+        <i class="fa-solid fa-house"></i>
+
+        <span>
+            Home
+        </span>
+
+    </button>
+
+
+    <!-- AI CHAT -->
+    <button
+        class="nav-item"
+        type="button"
+        data-view="chat"
+        onclick="navigateTo('chat')">
+
+        <i class="fa-solid fa-message"></i>
+
+        <span>
+            AI Chat
+        </span>
+
+    </button>
+
+
+    <!-- CODE -->
+    <button
+        class="nav-item"
+        type="button"
+        data-view="code"
+        onclick="navigateTo('code')">
+
+        <i class="fa-solid fa-code"></i>
+
+        <span>
+            Code
+        </span>
+
+    </button>
+
+
+    <!-- TOOLS -->
+    <button
+        class="nav-item"
+        type="button"
+        data-view="tools"
+        onclick="navigateTo('tools')">
+
+        <i class="fa-solid fa-toolbox"></i>
+
+        <span>
+            Tools
+        </span>
+
+    </button>
+
+
+    <!-- PROFILE -->
+    <button
+        class="nav-item"
+        type="button"
+        data-view="profile"
+        onclick="navigateTo('profile')">
+
+        <i class="fa-solid fa-user"></i>
+
+        <span>
+            Profile
+        </span>
+
+    </button>
+
+      </nav>
+      <!-- =========================================================
+     PART 3 — AI CHAT SCREEN
+========================================================= -->
+
+<section id="chatView" class="view">
+
+    <!-- HEADER -->
+    <div class="header">
+
+        <div class="brand">
+
+            <div class="logo">
+                <i class="fa-solid fa-robot"></i>
+            </div>
+
+            <div>
+
+                <div class="title">
+                    AI Chat
+                </div>
+
+                <div class="subtitle">
+                    Engineer AI Assistant
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="pill online">
+
+            <i
+                class="fa-solid fa-circle"
+                style="font-size:6px;">
+            </i>
+
+            AI Ready
+
+        </div>
+
+    </div>
+
+
+    <!-- CHAT INTRO -->
+    <div
+        id="chatWelcome"
+        class="hero"
+        style="margin-bottom:12px;">
+
+        <h1>
+            How can I help? 🤖
+        </h1>
+
+        <p>
+            Ask me about programming, system design,
+            debugging, security, algorithms, AI,
+            operating systems or engineering.
+        </p>
+
+    </div>
+
+
+    <!-- CHAT MESSAGES -->
+    <div
+        id="chatMessages"
+        class="list"
+        style="gap:10px;">
+
+        <!-- USER MESSAGE EXAMPLE -->
+
+        <div
+            class="list-row"
+            style="
+                align-items:flex-start;
+                background:#0b1425;
+            ">
+
+            <div
+                class="list-icon"
+                style="color:var(--accent);">
+
+                <i class="fa-solid fa-robot"></i>
+
+            </div>
+
+            <div class="list-info">
+
+                <b>
+                    Engineer AI
+                </b>
+
+                <small
+                    style="
+                        white-space:normal;
+                        overflow:visible;
+                    ">
+
+                    Welcome! Ask me anything about
+                    engineering or coding.
+
+                </small>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- CHAT RESULT -->
+    <div
+        id="chatLoading"
+        class="result"
+        style="display:none;">
+
+        <div class="loading">
+
+            <span></span>
+            <span></span>
+            <span></span>
+
+            <span style="margin-left:4px;">
+                Engineer AI is thinking...
+            </span>
+
+        </div>
+
+    </div>
+
+
+    <!-- CHAT COMPOSER -->
+    <div
+        class="composer"
+        style="
+            position:sticky;
+            bottom:0;
+            margin-top:12px;
+            z-index:10;
+        ">
+
+        <button
+            class="icon-btn"
+            type="button"
+            onclick="showToast('Voice input coming soon')"
+            aria-label="Voice input">
+
+            <i class="fa-solid fa-microphone"></i>
+
+        </button>
+
+
+        <input
+            id="chatInput"
+            type="text"
+            placeholder="Message Engineer AI..."
+            autocomplete="off"
+            onkeydown="
+                if(event.key === 'Enter'){
+                    sendChat();
+                }
+            "
+        >
+
+
+        <button
+            id="chatSend"
+            class="send"
+            type="button"
+            onclick="sendChat()"
+            aria-label="Send message">
+
+            <i class="fa-solid fa-arrow-up"></i>
+
+        </button>
+
+    </div>
+
+
+    <!-- QUICK PROMPTS -->
+    <div
+        class="section-title"
+        style="margin-top:14px;">
+
+        <h2>
+            Quick Prompts
+        </h2>
+
+    </div>
+
+
+    <div class="grid">
+
+        <div
+            class="card"
+            onclick="useChatPrompt('Explain this code to me')">
+
+            <i class="fa-solid fa-lightbulb"></i>
+
+            <h3>
+                Explain Code
+            </h3>
+
+            <p>
+                Understand how code works.
+            </p>
+
+        </div>
+
+
+        <div
+            class="card"
+            onclick="useChatPrompt('Find bugs in my code')">
+
+            <i class="fa-solid fa-bug"></i>
+
+            <h3>
+                Find Bugs
+            </h3>
+
+            <p>
+                Analyze code and identify problems.
+            </p>
+
+        </div>
+
+
+        <div
+            class="card"
+            onclick="useChatPrompt('Design a software architecture')">
+
+            <i class="fa-solid fa-diagram-project"></i>
+
+            <h3>
+                Architecture
+            </h3>
+
+            <p>
+                Design scalable systems.
+            </p>
+
+        </div>
+
+
+        <div
+            class="card"
+            onclick="useChatPrompt('Review my code for security issues')">
+
+            <i class="fa-solid fa-shield-halved"></i>
+
+            <h3>
+                Security Review
+            </h3>
+
+            <p>
+                Find common security problems.
+            </p>
+
+        </div>
+
+    </div>
+
+
+    <!-- CHAT ACTIONS -->
+    <div
+        style="
+            display:flex;
+            gap:8px;
+            margin-top:12px;
+            flex-wrap:wrap;
+        ">
+
+        <button
+            class="secondary"
+            type="button"
+            onclick="clearChat()">
+
+            <i class="fa-solid fa-trash"></i>
+            Clear Chat
+
+        </button>
+
+
+        <button
+            class="secondary"
+            type="button"
+            onclick="showToast('Chat history feature coming soon')">
+
+            <i class="fa-solid fa-clock-rotate-left"></i>
+            History
+
+        </button>
+
+    </div>
+
+
+    <div style="height:10px;"></div>
+
+</section>
+<!-- =========================================================
+     PART 4 — CODE STUDIO
+========================================================= -->
+
+<section id="codeView" class="view">
+
+    <!-- HEADER -->
+    <div class="header">
+
+        <div class="brand">
+
+            <div class="logo">
+                <i class="fa-solid fa-code"></i>
+            </div>
+
+            <div>
+
+                <div class="title">
+                    Code Studio
+                </div>
+
+                <div class="subtitle">
+                    AI-Powered Development Workspace
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="pill online">
+
+            <i
+                class="fa-solid fa-circle"
+                style="font-size:6px;">
+            </i>
+
+            Ready
+
+        </div>
+
+    </div>
+
+
+    <!-- PROJECT / FILE BAR -->
+    <div
+        class="list-row"
+        style="
+            justify-content:space-between;
+            margin-bottom:10px;
+        ">
+
+        <div
+            style="
+                display:flex;
+                align-items:center;
+                gap:9px;
+                min-width:0;
+            ">
+
+            <div class="list-icon">
+
+                <i class="fa-brands fa-python"></i>
+
+            </div>
+
+            <div class="list-info">
+
+                <b id="currentFileName">
+                    main.py
+                </b>
+
+                <small id="currentLanguage">
+                    Python
+                </small>
+
+            </div>
+
+        </div>
+
+
+        <button
+            class="secondary"
+            type="button"
+            onclick="newFile()">
+
+            <i class="fa-solid fa-plus"></i>
+            New
+
+        </button>
+
+    </div>
+
+
+    <!-- EDITOR -->
+    <div
+        class="result"
+        style="
+            padding:0;
+            overflow:hidden;
+        ">
+
+        <!-- EDITOR HEADER -->
+        <div
+            style="
+                display:flex;
+                align-items:center;
+                justify-content:space-between;
+                padding:10px 12px;
+                background:#0b1424;
+                border-bottom:1px solid var(--line);
+            ">
+
+            <div
+                style="
+                    display:flex;
+                    align-items:center;
+                    gap:7px;
+                ">
+
+                <span
+                    style="
+                        width:8px;
+                        height:8px;
+                        border-radius:50%;
+                        background:var(--green);
+                    ">
+                </span>
+
+                <span
+                    style="
+                        font-size:10px;
+                        color:var(--muted);
+                    ">
+
+                    Editor
+
+                </span>
+
+            </div>
+
+
+            <span
+                id="editorStatus"
+                class="badge green">
+
+                Saved
+
+            </span>
+
+        </div>
+
+
+        <!-- CODE AREA -->
+        <div
+            style="
+                display:grid;
+                grid-template-columns:42px minmax(0,1fr);
+                background:#050a12;
+                min-height:280px;
+            ">
+
+            <!-- LINE NUMBERS -->
+            <div
+                id="lineNumbers"
+                style="
+                    padding:12px 8px;
+                    text-align:right;
+                    color:#4e607b;
+                    border-right:1px solid #18253b;
+                    font-family:monospace;
+                    font-size:11px;
+                    line-height:1.65;
+                    white-space:pre;
+                    user-select:none;
+                ">
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+            </div>
+
+
+            <!-- CODE INPUT -->
+            <textarea
+                id="codeEditor"
+                spellcheck="false"
+                autocomplete="off"
+                autocapitalize="off"
+                autocorrect="off"
+                style="
+                    width:100%;
+                    min-height:280px;
+                    padding:12px;
+                    resize:vertical;
+                    border:none;
+                    outline:none;
+                    color:#dbe7ff;
+                    background:#050a12;
+                    font-family:
+                        "SFMono-Regular",
+                        Consolas,
+                        "Liberation Mono",
+                        monospace;
+                    font-size:11px;
+                    line-height:1.65;
+                "
+                oninput="updateLineNumbers()"
+                onkeydown="handleEditorKey(event)"
+>def greet(name):
+    return "Hello, " + name
+
+name = "Developer"
+
+print(greet(name))</textarea>
+
+        </div>
+
+    </div>
+
+
+    <!-- EDITOR ACTIONS -->
+    <div
+        style="
+            display:flex;
+            gap:8px;
+            margin-top:10px;
+            flex-wrap:wrap;
+        ">
+
+        <button
+            id="runCodeButton"
+            class="primary"
+            type="button"
+            onclick="runCode()">
+
+            <i class="fa-solid fa-play"></i>
+            Run Code
+
+        </button>
+
+
+        <button
+            class="secondary"
+            type="button"
+            onclick="saveCurrentCode()">
+
+            <i class="fa-solid fa-floppy-disk"></i>
+            Save
+
+        </button>
+
+
+        <button
+            class="secondary"
+            type="button"
+            onclick="formatCode()">
+
+            <i class="fa-solid fa-wand-magic-sparkles"></i>
+            Format
+
+        </button>
+
+    </div>
+
+
+    <!-- EXECUTION OUTPUT -->
+    <div class="section-title">
+
+        <h2>
+            Execution Output
+        </h2>
+
+        <span id="executionStatus">
+            Ready
+        </span>
+
+    </div>
+
+
+    <div
+        id="executionOutput"
+        class="result">
+
+        <span style="color:var(--muted);">
+            Run your code to see the output here.
+        </span>
+
+    </div>
+
+
+    <!-- AI CODING ASSISTANT -->
+    <div class="section-title">
+
+        <h2>
+            AI Coding Assistant
+        </h2>
+
+        <span>
+            Engineer AI
+        </span>
+
+    </div>
+
+
+    <div class="composer">
+
+        <input
+            id="codeAiInput"
+            type="text"
+            placeholder="Ask AI about your code..."
+            autocomplete="off"
+            onkeydown="
+                if(event.key === 'Enter'){
+                    askCodeAI();
+                }
+            "
+        >
+
+        <button
+            id="codeAiSend"
+            class="send"
+            type="button"
+            onclick="askCodeAI()"
+            aria-label="Ask AI">
+
+            <i class="fa-solid fa-arrow-up"></i>
+
+        </button>
+
+    </div>
+
+
+    <div
+        id="codeAiResult"
+        class="result"
+        style="display:none;">
+    </div>
+
+
+    <!-- AI ACTIONS -->
+    <div
+        style="
+            display:grid;
+            grid-template-columns:
+                repeat(2,minmax(0,1fr));
+            gap:8px;
+            margin-top:10px;
+        ">
+
+        <button
+            class="secondary"
+            type="button"
+            onclick="
+                askCodeQuick(
+                    'Explain this code step by step'
+                )
+            ">
+
+            <i class="fa-solid fa-lightbulb"></i>
+            Explain
+
+        </button>
+
+
+        <button
+            class="secondary"
+            type="button"
+            onclick="
+                askCodeQuick(
+                    'Find bugs and possible fixes'
+                )
+            ">
+
+            <i class="fa-solid fa-bug"></i>
+            Find Bugs
+
+        </button>
+
+
+        <button
+            class="secondary"
+            type="button"
+            onclick="
+                askCodeQuick(
+                    'Improve the performance of this code'
+                )
+            ">
+
+            <i class="fa-solid fa-gauge-high"></i>
+            Optimize
+
+        </button>
+
+
+        <button
+            class="secondary"
+            type="button"
+            onclick="
+                askCodeQuick(
+                    'Review this code for security problems'
+                )
+            ">
+
+            <i class="fa-solid fa-shield-halved"></i>
+            Security
+
+        </button>
+
+    </div>
+
+
+    <!-- TERMINAL -->
+    <div class="section-title">
+
+        <h2>
+            Terminal
+        </h2>
+
+        <span>
+            Safe Mode
+        </span>
+
+    </div>
+
+
+    <div
+        class="result"
+        style="
+            padding:0;
+            overflow:hidden;
+        ">
+
+        <div
+            style="
+                padding:8px 11px;
+                background:#0b1424;
+                border-bottom:1px solid var(--line);
+                font-family:monospace;
+                font-size:9px;
+                color:var(--muted);
+            ">
+
+            Engineer AI Terminal
+
+        </div>
+
+
+        <div
+            id="terminalOutput"
+            style="
+                min-height:130px;
+                max-height:220px;
+                overflow:auto;
+                padding:11px;
+                background:#03070d;
+                color:#b9c8df;
+                font-family:monospace;
+                font-size:10px;
+                line-height:1.6;
+                white-space:pre-wrap;
+            ">Engineer AI terminal ready.
+Type "help" to see supported commands.</div>
+
+
+        <div
+            style="
+                display:flex;
+                align-items:center;
+                gap:6px;
+                padding:8px;
+                border-top:1px solid var(--line);
+                background:#070d17;
+            ">
+
+            <span
+                style="
+                    color:var(--green);
+                    font-family:monospace;
+                    font-size:10px;
+                ">
+                $
+            </span>
+
+
+            <input
+                id="terminalInput"
+                type="text"
+                placeholder="Enter command..."
+                autocomplete="off"
+                style="
+                    flex:1;
+                    min-width:0;
+                    border:none;
+                    outline:none;
+                    color:var(--text);
+                    background:transparent;
+                    font-family:monospace;
+                    font-size:10px;
+                "
+                onkeydown="
+                    if(event.key === 'Enter'){
+                        executeTerminalCommand();
+                    }
+                "
+            >
+
+
+            <button
+                class="icon-btn"
+                type="button"
+                onclick="executeTerminalCommand()"
+                aria-label="Execute command">
+
+                <i class="fa-solid fa-terminal"></i>
+
+            </button>
+
+        </div>
+
+    </div>
+
+
+    <!-- CODE FILE ACTIONS -->
+    <div
+        style="
+            display:flex;
+            gap:8px;
+            margin-top:12px;
+            flex-wrap:wrap;
+        ">
+
+        <button
+            class="secondary"
+            type="button"
+            onclick="showToast('File upload coming soon')">
+
+            <i class="fa-solid fa-upload"></i>
+            Import File
+
+        </button>
+
+
+        <button
+            class="secondary"
+            type="button"
+            onclick="downloadCurrentCode()">
+
+            <i class="fa-solid fa-download"></i>
+            Export
+
+        </button>
+
+    </div>
+
+
+    <div style="height:10px;"></div>
+
+              </section>
+              <!-- =========================================================
+     PART 5 — DEBUGGER + CODE REVIEW + SECURITY
+========================================================= -->
+
+
+<!-- =========================================================
+     DEBUGGER
+========================================================= -->
+
+<section id="debuggerView" class="view">
+
+    <!-- HEADER -->
+    <div class="header">
+
+        <div class="brand">
+
+            <div class="logo">
+                <i class="fa-solid fa-bug"></i>
+            </div>
+
+            <div>
+
+                <div class="title">
+                    Debugger
+                </div>
+
+                <div class="subtitle">
+                    AI Error Analysis
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="pill">
+            Smart Debug
+        </div>
+
+    </div>
+
+
+    <!-- INTRO -->
+    <div class="hero">
+
+        <h1>
+            Find the problem. 🔎
+        </h1>
+
+        <p>
+            Paste your code or error message and
+            Engineer AI will analyze the problem,
+            explain the cause and suggest fixes.
+        </p>
+
+    </div>
+
+
+    <!-- ERROR INPUT -->
+    <div class="form">
+
+        <div class="label">
+            Error Message
+        </div>
+
+        <textarea
+            id="debugError"
+            class="field"
+            placeholder="Paste the error message here..."
+        ></textarea>
+
+
+        <div class="label">
+            Code
+        </div>
+
+        <textarea
+            id="debugCode"
+            class="field"
+            placeholder="Paste the code that caused the error..."
+        ></textarea>
+
+
+        <div class="label">
+            Programming Language
+        </div>
+
+        <select
+            id="debugLanguage"
+            class="field">
+
+            <option value="Python">
+                Python
+            </option>
+
+            <option value="JavaScript">
+                JavaScript
+            </option>
+
+            <option value="TypeScript">
+                TypeScript
+            </option>
+
+            <option value="C">
+                C
+            </option>
+
+            <option value="C++">
+                C++
+            </option>
+
+            <option value="Java">
+                Java
+            </option>
+
+            <option value="Go">
+                Go
+            </option>
+
+            <option value="Rust">
+                Rust
+            </option>
+
+        </select>
+
+
+        <button
+            id="debugButton"
+            class="primary"
+            type="button"
+            onclick="runDebugger()">
+
+            <i class="fa-solid fa-magnifying-glass"></i>
+            Analyze Error
+
+        </button>
+
+    </div>
+
+
+    <!-- DEBUG RESULT -->
+    <div
+        id="debugResult"
+        class="result"
+        style="display:none;">
+    </div>
+
+
+    <!-- DEBUG ACTIONS -->
+    <div
+        style="
+            display:grid;
+            grid-template-columns:
+                repeat(2,minmax(0,1fr));
+            gap:8px;
+            margin-top:10px;
+        ">
+
+        <button
+            class="secondary"
+            type="button"
+            onclick="loadDebugExample()">
+
+            <i class="fa-solid fa-flask"></i>
+            Example
+
+        </button>
+
+
+        <button
+            class="secondary"
+            type="button"
+            onclick="clearDebugger()">
+
+            <i class="fa-solid fa-eraser"></i>
+            Clear
+
+        </button>
+
+    </div>
+
+
+    <!-- DEBUG CHECKLIST -->
+    <div class="section-title">
+
+        <h2>
+            Debugging Checks
+        </h2>
+
+        <span>
+            AI Analysis
+        </span>
+
+    </div>
+
+
+    <div class="list">
+
+        <div class="list-row">
+
+            <div class="list-icon">
+                <i class="fa-solid fa-circle-check"></i>
+            </div>
+
+            <div class="list-info">
+
+                <b>
+                    Syntax Analysis
+                </b>
+
+                <small>
+                    Check for syntax and parsing problems.
+                </small>
+
+            </div>
+
+        </div>
+
+
+        <div class="list-row">
+
+            <div class="list-icon">
+                <i class="fa-solid fa-code"></i>
+            </div>
+
+            <div class="list-info">
+
+                <b>
+                    Logic Analysis
+                </b>
+
+                <small>
+                    Look for incorrect program behavior.
+                </small>
+
+            </div>
+
+        </div>
+
+
+        <div class="list-row">
+
+            <div class="list-icon">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+
+            <div class="list-info">
+
+                <b>
+                    Runtime Analysis
+                </b>
+
+                <small>
+                    Identify likely runtime failures.
+                </small>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <div style="height:10px;"></div>
+
+</section>
+
+
+
+<!-- =========================================================
+     CODE REVIEW + SECURITY
+========================================================= -->
+
+<section id="reviewView" class="view">
+
+    <!-- HEADER -->
+    <div class="header">
+
+        <div class="brand">
+
+            <div class="logo">
+                <i class="fa-solid fa-shield-halved"></i>
+            </div>
+
+            <div>
+
+                <div class="title">
+                    Code Review
+                </div>
+
+                <div class="subtitle">
+                    Quality • Security • Performance
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="pill">
+            AI Review
+        </div>
+
+    </div>
+
+
+    <!-- INTRO -->
+    <div class="hero">
+
+        <h1>
+            Review your code. 🛡️
+        </h1>
+
+        <p>
+            Engineer AI can inspect your code for
+            quality problems, security risks,
+            performance issues and maintainability.
+        </p>
+
+    </div>
+
+
+    <!-- REVIEW TYPE -->
+    <div class="section-title">
+
+        <h2>
+            Review Type
+        </h2>
+
+    </div>
+
+
+    <div
+        style="
+            display:grid;
+            grid-template-columns:
+                repeat(2,minmax(0,1fr));
+            gap:8px;
+        ">
+
+
+        <button
+            id="reviewTab"
+            class="secondary"
+            type="button"
+            data-review-mode="review"
+            onclick="setReviewMode('review')">
+
+            <i class="fa-solid fa-code"></i>
+            Code Review
+
+        </button>
+
+
+        <button
+            id="securityTab"
+            class="secondary"
+            type="button"
+            data-review-mode="security"
+            onclick="setReviewMode('security')">
+
+            <i class="fa-solid fa-shield"></i>
+            Security
+
+        </button>
+
+
+        <button
+            id="performanceTab"
+            class="secondary"
+            type="button"
+            data-review-mode="performance"
+            onclick="setReviewMode('performance')">
+
+            <i class="fa-solid fa-gauge-high"></i>
+            Performance
+
+        </button>
+
+
+        <button
+            class="secondary"
+            type="button"
+            data-review-mode="all"
+            onclick="setReviewMode('all')">
+
+            <i class="fa-solid fa-layer-group"></i>
+            Full Review
+
+        </button>
+
+    </div>
+
+
+    <!-- REVIEW FORM -->
+    <div
+        class="form"
+        style="margin-top:12px;">
+
+        <div class="label">
+            File Name
+        </div>
+
+        <input
+            id="reviewFileName"
+            class="field"
+            type="text"
+            value="main.py"
+            placeholder="example.py"
+        >
+
+
+        <div class="label">
+            Code
+        </div>
+
+        <textarea
+            id="reviewCode"
+            class="field"
+            style="min-height:220px;"
+            placeholder="Paste your code here..."
+        ></textarea>
+
+
+        <button
+            id="reviewButton"
+            class="primary"
+            type="button"
+            onclick="runCodeReview()">
+
+            <i class="fa-solid fa-wand-magic-sparkles"></i>
+            Run AI Review
+
+        </button>
+
+    </div>
+
+
+    <!-- REVIEW RESULT -->
+    <div
+        id="reviewResult"
+        class="result"
+        style="display:none;">
+    </div>
+
+
+    <!-- STATIC SECURITY SCANNER -->
+    <div class="section-title">
+
+        <h2>
+            Security Scanner
+        </h2>
+
+        <span>
+            Static Analysis
+        </span>
+
+    </div>
+
+
+    <div
+        class="list-row">
+
+        <div class="list-icon">
+
+            <i class="fa-solid fa-lock"></i>
+
+        </div>
+
+
+        <div class="list-info">
+
+            <b>
+                Quick Security Scan
+            </b>
+
+            <small>
+                Detect common unsafe coding patterns.
+            </small>
+
+        </div>
+
+
+        <button
+            class="secondary"
+            type="button"
+            onclick="runSecurityScan()">
+
+            Scan
+
+        </button>
+
+    </div>
+
+
+    <div
+        id="securityResult"
+        class="result"
+        style="display:none;">
+    </div>
+
+
+    <!-- QUICK PERFORMANCE SCAN -->
+    <div class="section-title">
+
+        <h2>
+            Performance Analyzer
+        </h2>
+
+        <span>
+            Static Analysis
+        </span>
+
+    </div>
+
+
+    <div
+        class="list-row">
+
+        <div class="list-icon">
+
+            <i class="fa-solid fa-gauge-high"></i>
+
+        </div>
+
+
+        <div class="list-info">
+
+            <b>
+                Quick Performance Scan
+            </b>
+
+            <small>
+                Find likely bottlenecks and inefficiencies.
+            </small>
+
+        </div>
+
+
+        <button
+            class="secondary"
+            type="button"
+            onclick="runPerformanceAnalysis()">
+
+            Analyze
+
+        </button>
+
+    </div>
+
+
+    <div
+        id="performanceResult"
+        class="result"
+        style="display:none;">
+    </div>
+
+
+    <!-- REVIEW SUMMARY -->
+    <div class="section-title">
+
+        <h2>
+            What We Check
+        </h2>
+
+    </div>
+
+
+    <div class="grid">
+
+        <div class="card">
+
+            <i class="fa-solid fa-bug"></i>
+
+            <h3>
+                Bugs
+            </h3>
+
+            <p>
+                Potential errors and incorrect logic.
+            </p>
+
+        </div>
+
+
+        <div class="card">
+
+            <i class="fa-solid fa-shield-halved"></i>
+
+            <h3>
+                Security
+            </h3>
+
+            <p>
+                Common security vulnerabilities.
+            </p>
+
+        </div>
+
+
+        <div class="card">
+
+            <i class="fa-solid fa-gauge-high"></i>
+
+            <h3>
+                Performance
+            </h3>
+
+            <p>
+                Inefficient code and bottlenecks.
+            </p>
+
+        </div>
+
+
+        <div class="card">
+
+            <i class="fa-solid fa-screwdriver-wrench"></i>
+
+            <h3>
+                Maintainability
+            </h3>
+
+            <p>
+                Code quality and long-term maintainability.
+            </p>
+
+        </div>
+
+    </div>
+
+
+    <div style="height:10px;"></div>
+
+      </section>
+<!-- =========================================================
+     PART 6 — AI AGENTS
+========================================================= -->
+
+<section id="agentsView" class="view">
+
+    <!-- HEADER -->
+    <div class="header">
+
+        <div class="brand">
+
+            <div class="logo">
+                <i class="fa-solid fa-robot"></i>
+            </div>
+
+            <div>
+
+                <div class="title">
+                    AI Agents
+                </div>
+
+                <div class="subtitle">
+                    Multi-Agent Engineering
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="pill">
+            6 Agents
+        </div>
+
+    </div>
+
+
+    <!-- INTRO -->
+    <div class="hero">
+
+        <h1>
+            Build with a team of AI agents. 🤖
+        </h1>
+
+        <p>
+            Give Engineer AI an engineering task and
+            let specialized agents analyze, code,
+            debug, test, research and document it.
+        </p>
+
+    </div>
+
+
+    <!-- TASK INPUT -->
+    <div class="form">
+
+        <div class="label">
+            Engineering Task
+        </div>
+
+        <textarea
+            id="agentTask"
+            class="field"
+            style="min-height:140px;"
+            placeholder="Example: Build a Python REST API with authentication..."
+        ></textarea>
+
+
+        <div class="label">
+            Agent
+        </div>
+
+        <select
+            id="agentType"
+            class="field">
+
+            <option value="code">
+                Code Agent
+            </option>
+
+            <option value="research">
+                Research Agent
+            </option>
+
+            <option value="debug">
+                Debug Agent
+            </option>
+
+            <option value="test">
+                Test Agent
+            </option>
+
+            <option value="documentation">
+                Documentation Agent
+            </option>
+
+            <option value="design">
+                Design Agent
+            </option>
+
+            <option value="all">
+                Full Engineering Team
+            </option>
+
+        </select>
+
+
+        <div
+            style="
+                display:grid;
+                grid-template-columns:
+                    repeat(2,minmax(0,1fr));
+                gap:8px;
+            ">
+
+            <button
+                id="agentRunButton"
+                class="primary"
+                type="button"
+                onclick="runAgent()">
+
+                <i class="fa-solid fa-play"></i>
+                Run Agent
+
+            </button>
+
+
+            <button
+                class="secondary"
+                type="button"
+                onclick="clearAgentTask()">
+
+                <i class="fa-solid fa-eraser"></i>
+                Clear
+
+            </button>
+
+        </div>
+
+    </div>
+
+
+    <!-- AGENT RESULT -->
+    <div
+        id="agentResult"
+        class="result"
+        style="display:none;">
+    </div>
+
+
+    <!-- AGENT TEAM -->
+    <div class="section-title">
+
+        <h2>
+            Engineering Team
+        </h2>
+
+        <span>
+            Specialized AI
+        </span>
+
+    </div>
+
+
+    <div class="grid">
+
+        <!-- CODE AGENT -->
+        <div
+            class="card"
+            onclick="selectAgent('code')">
+
+            <i class="fa-solid fa-code"></i>
+
+            <h3>
+                Code Agent
+            </h3>
+
+            <p>
+                Writes and improves engineering code.
+            </p>
+
+        </div>
+
+
+        <!-- RESEARCH AGENT -->
+        <div
+            class="card"
+            onclick="selectAgent('research')">
+
+            <i class="fa-solid fa-magnifying-glass"></i>
+
+            <h3>
+                Research Agent
+            </h3>
+
+            <p>
+                Researches technical concepts and solutions.
+            </p>
+
+        </div>
+
+
+        <!-- DEBUG AGENT -->
+        <div
+            class="card"
+            onclick="selectAgent('debug')">
+
+            <i class="fa-solid fa-bug"></i>
+
+            <h3>
+                Debug Agent
+            </h3>
+
+            <p>
+                Finds bugs and explains possible fixes.
+            </p>
+
+        </div>
+
+
+        <!-- TEST AGENT -->
+        <div
+            class="card"
+            onclick="selectAgent('test')">
+
+            <i class="fa-solid fa-vial"></i>
+
+            <h3>
+                Test Agent
+            </h3>
+
+            <p>
+                Creates tests and checks expected behavior.
+            </p>
+
+        </div>
+
+
+        <!-- DOCUMENTATION AGENT -->
+        <div
+            class="card"
+            onclick="selectAgent('documentation')">
+
+            <i class="fa-solid fa-book"></i>
+
+            <h3>
+                Documentation Agent
+            </h3>
+
+            <p>
+                Creates technical documentation and guides.
+            </p>
+
+        </div>
+
+
+        <!-- DESIGN AGENT -->
+        <div
+            class="card"
+            onclick="selectAgent('design')">
+
+            <i class="fa-solid fa-palette"></i>
+
+            <h3>
+                Design Agent
+            </h3>
+
+            <p>
+                Plans architecture, interfaces and system structure.
+            </p>
+
+        </div>
+
+    </div>
+
+
+    <!-- WORKFLOW -->
+    <div class="section-title">
+
+        <h2>
+            Agent Workflow
+        </h2>
+
+        <span>
+            How it works
+        </span>
+
+    </div>
+
+
+    <div class="list">
+
+        <div class="list-row">
+
+            <div class="list-icon">
+                <i class="fa-solid fa-1"></i>
+            </div>
+
+            <div class="list-info">
+
+                <b>
+                    Understand
+                </b>
+
+                <small>
+                    Analyze the engineering task and requirements.
+                </small>
+
+            </div>
+
+        </div>
+
+
+        <div class="list-row">
+
+            <div class="list-icon">
+                <i class="fa-solid fa-2"></i>
+            </div>
+
+            <div class="list-info">
+
+                <b>
+                    Plan
+                </b>
+
+                <small>
+                    Break the task into useful engineering steps.
+                </small>
+
+            </div>
+
+        </div>
+
+
+        <div class="list-row">
+
+            <div class="list-icon">
+                <i class="fa-solid fa-3"></i>
+            </div>
+
+            <div class="list-info">
+
+                <b>
+                    Execute
+                </b>
+
+                <small>
+                    Specialized agents work on the task.
+                </small>
+
+            </div>
+
+        </div>
+
+
+        <div class="list-row">
+
+            <div class="list-icon">
+                <i class="fa-solid fa-4"></i>
+            </div>
+
+            <div class="list-info">
+
+                <b>
+                    Verify
+                </b>
+
+                <small>
+                    Review results and identify possible problems.
+                </small>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- FULL TEAM -->
+    <div class="section-title">
+
+        <h2>
+            Full Engineering Team
+        </h2>
+
+    </div>
+
+
+    <div class="hero">
+
+        <h1 style="font-size:18px;">
+            One task. Multiple agents. ⚡
+        </h1>
+
+        <p>
+            Full Engineering Team lets Engineer AI
+            coordinate multiple specialized agents
+            for a larger engineering workflow.
+        </p>
+
+
+        <button
+            class="primary"
+            type="button"
+            onclick="selectFullTeam()">
+
+            <i class="fa-solid fa-users"></i>
+            Use Full Team
+
+        </button>
+
+    </div>
+
+
+    <div style="height:10px;"></div>
+
+                    </section>
+<!-- =========================================================
+     PART 7 — PROJECTS + TOOLS
+========================================================= -->
+
+
+<!-- =========================================================
+     PROJECTS
+========================================================= -->
+
+<section id="projectsView" class="view">
+
+    <!-- HEADER -->
+    <div class="header">
+
+        <div class="brand">
+
+            <div class="logo">
+                <i class="fa-solid fa-folder-open"></i>
+            </div>
+
+            <div>
+
+                <div class="title">
+                    Projects
+                </div>
+
+                <div class="subtitle">
+                    Manage Your Engineering Projects
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="pill">
+            Workspace
+        </div>
+
+    </div>
+
+
+    <!-- INTRO -->
+    <div class="hero">
+
+        <h1>
+            Your projects. Your workspace. 🚀
+        </h1>
+
+        <p>
+            Create projects, organize source files,
+            analyze your code and use Engineer AI
+            to understand and improve your work.
+        </p>
+
+    </div>
+
+
+    <!-- PROJECT SEARCH -->
+    <div class="composer">
+
+        <i class="fa-solid fa-magnifying-glass"></i>
+
+        <input
+            id="projectSearch"
+            type="search"
+            placeholder="Search projects..."
+            oninput="filterProjects()"
+        >
+
+        <button
+            class="send"
+            type="button"
+            onclick="createProject()"
+            title="Create Project">
+
+            <i class="fa-solid fa-plus"></i>
+
+        </button>
+
+    </div>
+
+
+    <!-- NEW PROJECT -->
+    <div
+        class="form"
+        style="margin-top:12px;">
+
+        <div class="label">
+            New Project
+        </div>
+
+        <input
+            id="projectName"
+            class="field"
+            type="text"
+            placeholder="Project name"
+        >
+
+        <select
+            id="projectLanguage"
+            class="field">
+
+            <option value="Python">
+                Python
+            </option>
+
+            <option value="JavaScript">
+                JavaScript
+            </option>
+
+            <option value="TypeScript">
+                TypeScript
+            </option>
+
+            <option value="C">
+                C
+            </option>
+
+            <option value="C++">
+                C++
+            </option>
+
+            <option value="Java">
+                Java
+            </option>
+
+            <option value="Go">
+                Go
+            </option>
+
+            <option value="Rust">
+                Rust
+            </option>
+
+            <option value="HTML">
+                HTML
+            </option>
+
+            <option value="Other">
+                Other
+            </option>
+
+        </select>
+
+        <button
+            class="primary"
+            type="button"
+            onclick="createProject()">
+
+            <i class="fa-solid fa-folder-plus"></i>
+            Create Project
+
+        </button>
+
+    </div>
+
+
+    <!-- PROJECT LIST -->
+    <div class="section-title">
+
+        <h2>
+            Your Projects
+        </h2>
+
+        <span id="projectCountLabel">
+            0 projects
+        </span>
+
+    </div>
+
+
+    <div
+        id="projectList"
+        class="list">
+
+        <!-- Projects are inserted by JavaScript -->
+
+    </div>
+
+
+    <!-- EMPTY PROJECT STATE -->
+    <div
+        id="projectEmpty"
+        class="empty"
+        style="display:none;">
+
+        <i class="fa-solid fa-folder-open"></i>
+
+        <h3>
+            No projects found
+        </h3>
+
+        <p>
+            Create your first engineering project
+            to get started.
+        </p>
+
+    </div>
+
+
+    <!-- PROJECT ACTIONS -->
+    <div class="section-title">
+
+        <h2>
+            Project Intelligence
+        </h2>
+
+        <span>
+            AI Tools
+        </span>
+
+    </div>
+
+
+    <div class="grid">
+
+        <div
+            class="card"
+            onclick="analyzeSelectedProject()">
+
+            <i class="fa-solid fa-brain"></i>
+
+            <h3>
+                Analyze
+            </h3>
+
+            <p>
+                Understand project structure and code.
+            </p>
+
+        </div>
+
+
+        <div
+            class="card"
+            onclick="showProjectStats()">
+
+            <i class="fa-solid fa-chart-column"></i>
+
+            <h3>
+                Statistics
+            </h3>
+
+            <p>
+                View files, lines and language statistics.
+            </p>
+
+        </div>
+
+
+        <div
+            class="card"
+            onclick="askProjectQuestion()">
+
+            <i class="fa-solid fa-comments"></i>
+
+            <h3>
+                Ask AI
+            </h3>
+
+            <p>
+                Ask questions about your project.
+            </p>
+
+        </div>
+
+
+        <div
+            class="card"
+            onclick="openProjectMemory()">
+
+            <i class="fa-solid fa-memory"></i>
+
+            <h3>
+                Project Memory
+            </h3>
+
+            <p>
+                Save useful project knowledge for AI.
+            </p>
+
+        </div>
+
+    </div>
+
+
+    <div
+        id="projectResult"
+        class="result"
+        style="display:none;">
+    </div>
+
+
+    <div style="height:10px;"></div>
+
+</section>
+
+
+
+<!-- =========================================================
+     TOOLS
+========================================================= -->
+
+<section id="toolsView" class="view">
+
+    <!-- HEADER -->
+    <div class="header">
+
+        <div class="brand">
+
+            <div class="logo">
+                <i class="fa-solid fa-toolbox"></i>
+            </div>
+
+            <div>
+
+                <div class="title">
+                    Tools
+                </div>
+
+                <div class="subtitle">
+                    Engineering Utilities
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="pill">
+            Engineer Toolkit
+        </div>
+
+    </div>
+
+
+    <!-- INTRO -->
+    <div class="hero">
+
+        <h1>
+            Your engineering toolbox. 🛠️
+        </h1>
+
+        <p>
+            Useful utilities for coding,
+            debugging, development and
+            everyday engineering work.
+        </p>
+
+    </div>
+
+
+    <!-- TOOL GRID -->
+    <div class="section-title">
+
+        <h2>
+            Developer Tools
+        </h2>
+
+    </div>
+
+
+    <div class="grid">
+
+        <!-- CALCULATOR -->
+        <div
+            class="card"
+            onclick="navigateTo('calculator')">
+
+            <i class="fa-solid fa-calculator"></i>
+
+            <h3>
+                Calculator
+            </h3>
+
+            <p>
+                Perform engineering calculations.
+            </p>
+
+        </div>
+
+
+        <!-- CONVERTER -->
+        <div
+            class="card"
+            onclick="openConverter()">
+
+            <i class="fa-solid fa-arrow-right-arrow-left"></i>
+
+            <h3>
+                Converter
+            </h3>
+
+            <p>
+                Convert common engineering units.
+            </p>
+
+        </div>
+
+
+        <!-- JSON -->
+        <div
+            class="card"
+            onclick="openJsonTool()">
+
+            <i class="fa-solid fa-code"></i>
+
+            <h3>
+                JSON Formatter
+            </h3>
+
+            <p>
+                Format and inspect JSON data.
+            </p>
+
+        </div>
+
+
+        <!-- REGEX -->
+        <div
+            class="card"
+            onclick="openRegexTool()">
+
+            <i class="fa-solid fa-filter"></i>
+
+            <h3>
+                Regex Tester
+            </h3>
+
+            <p>
+                Test regular expressions quickly.
+            </p>
+
+        </div>
+
+
+        <!-- TIMESTAMP -->
+        <div
+            class="card"
+            onclick="openTimestampTool()">
+
+            <i class="fa-solid fa-clock"></i>
+
+            <h3>
+                Timestamp
+            </h3>
+
+            <p>
+                Convert Unix timestamps and dates.
+            </p>
+
+        </div>
+
+
+        <!-- COLOR -->
+        <div
+            class="card"
+            onclick="openColorTool()">
+
+            <i class="fa-solid fa-palette"></i>
+
+            <h3>
+                Color Tool
+            </h3>
+
+            <p>
+                Inspect HEX, RGB and HSL values.
+            </p>
+
+        </div>
+
+    </div>
+
+
+    <!-- QUICK UTILITIES -->
+    <div class="section-title">
+
+        <h2>
+            Quick Utilities
+        </h2>
+
+    </div>
+
+
+    <div class="list">
+
+        <div class="list-row">
+
+            <div class="list-icon">
+                <i class="fa-solid fa-terminal"></i>
+            </div>
+
+            <div class="list-info">
+
+                <b>
+                    Safe Terminal
+                </b>
+
+                <small>
+                    Execute supported development commands.
+                </small>
+
+            </div>
+
+            <button
+                class="secondary"
+                type="button"
+                onclick="navigateTo('code')">
+
+                Open
+
+            </button>
+
+        </div>
+
+
+        <div class="list-row">
+
+            <div class="list-icon">
+                <i class="fa-solid fa-vial"></i>
+            </div>
+
+            <div class="list-info">
+
+                <b>
+                    Test Runner
+                </b>
+
+                <small>
+                    Run supported project tests.
+                </small>
+
+            </div>
+
+            <button
+                class="secondary"
+                type="button"
+                onclick="navigateTo('code')">
+
+                Open
+
+            </button>
+
+        </div>
+
+
+        <div class="list-row">
+
+            <div class="list-icon">
+                <i class="fa-solid fa-shield-halved"></i>
+            </div>
+
+            <div class="list-info">
+
+                <b>
+                    Security Scanner
+                </b>
+
+                <small>
+                    Scan code for common security risks.
+                </small>
+
+            </div>
+
+            <button
+                class="secondary"
+                type="button"
+                onclick="navigateTo('review')">
+
+                Scan
+
+            </button>
+
+        </div>
+
+
+        <div class="list-row">
+
+            <div class="list-icon">
+                <i class="fa-solid fa-gauge-high"></i>
+            </div>
+
+            <div class="list-info">
+
+                <b>
+                    Performance Analyzer
+                </b>
+
+                <small>
+                    Find common performance bottlenecks.
+                </small>
+
+            </div>
+
+            <button
+                class="secondary"
+                type="button"
+                onclick="navigateTo('review')">
+
+                Analyze
+
+            </button>
+
+        </div>
+
+    </div>
+
+
+    <!-- TOOL RESULT -->
+    <div
+        id="toolResult"
+        class="result"
+        style="display:none;">
+    </div>
+
+
+    <div style="height:10px;"></div>
+
+                </section>
+<!-- =========================================================
+     PART 8 — PROFILE + SETTINGS
+========================================================= -->
+
+
+<!-- =========================================================
+     PROFILE
+========================================================= -->
+
+<section id="profileView" class="view">
+
+    <!-- HEADER -->
+    <div class="header">
+
+        <div class="brand">
+
+            <div class="logo">
+                <i class="fa-solid fa-user"></i>
+            </div>
+
+            <div>
+
+                <div class="title">
+                    Profile
+                </div>
+
+                <div class="subtitle">
+                    Engineer AI Account
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="pill">
+            Developer
+        </div>
+
+    </div>
+
+
+    <!-- PROFILE HERO -->
+    <div class="hero">
+
+        <div
+            style="
+                width:76px;
+                height:76px;
+                border-radius:24px;
+                display:flex;
+                align-items:center;
+                justify-content:center;
+                margin:0 auto 14px;
+                background:linear-gradient(
+                    135deg,
+                    var(--accent),
+                    var(--accent2)
+                );
+                font-size:30px;
+                font-weight:800;
+            ">
+
+            <i class="fa-solid fa-user"></i>
+
+        </div>
+
+
+        <h1>
+            Engineer
+        </h1>
+
+        <p>
+            Build. Test. Debug. Create.
+        </p>
+
+    </div>
+
+
+    <!-- PROFILE STATS -->
+    <div class="stats">
+
+        <div class="stat">
+
+            <b id="profileProjects">
+                0
+            </b>
+
+            <span>
+                Projects
+            </span>
+
+        </div>
+
+
+        <div class="stat">
+
+            <b id="profileTasks">
+                0
+            </b>
+
+            <span>
+                Tasks
+            </span>
+
+        </div>
+
+
+        <div class="stat">
+
+            <b id="profileAgents">
+                0
+            </b>
+
+            <span>
+                Agents
+            </span>
+
+        </div>
+
+    </div>
+
+
+    <!-- ACCOUNT -->
+    <div class="section-title">
+
+        <h2>
+            Account
+        </h2>
+
+    </div>
+
+
+    <div class="list">
+
+        <div class="list-row">
+
+            <div class="list-icon">
+                <i class="fa-solid fa-id-card"></i>
+            </div>
+
+            <div class="list-info">
+
+                <b>
+                    Developer Profile
+                </b>
+
+                <small>
+                    Your Engineer AI developer workspace.
+                </small>
+
+            </div>
+
+        </div>
+
+
+        <div class="list-row">
+
+            <div class="list-icon">
+                <i class="fa-solid fa-chart-line"></i>
+            </div>
+
+            <div class="list-info">
+
+                <b>
+                    Usage & Analytics
+                </b>
+
+                <small>
+                    View engineering activity and AI usage.
+                </small>
+
+            </div>
+
+            <button
+                class="secondary"
+                type="button"
+                onclick="showAnalytics()">
+
+                View
+
+            </button>
+
+        </div>
+
+
+        <div class="list-row">
+
+            <div class="list-icon">
+                <i class="fa-solid fa-server"></i>
+            </div>
+
+            <div class="list-info">
+
+                <b>
+                    System Status
+                </b>
+
+                <small id="profileSystemStatus">
+                    Checking system...
+                </small>
+
+            </div>
+
+            <button
+                class="secondary"
+                type="button"
+                onclick="checkSystemStatus()">
+
+                Check
+
+            </button>
+
+        </div>
+
+    </div>
+
+
+    <!-- SETTINGS SHORTCUT -->
+    <div class="section-title">
+
+        <h2>
+            Preferences
+        </h2>
+
+    </div>
+
+
+    <div class="grid">
+
+        <div
+            class="card"
+            onclick="navigateTo('settings')">
+
+            <i class="fa-solid fa-gear"></i>
+
+            <h3>
+                Settings
+            </h3>
+
+            <p>
+                Customize Engineer AI.
+            </p>
+
+        </div>
+
+
+        <div
+            class="card"
+            onclick="showAbout()">
+
+            <i class="fa-solid fa-circle-info"></i>
+
+            <h3>
+                About
+            </h3>
+
+            <p>
+                Learn about Engineer AI.
+            </p>
+
+        </div>
+
+    </div>
+
+
+    <div
+        id="profileResult"
+        class="result"
+        style="display:none;">
+    </div>
+
+
+    <div style="height:10px;"></div>
+
+</section>
+
+
+
+<!-- =========================================================
+     SETTINGS
+========================================================= -->
+
+<section id="settingsView" class="view">
+
+    <!-- HEADER -->
+    <div class="header">
+
+        <button
+            class="secondary"
+            type="button"
+            onclick="navigateTo('profile')">
+
+            <i class="fa-solid fa-arrow-left"></i>
+
+        </button>
+
+
+        <div class="brand">
+
+            <div class="logo">
+                <i class="fa-solid fa-gear"></i>
+            </div>
+
+            <div>
+
+                <div class="title">
+                    Settings
+                </div>
+
+                <div class="subtitle">
+                    Engineer AI Preferences
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- APPEARANCE -->
+    <div class="section-title">
+
+        <h2>
+            Appearance
+        </h2>
+
+    </div>
+
+
+    <div class="form">
+
+        <div class="label">
+            Theme
+        </div>
+
+        <select
+            id="themeSelect"
+            class="field"
+            onchange="changeTheme()">
+
+            <option value="dark">
+                Dark
+            </option>
+
+            <option value="light">
+                Light
+            </option>
+
+        </select>
+
+
+        <div class="label">
+            Accent Color
+        </div>
+
+        <select
+            id="accentSelect"
+            class="field"
+            onchange="changeAccent()">
+
+            <option value="blue">
+                Blue
+            </option>
+
+            <option value="purple">
+                Purple
+            </option>
+
+            <option value="green">
+                Green
+            </option>
+
+            <option value="orange">
+                Orange
+            </option>
+
+        </select>
+
+
+        <div class="label">
+            Font Size
+        </div>
+
+        <select
+            id="fontSizeSelect"
+            class="field"
+            onchange="changeFontSize()">
+
+            <option value="14px">
+                Small
+            </option>
+
+            <option value="16px">
+                Normal
+            </option>
+
+            <option value="18px">
+                Large
+            </option>
+
+        </select>
+
+    </div>
+
+
+    <!-- AI SETTINGS -->
+    <div class="section-title">
+
+        <h2>
+            AI Settings
+        </h2>
+
+    </div>
+
+
+    <div class="form" style="margin-bottom:12px;">
+
+        <div class="label">
+            AI Provider
+        </div>
+
+        <select
+            id="aiProviderSelect"
+            class="field"
+            onchange="changeProvider()">
+
+            <option value="gemini">
+                Gemini
+            </option>
+
+            <option value="deepseek">
+                DeepSeek
+            </option>
+
+            <option value="kimi">
+                Kimi (Moonshot AI)
+            </option>
+
+        </select>
+
+        <small style="color:var(--muted);">
+            Used by Chat, Code AI, Debugger, Review, Security,
+            Performance and Agents. A provider with no API key
+            configured on the server will return an error when used.
+        </small>
+
+    </div>
+
+
+    <div class="list">
+
+        <div class="list-row">
+
+            <div class="list-icon">
+                <i class="fa-solid fa-brain"></i>
+            </div>
+
+            <div class="list-info">
+
+                <b>
+                    AI Suggestions
+                </b>
+
+                <small>
+                    Show helpful engineering suggestions.
+                </small>
+
+            </div>
+
+            <label class="switch">
+
+                <input
+                    id="aiSuggestionsToggle"
+                    type="checkbox"
+                    checked
+                    onchange="saveSettings()"
+                >
+
+                <span></span>
+
+            </label>
+
+        </div>
+
+
+        <div class="list-row">
+
+            <div class="list-icon">
+                <i class="fa-solid fa-clock-rotate-left"></i>
+            </div>
+
+            <div class="list-info">
+
+                <b>
+                    Project Memory
+                </b>
+
+                <small>
+                    Allow AI to use saved project context.
+                </small>
+
+            </div>
+
+            <label class="switch">
+
+                <input
+                    id="projectMemoryToggle"
+                    type="checkbox"
+                    checked
+                    onchange="saveSettings()"
+                >
+
+                <span></span>
+
+            </label>
+
+        </div>
+
+
+        <div class="list-row">
+
+            <div class="list-icon">
+                <i class="fa-solid fa-shield-halved"></i>
+            </div>
+
+            <div class="list-info">
+
+                <b>
+                    Security Checks
+                </b>
+
+                <small>
+                    Enable security checks during workflows.
+                </small>
+
+            </div>
+
+            <label class="switch">
+
+                <input
+                    id="securityToggle"
+                    type="checkbox"
+                    checked
+                    onchange="saveSettings()"
+                >
+
+                <span></span>
+
+            </label>
+
+        </div>
+
+    </div>
+
+
+    <!-- PRIVACY -->
+    <div class="section-title">
+
+        <h2>
+            Privacy
+        </h2>
+
+    </div>
+
+
+    <div class="list">
+
+        <div class="list-row">
+
+            <div class="list-icon">
+                <i class="fa-solid fa-database"></i>
+            </div>
+
+            <div class="list-info">
+
+                <b>
+                    Local Project Data
+                </b>
+
+                <small>
+                    Manage locally stored project information.
+                </small>
+
+            </div>
+
+            <button
+                class="secondary"
+                type="button"
+                onclick="clearLocalData()">
+
+                Clear
+
+            </button>
+
+        </div>
+
+
+        <div class="list-row">
+
+            <div class="list-icon">
+                <i class="fa-solid fa-trash"></i>
+            </div>
+
+            <div class="list-info">
+
+                <b>
+                    Clear Chat History
+                </b>
+
+                <small>
+                    Remove conversations stored in this browser.
+                </small>
+
+            </div>
+
+            <button
+                class="secondary"
+                type="button"
+                onclick="clearChat()">
+
+                Clear
+
+            </button>
+
+        </div>
+
+    </div>
+
+
+    <!-- SYSTEM -->
+    <div class="section-title">
+
+        <h2>
+            System
+        </h2>
+
+    </div>
+
+
+    <div class="list">
+
+        <div class="list-row">
+
+            <div class="list-icon">
+                <i class="fa-solid fa-server"></i>
+            </div>
+
+            <div class="list-info">
+
+                <b>
+                    Backend
+                </b>
+
+                <small id="settingsBackendStatus">
+                    Checking...
+                </small>
+
+            </div>
+
+            <button
+                class="secondary"
+                type="button"
+                onclick="checkSystemStatus()">
+
+                Refresh
+
+            </button>
+
+        </div>
+
+
+        <div class="list-row">
+
+            <div class="list-icon">
+                <i class="fa-solid fa-code-branch"></i>
+            </div>
+
+            <div class="list-info">
+
+                <b>
+                    Engineer AI Version
+                </b>
+
+                <small id="settingsVersion">
+                    v1.0
+                </small>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- SAVE -->
+    <div class="hero">
+
+        <h1 style="font-size:18px;">
+            Settings saved automatically. ⚡
+        </h1>
+
+        <p>
+            Your preferences are stored in this browser
+            and can be changed at any time.
+        </p>
+
+        <button
+            class="primary"
+            type="button"
+            onclick="saveSettings()">
+
+            <i class="fa-solid fa-check"></i>
+            Save Settings
+
+        </button>
+
+    </div>
+
+
+    <div
+        id="settingsResult"
+        class="result"
+        style="display:none;">
+    </div>
+
+
+    <div style="height:10px;"></div>
+
+        </section>
+<script>
+/* =========================================================
+   PART 9 — JAVASCRIPT + BACKEND INTEGRATION
+   1/3 — CORE ENGINE + NAVIGATION + HOME + CHAT + CODE
+========================================================= */
+
+const API_BASE = "";
+
+let currentView = "home";
+let selectedProjectId = null;
+let projects = [];
+let chatHistory = [];
+let reviewMode = "review";
+let terminalHistory = [];
+let calculatorExpression = "";
+
+
+/* =========================================================
+   BASIC HELPERS
+========================================================= */
+
+function $(id) {
+    return document.getElementById(id);
+}
+
+function show(id) {
+    const el = $(id);
+    if (el) el.style.display = "";
+}
+
+function hide(id) {
+    const el = $(id);
+    if (el) el.style.display = "none";
+}
+
+/* =========================================================
+   AUTO-REVEAL RESULT PANELS
+   Every *Result container (codeAiResult, debugResult,
+   reviewResult, securityResult, agentResult, projectResult,
+   toolResult, profileResult, settingsResult) starts hidden
+   with style="display:none" until it has something to show.
+   Rather than adding a reveal call to every single place that
+   writes into one of these (40+ call sites), watch each panel
+   and reveal it the moment it receives content, hide it again
+   if it's ever cleared back to empty.
+========================================================= */
+
+function autoRevealResultPanels() {
+    const ids = [
+        "codeAiResult",
+        "debugResult",
+        "reviewResult",
+        "securityResult",
+        "performanceResult",
+        "agentResult",
+        "projectResult",
+        "toolResult",
+        "profileResult",
+        "settingsResult"
+    ];
+
+    ids.forEach(id => {
+        const el = $(id);
+
+        if (!el) return;
+
+        const reveal = () => {
+            const hasContent =
+                el.textContent.trim().length > 0;
+
+            el.style.display =
+                hasContent ? "block" : "none";
+        };
+
+        reveal();
+
+        const observer = new MutationObserver(reveal);
+
+        observer.observe(el, {
+            childList: true,
+            characterData: true,
+            subtree: true
+        });
+    });
+}
+
+function safeStringify(value) {
+    if (value === null || value === undefined) {
+        return "";
+    }
+
+    if (typeof value === "string") {
+        return value;
+    }
+
+    try {
+        return JSON.stringify(value, null, 2);
+    } catch {
+        return String(value);
+    }
+}
+
+function getApiText(data) {
+    if (data === null || data === undefined) return "";
+    if (typeof data === "string") return data;
+    if (typeof data === "number" || typeof data === "boolean") return String(data);
+
+    const candidate =
+        data.response ??
+        data.message ??
+        data.output ??
+        data.result ??
+        data.answer ??
+        data.detail;
+
+    if (candidate !== undefined && candidate !== null) {
+        return typeof candidate === "string"
+            ? candidate
+            : safeStringify(candidate);
+    }
+
+    return safeStringify(data);
+}
+
+function toast(message) {
+    const el = $("toast");
+
+    if (!el) return;
+
+    el.textContent = message;
+    el.classList.add("show");
+
+    clearTimeout(window.__toastTimer);
+
+    window.__toastTimer = setTimeout(() => {
+        el.classList.remove("show");
+    }, 2400);
+}
+
+/* Buttons across the app call showToast(); keep it as a thin
+   alias so there's one source of truth for the toast logic. */
+function showToast(message) {
+    toast(message);
+}
+
+
+/* =========================================================
+   API REQUEST HELPER
+========================================================= */
+
+async function apiRequest(
+    path,
+    options = {}
+) {
+    const response = await fetch(
+        API_BASE + path,
+        {
+            ...options,
+
+            headers: {
+                "Content-Type": "application/json",
+                ...(options.headers || {})
+            }
+        }
+    );
+
+    let data;
+
+    const contentType =
+        response.headers.get("content-type") || "";
+
+    if (contentType.includes("application/json")) {
+        data = await response.json();
+    } else {
+        data = await response.text();
+    }
+
+    if (!response.ok) {
+        throw new Error(
+            getApiText(data) ||
+            `Request failed: ${response.status}`
+        );
+    }
+
+    return data;
+}
+
+
+/* =========================================================
+   NAVIGATION
+========================================================= */
+
+function navigateTo(viewName, fromHistory = false) {
+    if (!$(viewName + "View")) return;
+    const previous = currentView;
+    currentView = viewName;
+
+    document.querySelectorAll(".view").forEach(view => view.classList.remove("active"));
+    const target = $(viewName + "View");
+    if (target) target.classList.add("active");
+    updateNavigation();
+    updateAppBackButton();
+
+    if (viewName === "projects") loadProjects();
+    if (viewName === "profile") updateProfile();
+
+    if (!fromHistory && previous !== viewName) {
+        history.pushState({ engineerAI: true, view: viewName }, "", "#" + viewName);
+    }
+    window.scrollTo(0, 0);
+}
+
+function updateAppBackButton() {
+    let back = $("engineerBackButton");
+    if (!back) {
+        back = document.createElement("button");
+        back.id = "engineerBackButton";
+        back.type = "button";
+        back.innerHTML = "← Back";
+        back.setAttribute("aria-label", "Back");
+        back.onclick = () => goBackInApp();
+        document.body.appendChild(back);
+    }
+    back.style.display = currentView === "home" ? "none" : "flex";
+}
+
+function goBackInApp() {
+    if (currentView === "home") return;
+    if (history.state && history.state.engineerAI) {
+        history.back();
+    } else {
+        navigateTo("home");
+    }
+}
+
+function setupAppHistory() {
+    history.replaceState({ engineerAI: true, view: currentView || "home", root: true }, "", location.pathname + location.search + "#home");
+    window.addEventListener("popstate", event => {
+        if (event.state && event.state.engineerAI) {
+            navigateTo(event.state.view || "home", true);
+        } else {
+            // Keep Android/browser Back inside Engineer AI instead of leaving the site.
+            history.pushState({ engineerAI: true, view: currentView || "home" }, "", "#" + (currentView || "home"));
+            navigateTo("home", true);
+        }
+    });
+}
+
+
+function updateNavigation() {
+    document
+        .querySelectorAll(".nav-item")
+        .forEach(item => {
+            item.classList.remove("active");
+
+            if (
+                item.dataset.view === currentView
+            ) {
+                item.classList.add("active");
+            }
+        });
+}
+
+
+/* =========================================================
+   HOME
+========================================================= */
+
+function openHomePrompt(prompt) {
+    navigateTo("chat");
+
+    const input = $("chatInput");
+
+    if (!input) return;
+
+    input.value = prompt;
+    input.focus();
+}
+
+
+/* Home screen composer: takes whatever the user typed into
+   #homePrompt, drops it into the chat input, and sends it. */
+function sendHomePrompt() {
+    const homeInput = $("homePrompt");
+
+    if (!homeInput) return;
+
+    const prompt = homeInput.value.trim();
+
+    if (!prompt) {
+        toast("Type a message first.");
+        return;
+    }
+
+    navigateTo("chat");
+
+    const chatInput = $("chatInput");
+
+    if (chatInput) {
+        chatInput.value = prompt;
+    }
+
+    homeInput.value = "";
+
+    setTimeout(() => {
+        sendChat();
+    }, 60);
+}
+
+
+function openProject(projectId) {
+    selectedProjectId = projectId;
+
+    navigateTo("projects");
+
+    setTimeout(() => {
+        renderProjects();
+    }, 50);
+}
+
+
+/* =========================================================
+   CHAT
+========================================================= */
+
+function useChatPrompt(prompt) {
+    const input = $("chatInput");
+
+    if (!input) return;
+
+    input.value = prompt;
+    input.focus();
+}
+
+
+function addChatMessage(
+    role,
+    message
+) {
+    const container = $("chatMessages");
+
+    if (!container) return;
+
+    const wrapper =
+        document.createElement("div");
+
+    wrapper.className =
+        "chat-message " + role;
+
+    const label =
+        role === "user"
+            ? "You"
+            : "Engineer AI";
+
+    wrapper.innerHTML = `
+        <div class="chat-label">
+            ${label}
+        </div>
+
+        <div class="chat-bubble">
+            ${escapeHtml(message)}
+        </div>
+    `;
+
+    container.appendChild(wrapper);
+
+    container.scrollTop =
+        container.scrollHeight;
+}
+
+
+async function sendChat() {
+    const input = $("chatInput");
+    const button = $("chatSend");
+    const loading = $("chatLoading");
+
+    if (!input) return;
+
+    const message =
+        input.value.trim();
+
+    if (!message) {
+        toast("Type a message first.");
+        return;
+    }
+
+    addChatMessage(
+        "user",
+        message
+    );
+
+    chatHistory.push({
+        role: "user",
+        content: message
+    });
+
+    input.value = "";
+
+    if (button) {
+        button.disabled = true;
+    }
+
+    if (loading) {
+        show("chatLoading");
+    }
+
+    try {
+        const data =
+            await apiRequest(
+                "/api/chat",
+                {
+                    method: "POST",
+
+                    body: JSON.stringify({
+                        prompt: message,
+                        provider: getSelectedProvider()
+                    })
+                }
+            );
+
+        const answer =
+            getApiText(data);
+
+        addChatMessage(
+            "assistant",
+            answer
+        );
+
+        chatHistory.push({
+            role: "assistant",
+            content: answer
+        });
+
+        saveChatHistory();
+
+    } catch (error) {
+
+        addChatMessage(
+            "assistant",
+            "Error: " + error.message
+        );
+
+        toast("AI request failed.");
+
+    } finally {
+
+        if (button) {
+            button.disabled = false;
+        }
+
+        if (loading) {
+            hide("chatLoading");
+        }
+    }
+}
+
+
+function clearChat() {
+    chatHistory = [];
+
+    const container =
+        $("chatMessages");
+
+    if (container) {
+        container.innerHTML = "";
+    }
+
+    localStorage.removeItem(
+        "engineer_ai_chat"
+    );
+
+    toast("Chat cleared.");
+}
+
+
+function saveChatHistory() {
+    try {
+        localStorage.setItem(
+            "engineer_ai_chat",
+            JSON.stringify(chatHistory)
+        );
+    } catch {
+        console.warn(
+            "Could not save chat history."
+        );
+    }
+}
+
+
+function loadChatHistory() {
+    try {
+        const saved =
+            localStorage.getItem(
+                "engineer_ai_chat"
+            );
+
+        if (!saved) return;
+
+        const parsed =
+            JSON.parse(saved);
+
+        if (!Array.isArray(parsed)) {
+            return;
+        }
+
+        chatHistory = parsed;
+
+        const container =
+            $("chatMessages");
+
+        if (!container) return;
+
+        container.innerHTML = "";
+
+        parsed.forEach(item => {
+
+            if (
+                item.role === "user" ||
+                item.role === "assistant"
+            ) {
+                addChatMessage(
+                    item.role,
+                    item.content || ""
+                );
+            }
+
+        });
+
+    } catch {
+        chatHistory = [];
+    }
+}
+
+
+/* =========================================================
+   CODE STUDIO
+========================================================= */
+
+/* Reads the AI provider chosen in Settings (falls back to
+   localStorage, then Gemini) so every AI feature in the app
+   can send the same provider without re-reading the DOM. */
+function getSelectedProvider() {
+    const select = $("aiProviderSelect");
+
+    if (select && select.value) {
+        return select.value;
+    }
+
+    return (
+        localStorage.getItem("engineer_ai_provider") ||
+        "gemini"
+    );
+}
+
+
+function changeProvider() {
+    const select = $("aiProviderSelect");
+
+    if (!select) return;
+
+    localStorage.setItem(
+        "engineer_ai_provider",
+        select.value
+    );
+
+    toast("AI provider: " + select.options[select.selectedIndex].text);
+}
+
+
+function getSelectedLanguage() {
+    const language =
+        $("currentLanguage");
+
+    if (!language) {
+        return "python";
+    }
+
+    return (
+        language.value ||
+        language.dataset.language ||
+        language.textContent ||
+        "python"
+    )
+    .toString()
+    .trim()
+    .toLowerCase();
+}
+
+
+async function runCode() {
+    const editor = $("codeEditor");
+    const output = $("executionOutput");
+    const status = $("executionStatus");
+    if (!editor || !output) return;
+
+    const code = editor.value.trim();
+    if (!code) { toast("Write some code first."); return; }
+
+    output.textContent = "Running...";
+    if (status) status.textContent = "Executing";
+
+    const language = getSelectedLanguage();
+
+    try {
+        if (language === "javascript" || language === "js") {
+            // Safe browser-side runner: capture console output without exposing eval globally.
+            const logs = [];
+            const originalLog = console.log;
+            const originalWarn = console.warn;
+            const originalError = console.error;
+            console.log = (...args) => logs.push(args.map(safeStringify).join(" "));
+            console.warn = (...args) => logs.push("⚠️ " + args.map(safeStringify).join(" "));
+            console.error = (...args) => logs.push("❌ " + args.map(safeStringify).join(" "));
+            try {
+                const fn = new Function(code);
+                const value = fn();
+                if (value !== undefined) logs.push("↩️ " + safeStringify(value));
+            } finally {
+                console.log = originalLog;
+                console.warn = originalWarn;
+                console.error = originalError;
+            }
+            output.textContent = logs.length ? logs.join("\n") : "✅ JavaScript finished with no console output.";
+        } else {
+            const data = await apiRequest("/api/chat", {
+                method: "POST",
+                body: JSON.stringify({
+                    prompt: `Act as a code execution assistant. The user wants to run this ${language} code. Explain the expected output or execution result from static reasoning. Do NOT claim that you actually executed it.
+
+CODE:
+${code}`,
+                    provider: getSelectedProvider()
+                })
+            });
+            output.textContent = "ℹ️ " + getApiText(data);
+        }
+        if (status) status.textContent = "Completed";
+    } catch (error) {
+        output.textContent = "Execution error:\n" + getApiText(error?.message || error);
+        if (status) status.textContent = "Error";
+    }
+}
+
+
+/* =========================================================
+   EDITOR: LINE NUMBERS + KEY HANDLING
+========================================================= */
+
+function updateLineNumbers() {
+    const editor = $("codeEditor");
+    const gutter = $("lineNumbers");
+    const status = $("editorStatus");
+
+    if (!editor || !gutter) return;
+
+    const lineCount =
+        editor.value.split("\n").length;
+
+    const numbers = [];
+    for (let i = 1; i <= lineCount; i++) {
+        numbers.push(i);
+    }
+
+    gutter.textContent = numbers.join("\n");
+
+    if (status) {
+        status.textContent = "Unsaved";
+        status.className = "badge yellow";
+    }
+}
+
+function handleEditorKey(event) {
+    if (event.key !== "Tab") return;
+
+    event.preventDefault();
+
+    const editor = event.target;
+    const start = editor.selectionStart;
+    const end = editor.selectionEnd;
+
+    editor.value =
+        editor.value.slice(0, start) +
+        "    " +
+        editor.value.slice(end);
+
+    editor.selectionStart =
+        editor.selectionEnd =
+            start + 4;
+
+    updateLineNumbers();
+}
+
+
+function newFile() {
+    const editor = $("codeEditor");
+    const fileName = $("currentFileName");
+    const output = $("executionOutput");
+    const status = $("executionStatus");
+    const aiResult = $("codeAiResult");
+
+    if (editor) {
+        editor.value = "";
+        updateLineNumbers();
+    }
+
+    if (fileName) {
+        fileName.textContent = "untitled.py";
+    }
+
+    if (output) {
+        output.innerHTML =
+            '<span style="color:var(--muted);">Run your code to see the output here.</span>';
+    }
+
+    if (status) {
+        status.textContent = "Ready";
+    }
+
+    if (aiResult) {
+        aiResult.textContent = "";
+    }
+
+    toast("New file created.");
+}
+
+
+function saveCurrentCode() {
+    saveCode();
+
+    const status = $("editorStatus");
+
+    if (status) {
+        status.textContent = "Saved";
+        status.className = "badge green";
+    }
+}
+
+
+function downloadCurrentCode() {
+    const editor = $("codeEditor");
+    const fileNameEl = $("currentFileName");
+
+    if (!editor) return;
+
+    const code = editor.value;
+
+    if (!code.trim()) {
+        toast("Nothing to export yet.");
+        return;
+    }
+
+    const fileName =
+        (fileNameEl && fileNameEl.textContent.trim()) ||
+        "code.py";
+
+    const blob = new Blob(
+        [code],
+        { type: "text/plain;charset=utf-8" }
+    );
+
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    URL.revokeObjectURL(url);
+
+    toast("Code exported.");
+}
+
+
+function saveCode() {
+    const editor =
+        $("codeEditor");
+
+    if (!editor) return;
+
+    localStorage.setItem(
+        "engineer_ai_code",
+        editor.value
+    );
+
+    toast("Code saved locally.");
+}
+
+
+function loadCode() {
+    const editor =
+        $("codeEditor");
+
+    if (!editor) return;
+
+    const saved =
+        localStorage.getItem(
+            "engineer_ai_code"
+        );
+
+    if (saved !== null) {
+        editor.value = saved;
+    }
+}
+
+
+function formatCode() {
+    const editor =
+        $("codeEditor");
+
+    if (!editor) return;
+
+    const language =
+        getSelectedLanguage();
+
+    let code =
+        editor.value;
+
+    /*
+       Lightweight formatter.
+       This intentionally does not try
+       to fully parse programming languages.
+    */
+
+    code =
+        code
+            .split("\n")
+            .map(line => line.trimEnd())
+            .join("\n");
+
+    if (
+        language === "json"
+    ) {
+        try {
+            code =
+                JSON.stringify(
+                    JSON.parse(code),
+                    null,
+                    2
+                );
+        } catch {
+            toast(
+                "Invalid JSON."
+            );
+        }
+    }
+
+    editor.value =
+        code;
+
+    toast("Code formatted.");
+}
+
+
+/* =========================================================
+   CODE AI ASSISTANT
+========================================================= */
+
+async function codeAI(action) {
+    const editor =
+        $("codeEditor");
+
+    if (!editor) return;
+
+    const code =
+        editor.value.trim();
+
+    if (!code) {
+        toast("Write some code first.");
+        return;
+    }
+
+    const input =
+        $("codeAiInput");
+
+    if (input) {
+        input.value =
+            action + " this code";
+    }
+
+    await sendCodeAI(action);
+}
+
+
+/* Send button + Enter key on the "Ask AI about your code" input. */
+async function askCodeAI() {
+    await sendCodeAI("help");
+}
+
+
+/* The four quick-action buttons (Explain, Find Bugs, Optimize,
+   Security) drop their preset prompt into the input and send it. */
+async function askCodeQuick(prompt) {
+    const input = $("codeAiInput");
+
+    if (input) {
+        input.value = prompt;
+    }
+
+    await sendCodeAI("help");
+}
+
+
+async function sendCodeAI(action = "help") {
+    const input =
+        $("codeAiInput");
+
+    const editor =
+        $("codeEditor");
+
+    const result =
+        $("codeAiResult");
+
+    if (!input || !editor) {
+        return;
+    }
+
+    const request =
+        input.value.trim();
+
+    const code =
+        editor.value;
+
+    if (!request) {
+        toast(
+            "Tell Engineer AI what to do."
+        );
+        return;
+    }
+
+    if (result) {
+        result.textContent =
+            "Thinking...";
+    }
+
+    try {
+
+        const data =
+            await apiRequest(
+                "/api/ai/explain",
+                {
+                    method: "POST",
+
+                    body: JSON.stringify({
+                        prompt: request,
+                        code: code,
+                        language:
+                            getSelectedLanguage(),
+                        action: action,
+                        provider: getSelectedProvider()
+                    })
+                }
+            );
+
+        if (result) {
+            result.textContent =
+                getApiText(data);
+        }
+
+    } catch (error) {
+
+        if (result) {
+            result.textContent =
+                "Error: " +
+                error.message;
+        }
+
+        toast("Code AI failed.");
+    }
+}
+
+
+/* =========================================================
+   TERMINAL
+========================================================= */
+
+/* The terminal input's Enter key and the terminal button both
+   call this name; runTerminal() does the actual work. */
+async function executeTerminalCommand() {
+    await runTerminal();
+}
+
+
+async function runTerminal() {
+    const input =
+        $("terminalInput");
+
+    const output =
+        $("terminalOutput");
+
+    if (!input || !output) {
+        return;
+    }
+
+    const command =
+        input.value.trim();
+
+    if (!command) return;
+
+    terminalHistory.push(
+        "$ " + command
+    );
+
+    output.textContent =
+        terminalHistory.join("\n");
+
+    input.value = "";
+
+    try {
+
+        const data =
+            await apiRequest(
+                "/api/terminal/execute",
+                {
+                    method: "POST",
+
+                    body: JSON.stringify({
+                        command: command
+                    })
+                }
+            );
+
+        const response =
+            getApiText(data);
+
+        terminalHistory.push(
+            response
+        );
+
+        output.textContent =
+            terminalHistory.join("\n");
+
+    } catch (error) {
+
+        terminalHistory.push(
+            "Error: " +
+            error.message
+        );
+
+        output.textContent =
+            terminalHistory.join("\n");
+    }
+}
+
+
+/* =========================================================
+   GENERAL HTML ESCAPER
+========================================================= */
+
+function escapeHtml(value) {
+    return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+
+/* =========================================================
+   END OF PART 9 — 1/3
+   NEXT PART:
+   - DEBUGGER
+   - CODE REVIEW
+   - SECURITY
+   - PERFORMANCE
+   - AI AGENTS
+========================================================= */
+
+/* =========================================================
+   PART 9 — 2/3
+   DEBUGGER + CODE REVIEW + SECURITY
+   + PERFORMANCE + AI AGENTS
+========================================================= */
+
+
+/* =========================================================
+   DEBUGGER
+========================================================= */
+
+/* Fills the debugger form with a realistic example so people can
+   see how it works before pasting their own error. */
+function loadDebugExample() {
+    const errorInput = $("debugError");
+    const codeInput = $("debugCode");
+    const languageInput = $("debugLanguage");
+
+    if (errorInput) {
+        errorInput.value =
+            "TypeError: unsupported operand type(s) for +: 'int' and 'str'";
+    }
+
+    if (codeInput) {
+        codeInput.value =
+            'def total_price(price, tax):\n' +
+            '    return price + tax\n\n' +
+            'print(total_price(19, "2.50"))';
+    }
+
+    if (languageInput) {
+        languageInput.value = "Python";
+    }
+
+    toast("Example loaded.");
+}
+
+
+function clearDebugger() {
+    const errorInput = $("debugError");
+    const codeInput = $("debugCode");
+    const result = $("debugResult");
+
+    if (errorInput) errorInput.value = "";
+    if (codeInput) codeInput.value = "";
+
+    if (result) {
+        result.textContent = "";
+        result.style.display = "none";
+    }
+
+    toast("Debugger cleared.");
+}
+
+
+async function runDebugger() {
+    const errorInput = $("debugError");
+    const codeInput = $("debugCode");
+    const languageInput = $("debugLanguage");
+    const result = $("debugResult");
+    const button = $("debugButton");
+    const error = errorInput ? errorInput.value.trim() : "";
+    const code = codeInput ? codeInput.value.trim() : "";
+    const language = languageInput ? languageInput.value : "python";
+
+    if (!error && !code) { toast("Enter an error or some code to debug."); return; }
+    if (result) result.textContent = "🔎 Analyzing your code...";
+    if (button) { button.disabled = true; button.textContent = "Debugging..."; }
+
+    try {
+        const data = await apiRequest("/api/chat", {
+            method: "POST",
+            body: JSON.stringify({
+                prompt: `Debug this ${language} program. Identify the likely cause, explain it, and give corrected code when useful. Error: ${error || "No error message supplied."}
+
+CODE:
+${code || "No code supplied."}`,
+                provider: getSelectedProvider()
+            })
+        });
+        if (result) result.textContent = getApiText(data);
+    } catch (err) {
+        if (result) result.textContent = "Debugger error:\n" + getApiText(err?.message || err);
+        toast("Debugger request failed.");
+    } finally {
+        if (button) { button.disabled = false; button.textContent = "Run Debugger"; }
+    }
+}
+
+
+/* =========================================================
+   CODE REVIEW MODE
+========================================================= */
+
+function setReviewMode(mode) {
+
+    reviewMode = mode;
+
+    document
+        .querySelectorAll(
+            "[data-review-mode]"
+        )
+        .forEach(button => {
+
+            button.classList.toggle(
+                "active",
+                button.dataset.reviewMode === mode
+            );
+
+        });
+
+    toast(
+        "Review mode: " +
+        mode
+    );
+}
+
+
+/* =========================================================
+   CODE REVIEW
+========================================================= */
+
+function getReviewLanguage() {
+    const code = $("reviewCode");
+    const text = code ? code.value : "";
+    const file = $("reviewFileName");
+    const name = file ? file.value.toLowerCase() : "";
+    if (name.endsWith(".py")) return "python";
+    if (name.endsWith(".js")) return "javascript";
+    if (name.endsWith(".ts")) return "typescript";
+    if (name.endsWith(".java")) return "java";
+    if (name.endsWith(".cpp") || name.endsWith(".cc")) return "cpp";
+    if (name.endsWith(".c")) return "c";
+    if (name.endsWith(".html")) return "html";
+    if (name.endsWith(".css")) return "css";
+    if (name.endsWith(".json")) return "json";
+    return "text";
+}
+
+async function runCodeReview() {
+    const codeInput = $("reviewCode");
+    const fileInput = $("reviewFileName");
+    const result = $("reviewResult");
+    const button = $("reviewButton");
+    const code = codeInput ? codeInput.value.trim() : "";
+    const fileName = fileInput ? fileInput.value.trim() : "code";
+    if (!code) { toast("Paste some code to review."); return; }
+    if (result) result.textContent = "🧠 Reviewing code...";
+    if (button) { button.disabled = true; button.textContent = "Reviewing..."; }
+    try {
+        const data = await apiRequest("/api/code/review", {
+            method: "POST",
+            body: JSON.stringify({
+                code_snippet: code,
+                language: getReviewLanguage(),
+                mode: reviewMode,
+                provider: getSelectedProvider()
+            })
+        });
+        if (result) result.textContent = getApiText(data);
+    } catch (err) {
+        if (result) result.textContent = "Review error:\n" + getApiText(err?.message || err);
+        toast("Code review failed.");
+    } finally {
+        if (button) { button.disabled = false; button.textContent = "Run Review"; }
+    }
+}
+
+
+/* =========================================================
+   SECURITY SCANNER
+========================================================= */
+
+async function runSecurityScan() {
+    const codeInput = $("reviewCode");
+    const result = $("securityResult");
+    const button = document.querySelector("[onclick*='runSecurityScan']");
+    const code = codeInput ? codeInput.value.trim() : "";
+    if (!code) { toast("Paste code before scanning."); return; }
+    if (result) result.textContent = "🛡️ Scanning for security issues...";
+    if (button) button.disabled = true;
+    try {
+        const data = await apiRequest("/api/security/scan", {
+            method: "POST",
+            body: JSON.stringify({
+                code_snippet: code,
+                language: getReviewLanguage(),
+                provider: getSelectedProvider()
+            })
+        });
+        if (result) result.textContent = getApiText(data);
+    } catch (err) {
+        if (result) result.textContent = "Security scan error:\n" + getApiText(err?.message || err);
+        toast("Security scan failed.");
+    } finally {
+        if (button) button.disabled = false;
+    }
+}
+
+
+/* =========================================================
+   PERFORMANCE ANALYSIS
+========================================================= */
+
+async function runPerformanceAnalysis() {
+    const codeInput = $("reviewCode");
+    const result = $("performanceResult");
+    const button = document.querySelector("[onclick*='runPerformanceAnalysis']");
+    const code = codeInput ? codeInput.value.trim() : "";
+    if (!code) { toast("Paste code before analyzing."); return; }
+    if (result) result.textContent = "⚡ Analyzing performance...";
+    if (button) button.disabled = true;
+    try {
+        const data = await apiRequest("/api/performance/analyze", {
+            method: "POST",
+            body: JSON.stringify({
+                code_snippet: code,
+                language: getReviewLanguage(),
+                provider: getSelectedProvider()
+            })
+        });
+        if (result) result.textContent = getApiText(data);
+    } catch (err) {
+        if (result) result.textContent = "Performance error:\n" + getApiText(err?.message || err);
+        toast("Performance analysis failed.");
+    } finally {
+        if (button) button.disabled = false;
+    }
+}
+
+
+/* =========================================================
+   AI AGENTS
+========================================================= */
+
+function selectAgent(agent) {
+
+    const selector =
+        $("agentType");
+
+    if (!selector) return;
+
+    selector.value =
+        agent;
+
+    document
+        .querySelectorAll(
+            "[data-agent]"
+        )
+        .forEach(card => {
+
+            card.classList.toggle(
+                "active",
+                card.dataset.agent === agent
+            );
+
+        });
+
+    toast(
+        agent === "all"
+            ? "Full engineering team selected."
+            : agent + " agent selected."
+    );
+}
+
+
+function selectFullTeam() {
+
+    selectAgent("all");
+
+    const task =
+        $("agentTask");
+
+    if (task && !task.value.trim()) {
+
+        task.value =
+            "Analyze this engineering task using the full multi-agent workflow.";
+    }
+
+    if (task) {
+        task.focus();
+    }
+}
+
+
+function clearAgentTask() {
+
+    const task =
+        $("agentTask");
+
+    const result =
+        $("agentResult");
+
+    if (task) {
+        task.value = "";
+    }
+
+    if (result) {
+        result.textContent =
+            "Agent output will appear here.";
+    }
+
+    toast(
+        "Agent task cleared."
+    );
+}
+
+
+/* =========================================================
+   RUN AI AGENT
+========================================================= */
+
+async function runAgent() {
+    const task = $("agentTask");
+    const agent = $("agentType");
+    const result = $("agentResult");
+    const button = $("agentRunButton");
+    const taskText = task ? task.value.trim() : "";
+    if (!taskText) { toast("Enter an engineering task first."); return; }
+    const agentType = agent ? agent.value : "all";
+    if (result) result.textContent = "🤖 Engineer AI is working...";
+    if (button) { button.disabled = true; button.textContent = "Running..."; }
+    try {
+        const data = await apiRequest("/api/agent/execute", {
+            method: "POST",
+            body: JSON.stringify({
+                task_description: `Selected agent: ${agentType}. Perform this task: ${taskText}`,
+                include_tests: true,
+                include_security_scan: true,
+                include_debugger: true,
+                include_verifier: true,
+                project_context: selectedProjectId ? `Project ID: ${selectedProjectId}` : null,
+                provider: getSelectedProvider()
+            })
+        });
+        let output = getApiText(data);
+        if (data && data.workflow) output += "\n\n━━━━━━━━ WORKFLOW ━━━━━━━━\n\n" + safeStringify(data.workflow);
+        if (result) result.textContent = output;
+    } catch (err) {
+        if (result) result.textContent = "Agent error:\n" + getApiText(err?.message || err);
+        toast("Agent execution failed.");
+    } finally {
+        if (button) { button.disabled = false; button.textContent = "Run Agent"; }
+    }
+}
+
+
+/* =========================================================
+   END OF PART 9 — 2/3
+   NEXT:
+   PART 9 — 3/3
+   - PROJECTS
+   - TOOLS
+   - PROFILE
+   - SETTINGS
+   - INITIALIZATION
+========================================================= */
+
+
+/* =========================================================
+   PART 9 — 3/3
+   PROJECTS + TOOLS + PROFILE + SETTINGS
+   + INITIALIZATION
+========================================================= */
+
+
+/* =========================================================
+   PROJECTS
+========================================================= */
+
+async function loadProjects() {
+    const list = $("projectList");
+    if (!list) return;
+    try {
+        const saved = localStorage.getItem("engineer_ai_projects");
+        projects = saved ? JSON.parse(saved) : [];
+        if (!Array.isArray(projects)) projects = [];
+    } catch { projects = []; }
+    renderProjects();
+}
+
+
+function renderProjects() {
+
+    const list =
+        $("projectList");
+
+    const empty =
+        $("projectEmpty");
+
+    const count =
+        $("projectCountLabel");
+
+    if (!list) return;
+
+    const searchInput =
+        $("projectSearch");
+
+    const search =
+        searchInput
+            ? searchInput.value
+                .trim()
+                .toLowerCase()
+            : "";
+
+    const filtered =
+        projects.filter(project => {
+
+            const name =
+                String(
+                    project.name ??
+                    project.title ??
+                    ""
+                ).toLowerCase();
+
+            const language =
+                String(
+                    project.language ??
+                    ""
+                ).toLowerCase();
+
+            return (
+                !search ||
+                name.includes(search) ||
+                language.includes(search)
+            );
+        });
+
+
+    if (count) {
+        count.textContent =
+            `${filtered.length} project${filtered.length === 1 ? "" : "s"}`;
+    }
+
+
+    if (!filtered.length) {
+
+        list.innerHTML = "";
+
+        if (empty) {
+            show("projectEmpty");
+        }
+
+        return;
+    }
+
+
+    if (empty) {
+        hide("projectEmpty");
+    }
+
+
+    list.innerHTML =
+        filtered.map(project => {
+
+            const id =
+                project.id ??
+                project.project_id ??
+                "";
+
+            const name =
+                project.name ??
+                project.title ??
+                "Unnamed Project";
+
+            const language =
+                project.language ??
+                "Unknown";
+
+            const progress =
+                project.progress ??
+                project.completion ??
+                0;
+
+            const selected =
+                String(id) ===
+                String(selectedProjectId);
+
+            return `
+                <div
+                    class="list-row ${selected ? "selected" : ""}"
+                    onclick="openProject('${escapeHtml(id)}')"
+                >
+
+                    <div class="list-icon">
+                        <i class="fa-solid fa-folder"></i>
+                    </div>
+
+                    <div class="list-info">
+
+                        <b>
+                            ${escapeHtml(name)}
+                        </b>
+
+                        <small>
+                            ${escapeHtml(language)}
+                            •
+                            ${Number(progress) || 0}% complete
+                        </small>
+
+                    </div>
+
+                    <i class="fa-solid fa-chevron-right"></i>
+
+                </div>
+            `;
+        })
+        .join("");
+}
+
+
+function filterProjects() {
+    renderProjects();
+}
+
+
+async function createProject() {
+    const nameInput = $("projectName");
+    const languageInput = $("projectLanguage");
+    const name = nameInput ? nameInput.value.trim() : "";
+    const language = languageInput ? languageInput.value : "text";
+    if (!name) { toast("Enter a project name."); return; }
+    const project = { id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()), name, language, progress: 0, created_at: new Date().toISOString() };
+    projects.unshift(project);
+    localStorage.setItem("engineer_ai_projects", JSON.stringify(projects));
+    selectedProjectId = project.id;
+    if (nameInput) nameInput.value = "";
+    renderProjects();
+    toast("Project created.");
+}
+
+
+/* =========================================================
+   PROJECT INTELLIGENCE
+========================================================= */
+
+async function analyzeSelectedProject() {
+
+    if (!selectedProjectId) {
+
+        toast(
+            "Select a project first."
+        );
+
+        return;
+    }
+
+    const result =
+        $("projectResult");
+
+    if (result) {
+        result.textContent =
+            "🧠 Analyzing project...";
+    }
+
+
+    try {
+
+        const data =
+            await apiRequest(
+                "/api/project/analyze",
+                {
+                    method: "POST",
+
+                    body: JSON.stringify({
+                        project_id:
+                            selectedProjectId,
+
+                        provider:
+                            getSelectedProvider()
+                    })
+                }
+            );
+
+        if (result) {
+            result.textContent =
+                getApiText(data);
+        }
+
+    } catch (error) {
+
+        if (result) {
+            result.textContent =
+                "Project analysis error:\n" +
+                error.message;
+        }
+
+        toast(
+            "Project analysis failed."
+        );
+    }
+}
+
+
+async function showProjectStats() {
+
+    if (!selectedProjectId) {
+
+        toast(
+            "Select a project first."
+        );
+
+        return;
+    }
+
+    const result =
+        $("projectResult");
+
+    if (result) {
+        result.textContent =
+            "📊 Loading project statistics...";
+    }
+
+
+    try {
+
+        const data =
+            await apiRequest(
+                "/api/project/stats?project_id=" +
+                encodeURIComponent(
+                    selectedProjectId
+                )
+            );
+
+        if (result) {
+            result.textContent =
+                safeStringify(data);
+        }
+
+    } catch (error) {
+
+        if (result) {
+            result.textContent =
+                "Stats error:\n" +
+                error.message;
+        }
+
+        toast(
+            "Could not load project stats."
+        );
+    }
+}
+
+
+async function askProjectQuestion() {
+
+    if (!selectedProjectId) {
+
+        toast(
+            "Select a project first."
+        );
+
+        return;
+    }
+
+    const question =
+        window.prompt(
+            "What do you want to ask about this project?"
+        );
+
+    if (!question) return;
+
+    const result =
+        $("projectResult");
+
+    if (result) {
+        result.textContent =
+            "💭 Thinking about your project...";
+    }
+
+
+    try {
+
+        const data =
+            await apiRequest(
+                "/api/project/ask",
+                {
+                    method: "POST",
+
+                    body: JSON.stringify({
+                        project_id:
+                            selectedProjectId,
+
+                        prompt:
+                            question,
+
+                        provider:
+                            getSelectedProvider()
+                    })
+                }
+            );
+
+        if (result) {
+            result.textContent =
+                getApiText(data);
+        }
+
+    } catch (error) {
+
+        if (result) {
+            result.textContent =
+                "Project question error:\n" +
+                error.message;
+        }
+
+        toast(
+            "Project question failed."
+        );
+    }
+}
+
+
+async function openProjectMemory() {
+    const result = $("projectResult");
+    if (!selectedProjectId) { toast("Select a project first."); return; }
+    const key = "engineer_ai_memory_" + selectedProjectId;
+    const memory = localStorage.getItem(key) || "No saved project memory yet.";
+    if (result) result.textContent = "🧠 Project Memory:\n\n" + memory;
+}
+
+
+/* =========================================================
+   TOOLS
+========================================================= */
+
+function openConverter() {
+
+    const value =
+        window.prompt(
+            "Enter a conversion, for example: 100 km to miles"
+        );
+
+    if (!value) return;
+
+    const result =
+        $("toolResult");
+
+    if (result) {
+        result.textContent =
+            "Converter request:\n\n" +
+            value +
+            "\n\nUse Engineer AI to calculate the conversion.";
+    }
+
+    navigateTo("tools");
+}
+
+
+function openJsonTool() {
+
+    const input =
+        window.prompt(
+            "Paste JSON to format:"
+        );
+
+    if (!input) return;
+
+    const result =
+        $("toolResult");
+
+    try {
+
+        const formatted =
+            JSON.stringify(
+                JSON.parse(input),
+                null,
+                2
+            );
+
+        if (result) {
+            result.textContent =
+                formatted;
+        }
+
+    } catch {
+
+        if (result) {
+            result.textContent =
+                "❌ Invalid JSON.";
+        }
+    }
+
+    navigateTo("tools");
+}
+
+
+function openRegexTool() {
+
+    const pattern =
+        window.prompt(
+            "Enter a regular expression:"
+        );
+
+    if (!pattern) return;
+
+    const text =
+        window.prompt(
+            "Enter text to test:"
+        );
+
+    if (text === null) return;
+
+    const result =
+        $("toolResult");
+
+    try {
+
+        const regex =
+            new RegExp(
+                pattern
+            );
+
+        const match =
+            text.match(regex);
+
+        if (result) {
+
+            result.textContent =
+                match
+                    ? "✅ Match found:\n\n" +
+                      safeStringify(match)
+                    : "❌ No match found.";
+        }
+
+    } catch (error) {
+
+        if (result) {
+            result.textContent =
+                "Invalid regular expression.";
+        }
+    }
+
+    navigateTo("tools");
+}
+
+
+function openTimestampTool() {
+
+    const now =
+        new Date();
+
+    const result =
+        $("toolResult");
+
+    if (result) {
+
+        result.textContent =
+            "Current timestamp:\n\n" +
+            now.toISOString() +
+            "\n\nUnix milliseconds:\n" +
+            now.getTime();
+    }
+
+    navigateTo("tools");
+}
+
+
+function openColorTool() {
+
+    const color =
+        window.prompt(
+            "Enter a color, for example #4f8cff:"
+        );
+
+    if (!color) return;
+
+    const result =
+        $("toolResult");
+
+    const valid =
+        /^#[0-9a-fA-F]{6}$/.test(
+            color
+        );
+
+    if (result) {
+
+        result.textContent =
+            valid
+                ? "✅ Valid HEX color:\n\n" +
+                  color
+                : "❌ Invalid HEX color.\nUse #RRGGBB.";
+    }
+
+    navigateTo("tools");
+}
+
+
+/* =========================================================
+   SIMPLE CALCULATOR
+========================================================= */
+
+function openCalculator() {
+
+    navigateTo("calculator");
+
+    calculatorExpression = "";
+
+    updateCalculatorDisplay();
+}
+
+
+function updateCalculatorDisplay() {
+
+    const display =
+        $("calculatorDisplay");
+
+    if (display) {
+        display.textContent =
+            calculatorExpression || "0";
+    }
+}
+
+
+function calculatorInput(value) {
+
+    if (
+        !/^[0-9+\-*/().% ]+$/.test(
+            String(value)
+        )
+    ) {
+        return;
+    }
+
+    calculatorExpression +=
+        String(value);
+
+    updateCalculatorDisplay();
+}
+
+
+function calculatorClear() {
+
+    calculatorExpression = "";
+
+    updateCalculatorDisplay();
+}
+
+
+function calculatorBackspace() {
+
+    calculatorExpression =
+        calculatorExpression.slice(
+            0,
+            -1
+        );
+
+    updateCalculatorDisplay();
+}
+
+
+/*
+   Safe basic arithmetic evaluator.
+   No eval() or Function() is used.
+*/
+
+function calculateExpression(expression) {
+
+    const tokens =
+        expression
+            .match(
+                /(?:\d+(?:\.\d+)?)|[+\-*/%()]/
+            );
+
+    if (!expression.trim()) {
+        return 0;
+    }
+
+    /*
+       Tokenize the complete expression.
+    */
+
+    const allTokens =
+        expression.match(
+            /\d+(?:\.\d+)?|[+\-*/%()]|\s+/g
+        );
+
+    if (!allTokens) {
+        throw new Error(
+            "Invalid expression"
+        );
+    }
+
+    const tokensClean =
+        allTokens.filter(
+            token =>
+                !/^\s+$/.test(token)
+        );
+
+    let position = 0;
+
+
+    function parseExpression() {
+
+        let value =
+            parseTerm();
+
+        while (
+            tokensClean[position] === "+" ||
+            tokensClean[position] === "-"
+        ) {
+
+            const operator =
+                tokensClean[position++];
+
+            const right =
+                parseTerm();
+
+            if (operator === "+") {
+                value += right;
+            } else {
+                value -= right;
+            }
+        }
+
+        return value;
+    }
+
+
+    function parseTerm() {
+
+        let value =
+            parseFactor();
+
+        while (
+            tokensClean[position] === "*" ||
+            tokensClean[position] === "/" ||
+            tokensClean[position] === "%"
+        ) {
+
+            const operator =
+                tokensClean[position++];
+
+            const right =
+                parseFactor();
+
+            if (operator === "*") {
+                value *= right;
+            }
+
+            if (operator === "/") {
+
+                if (right === 0) {
+                    throw new Error(
+                        "Cannot divide by zero."
+                    );
+                }
+
+                value /= right;
+            }
+
+            if (operator === "%") {
+                value %= right;
+            }
+        }
+
+        return value;
+    }
+
+
+    function parseFactor() {
+
+        const token =
+            tokensClean[position++];
+
+        if (
+            token === "+"
+        ) {
+            return parseFactor();
+        }
+
+        if (
+            token === "-"
+        ) {
+            return -parseFactor();
+        }
+
+        if (
+            token === "("
+        ) {
+
+            const value =
+                parseExpression();
+
+            if (
+                tokensClean[position++] !== ")"
+            ) {
+                throw new Error(
+                    "Missing closing parenthesis."
+                );
+            }
+
+            return value;
+        }
+
+        if (
+            /^\d+(?:\.\d+)?$/.test(token)
+        ) {
+            return Number(token);
+        }
+
+        throw new Error(
+            "Invalid expression."
+        );
+    }
+
+
+    const answer =
+        parseExpression();
+
+    if (
+        position !==
+        tokensClean.length
+    ) {
+        throw new Error(
+            "Invalid expression."
+        );
+    }
+
+    return answer;
+}
+
+
+function calculatorEquals() {
+
+    const result =
+        $("calculatorResult");
+
+    try {
+
+        const answer =
+            calculateExpression(
+                calculatorExpression
+            );
+
+        calculatorExpression =
+            String(answer);
+
+        updateCalculatorDisplay();
+
+        if (result) {
+            result.textContent =
+                "Result: " +
+                answer;
+        }
+
+    } catch (error) {
+
+        if (result) {
+            result.textContent =
+                "❌ " +
+                error.message;
+        }
+    }
+}
+
+
+/* =========================================================
+   PROFILE
+========================================================= */
+
+async function updateProfile() {
+
+    try {
+
+        const data =
+            await apiRequest(
+                "/api/ops/analytics"
+            );
+
+        const projectsCount =
+            data.projects ??
+            data.project_count ??
+            projects.length ??
+            0;
+
+        const tasksCount =
+            data.tasks ??
+            data.task_count ??
+            0;
+
+        const agentsCount =
+            data.agents ??
+            data.agent_count ??
+            0;
+
+
+        const projectEl =
+            $("profileProjects");
+
+        const taskEl =
+            $("profileTasks");
+
+        const agentEl =
+            $("profileAgents");
+
+
+        if (projectEl) {
+            projectEl.textContent =
+                projectsCount;
+        }
+
+        if (taskEl) {
+            taskEl.textContent =
+                tasksCount;
+        }
+
+        if (agentEl) {
+            agentEl.textContent =
+                agentsCount;
+        }
+
+
+    } catch {
+
+        /*
+           Keep local values if backend
+           analytics is temporarily unavailable.
+        */
+
+        const projectEl =
+            $("profileProjects");
+
+        if (projectEl) {
+            projectEl.textContent =
+                projects.length;
+        }
+    }
+}
+
+
+async function showAnalytics() {
+
+    const result =
+        $("profileResult");
+
+    if (result) {
+        result.textContent =
+            "📊 Loading analytics...";
+    }
+
+    try {
+
+        const data =
+            await apiRequest(
+                "/api/ops/analytics"
+            );
+
+        if (result) {
+            result.textContent =
+                safeStringify(data);
+        }
+
+    } catch (error) {
+
+        if (result) {
+            result.textContent =
+                "Analytics error:\n" +
+                error.message;
+        }
+    }
+}
+
+
+async function checkSystemStatus() {
+
+    const result =
+        $("profileResult");
+
+    if (result) {
+        result.textContent =
+            "🔄 Checking Engineer AI...";
+    }
+
+    try {
+
+        const data =
+            await apiRequest(
+                "/api/health"
+            );
+
+        if (result) {
+            result.textContent =
+                "🟢 System online\n\n" +
+                safeStringify(data);
+        }
+
+    } catch (error) {
+
+        if (result) {
+            result.textContent =
+                "🔴 System check failed\n\n" +
+                error.message;
+        }
+    }
+}
+
+
+function showAbout() {
+
+    const result =
+        $("profileResult");
+
+    if (result) {
+
+        result.textContent =
+            "Engineer AI\n\n" +
+            "An engineering-focused AI platform " +
+            "for coding, debugging, project intelligence, " +
+            "testing, security and performance analysis.";
+    }
+}
+
+
+/* =========================================================
+   SETTINGS
+========================================================= */
+
+function loadSettings() {
+
+    const theme =
+        localStorage.getItem(
+            "engineer_ai_theme"
+        );
+
+    const accent =
+        localStorage.getItem(
+            "engineer_ai_accent"
+        );
+
+    const fontSize =
+        localStorage.getItem(
+            "engineer_ai_font_size"
+        );
+    const themeSelect =
+        $("themeSelect");
+
+    const accentSelect =
+        $("accentSelect");
+
+    const fontSelect =
+        $("fontSizeSelect");
+
+
+    if (
+        themeSelect &&
+        theme
+    ) {
+        themeSelect.value =
+            theme;
+    }
+
+    if (
+        accentSelect &&
+        accent
+    ) {
+        accentSelect.value =
+            accent;
+    }
+
+    if (
+        fontSelect &&
+        fontSize
+    ) {
+        fontSelect.value =
+            fontSize;
+    }
+
+    const providerSelect =
+        $("aiProviderSelect");
+
+    const provider =
+        localStorage.getItem(
+            "engineer_ai_provider"
+        );
+
+    if (
+        providerSelect &&
+        provider
+    ) {
+        providerSelect.value =
+            provider;
+    }
+
+    applySettings();
+}
+
+
+/* =========================================================
+   APPLY SETTINGS
+========================================================= */
+
+function applySettings() {
+
+    const themeSelect =
+        $("themeSelect");
+
+    const accentSelect =
+        $("accentSelect");
+
+    const fontSelect =
+        $("fontSizeSelect");
+
+
+    const theme =
+        themeSelect
+            ? themeSelect.value
+            : "dark";
+
+    const accent =
+        accentSelect
+            ? accentSelect.value
+            : "#4f8cff";
+
+    const fontSize =
+        fontSelect
+            ? fontSelect.value
+            : "14";
+
+
+    /* -----------------------------------------------------
+       THEME
+    ----------------------------------------------------- */
+
+    if (theme === "light") {
+
+        document.documentElement.style.setProperty(
+            "--bg",
+            "#f5f7fb"
+        );
+
+        document.documentElement.style.setProperty(
+            "--panel",
+            "#ffffff"
+        );
+
+        document.documentElement.style.setProperty(
+            "--panel2",
+            "#eef2f7"
+        );
+
+        document.documentElement.style.setProperty(
+            "--card",
+            "#ffffff"
+        );
+
+        document.documentElement.style.setProperty(
+            "--line",
+            "#d9e0ea"
+        );
+
+        document.documentElement.style.setProperty(
+            "--text",
+            "#111827"
+        );
+
+        document.documentElement.style.setProperty(
+            "--muted",
+            "#667085"
+        );
+
+    } else {
+
+        document.documentElement.style.setProperty(
+            "--bg",
+            "#050811"
+        );
+
+        document.documentElement.style.setProperty(
+            "--panel",
+            "#0a1020"
+        );
+
+        document.documentElement.style.setProperty(
+            "--panel2",
+            "#0d1527"
+        );
+
+        document.documentElement.style.setProperty(
+            "--card",
+            "#101a2e"
+        );
+
+        document.documentElement.style.setProperty(
+            "--line",
+            "#1b2942"
+        );
+
+        document.documentElement.style.setProperty(
+            "--text",
+            "#f7f9ff"
+        );
+
+        document.documentElement.style.setProperty(
+            "--muted",
+            "#8290a8"
+        );
+    }
+
+
+    /* -----------------------------------------------------
+       ACCENT
+    ----------------------------------------------------- */
+
+    if (accent) {
+
+        document.documentElement.style.setProperty(
+            "--accent",
+            accent
+        );
+    }
+
+
+    /* -----------------------------------------------------
+       FONT SIZE
+    ----------------------------------------------------- */
+
+    document.documentElement.style.setProperty(
+        "--font-scale",
+        fontSize
+    );
+}
+
+
+/* The three Appearance selects (Theme, Accent, Font Size) each
+   call one of these on change: apply it immediately, then
+   persist it the same way the Save button does. */
+function changeTheme() {
+    applySettings();
+    saveSettings();
+}
+
+function changeAccent() {
+    applySettings();
+    saveSettings();
+}
+
+function changeFontSize() {
+    applySettings();
+    saveSettings();
+}
+
+
+/* =========================================================
+   SAVE SETTINGS
+========================================================= */
+
+function saveSettings() {
+
+    const themeSelect =
+        $("themeSelect");
+
+    const accentSelect =
+        $("accentSelect");
+
+    const fontSelect =
+        $("fontSizeSelect");
+
+
+    const theme =
+        themeSelect
+            ? themeSelect.value
+            : "dark";
+
+    const accent =
+        accentSelect
+            ? accentSelect.value
+            : "#4f8cff";
+
+    const fontSize =
+        fontSelect
+            ? fontSelect.value
+            : "14";
+
+
+    localStorage.setItem(
+        "engineer_ai_theme",
+        theme
+    );
+
+    localStorage.setItem(
+        "engineer_ai_accent",
+        accent
+    );
+
+    localStorage.setItem(
+        "engineer_ai_font_size",
+        fontSize
+    );
+
+
+    applySettings();
+
+
+    const result =
+        $("settingsResult");
+
+    if (result) {
+
+        result.textContent =
+            "✅ Settings saved successfully.";
+    }
+
+    toast(
+        "Settings saved."
+    );
+}
+
+
+/* =========================================================
+   CLEAR LOCAL DATA
+========================================================= */
+
+function clearLocalData() {
+
+    const confirmed =
+        window.confirm(
+            "Clear locally saved Engineer AI data?"
+        );
+
+    if (!confirmed) {
+        return;
+    }
+
+
+    localStorage.removeItem(
+        "engineer_ai_chat"
+    );
+
+    localStorage.removeItem(
+        "engineer_ai_code"
+    );
+
+    localStorage.removeItem(
+        "engineer_ai_theme"
+    );
+
+    localStorage.removeItem(
+        "engineer_ai_accent"
+    );
+
+    localStorage.removeItem(
+        "engineer_ai_font_size"
+    );
+
+
+    chatHistory = [];
+
+    terminalHistory = [];
+
+    calculatorExpression = "";
+
+
+    const chatMessages =
+        $("chatMessages");
+
+    if (chatMessages) {
+        chatMessages.innerHTML = "";
+    }
+
+
+    const codeEditor =
+        $("codeEditor");
+
+    if (codeEditor) {
+        codeEditor.value = "";
+    }
+
+
+    const result =
+        $("settingsResult");
+
+    if (result) {
+
+        result.textContent =
+            "✅ Local data cleared.";
+    }
+
+
+    toast(
+        "Local data cleared."
+    );
+}
+
+
+/* =========================================================
+   KEYBOARD SHORTCUTS
+========================================================= */
+
+function setupKeyboardShortcuts() {
+
+    /* -----------------------------------------------------
+       CHAT ENTER
+    ----------------------------------------------------- */
+
+    const chatInput =
+        $("chatInput");
+
+    if (chatInput) {
+
+        chatInput.addEventListener(
+            "keydown",
+            event => {
+
+                if (
+                    event.key === "Enter" &&
+                    !event.shiftKey
+                ) {
+
+                    event.preventDefault();
+
+                    sendChat();
+                }
+            }
+        );
+    }
+
+
+    /* -----------------------------------------------------
+       HOME PROMPT ENTER
+    ----------------------------------------------------- */
+
+    const homePrompt =
+        $("homePrompt");
+
+    if (homePrompt) {
+
+        homePrompt.addEventListener(
+            "keydown",
+            event => {
+
+                if (
+                    event.key === "Enter" &&
+                    !event.shiftKey
+                ) {
+
+                    event.preventDefault();
+
+                    const message =
+                        homePrompt.value.trim();
+
+                    if (!message) {
+                        return;
+                    }
+
+                    homePrompt.value = "";
+
+                    openHomePrompt(
+                        message
+                    );
+
+                    setTimeout(() => {
+
+                        const chatInput =
+                            $("chatInput");
+
+                        if (chatInput) {
+
+                            chatInput.value =
+                                message;
+
+                            sendChat();
+                        }
+
+                    }, 100);
+                }
+            }
+        );
+    }
+
+
+    /* -----------------------------------------------------
+       TERMINAL ENTER
+    ----------------------------------------------------- */
+
+    const terminalInput =
+        $("terminalInput");
+
+    if (terminalInput) {
+
+        terminalInput.addEventListener(
+            "keydown",
+            event => {
+
+                if (
+                    event.key === "Enter"
+                ) {
+
+                    event.preventDefault();
+
+                    runTerminal();
+                }
+            }
+        );
+    }
+
+
+    /* -----------------------------------------------------
+       PROJECT SEARCH
+    ----------------------------------------------------- */
+
+    const projectSearch =
+        $("projectSearch");
+
+    if (projectSearch) {
+
+        projectSearch.addEventListener(
+            "input",
+            () => {
+                filterProjects();
+            }
+        );
+    }
+
+
+    /* -----------------------------------------------------
+       CODE EDITOR SHORTCUTS
+    ----------------------------------------------------- */
+
+    const editor =
+        $("codeEditor");
+
+    if (editor) {
+
+        editor.addEventListener(
+            "keydown",
+            event => {
+
+                /*
+                   Ctrl/Cmd + S
+                */
+
+                if (
+                    (event.ctrlKey ||
+                     event.metaKey) &&
+                    event.key.toLowerCase() === "s"
+                ) {
+
+                    event.preventDefault();
+
+                    saveCode();
+
+                    return;
+                }
+
+
+                /*
+                   Tab inserts spaces instead
+                   of leaving the editor.
+                */
+
+                if (
+                    event.key === "Tab"
+                ) {
+
+                    event.preventDefault();
+
+                    const start =
+                        editor.selectionStart;
+
+                    const end =
+                        editor.selectionEnd;
+
+                    editor.value =
+                        editor.value.substring(
+                            0,
+                            start
+                        ) +
+                        "    " +
+                        editor.value.substring(
+                            end
+                        );
+
+                    editor.selectionStart =
+                        editor.selectionEnd =
+                            start + 4;
+                }
+            }
+        );
+    }
+}
+
+
+/* =========================================================
+   INITIALIZATION
+========================================================= */
+
+function initializeEngineerAI() {
+
+    console.log(
+        "🚀 Engineer AI initializing..."
+    );
+
+
+    /* -----------------------------------------------------
+       LOAD LOCAL DATA
+    ----------------------------------------------------- */
+
+    loadChatHistory();
+
+    loadCode();
+
+    loadSettings();
+
+    autoRevealResultPanels();
+
+
+    /* -----------------------------------------------------
+       KEYBOARD EVENTS
+    ----------------------------------------------------- */
+
+    setupKeyboardShortcuts();
+    setupAppHistory();
+
+
+    /* -----------------------------------------------------
+       DEFAULT VIEW
+    ----------------------------------------------------- */
+
+    navigateTo(
+        "home"
+    );
+
+
+    /* -----------------------------------------------------
+       LOAD PROJECTS
+    ----------------------------------------------------- */
+
+    loadProjects();
+
+
+    /* -----------------------------------------------------
+       UPDATE PROFILE
+    ----------------------------------------------------- */
+
+    updateProfile();
+
+
+    /* -----------------------------------------------------
+       CHECK BACKEND
+    ----------------------------------------------------- */
+
+    apiRequest(
+        "/api/health"
+    )
+    .then(data => {
+
+        console.log(
+            "🟢 Engineer AI backend online.",
+            data
+        );
+
+
+        const status =
+            $("settingsBackendStatus");
+
+        if (status) {
+
+            status.textContent =
+                "Online";
+
+            status.className =
+                "badge green";
+        }
+
+    })
+    .catch(error => {
+
+        console.warn(
+            "🔴 Engineer AI backend unavailable.",
+            error
+        );
+
+
+        const status =
+            $("settingsBackendStatus");
+
+        if (status) {
+
+            status.textContent =
+                "Offline";
+
+            status.className =
+                "badge red";
+        }
+    });
+
+
+    console.log(
+        "✅ Engineer AI initialized."
+    );
+}
+
+
+/* =========================================================
+   DOM READY
+========================================================= */
+
+if (
+    document.readyState ===
+    "loading"
+) {
+
+    document.addEventListener(
+        "DOMContentLoaded",
+        initializeEngineerAI
+    );
+
+} else {
+
+    initializeEngineerAI();
+}
+
+
+/* =========================================================
+   PART 9 — 3/3 COMPLETE 🎉
+========================================================= */
+
+</script>
+</body>
+</html>
