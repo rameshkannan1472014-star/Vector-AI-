@@ -3390,3 +3390,1195 @@ Type "help" to see supported commands.</div>
     <div style="height:10px;"></div>
 
     </section>
+    <!-- =========================================================
+     PART 6 — AI AGENTS
+========================================================= -->
+
+<section id="agentsView" class="view">
+
+    <!-- HEADER -->
+    <div class="header">
+
+        <div class="brand">
+
+            <div class="logo">
+                <i class="fa-solid fa-robot"></i>
+            </div>
+
+            <div>
+
+                <div class="title">
+                    AI Agents
+                </div>
+
+                <div class="subtitle">
+                    Multi-Agent Engineering
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="pill">
+            6 Agents
+        </div>
+
+    </div>
+
+
+    <!-- INTRO -->
+    <div class="hero">
+
+        <h1>
+            Build with a team of AI agents. 🤖
+        </h1>
+
+        <p>
+            Give Engineer AI an engineering task and
+            let specialized agents analyze, code,
+            debug, test, research and document it.
+        </p>
+
+    </div>
+
+
+    <!-- TASK INPUT -->
+    <div class="form">
+
+        <div class="label">
+            Engineering Task
+        </div>
+
+        <textarea
+            id="agentTask"
+            class="field"
+            style="min-height:140px;"
+            placeholder="Example: Build a Python REST API with authentication..."
+        ></textarea>
+
+
+        <div class="label">
+            Agent
+        </div>
+
+        <select
+            id="agentType"
+            class="field">
+
+            <option value="code">
+                Code Agent
+            </option>
+
+            <option value="research">
+                Research Agent
+            </option>
+
+            <option value="debug">
+                Debug Agent
+            </option>
+
+            <option value="test">
+                Test Agent
+            </option>
+
+            <option value="documentation">
+                Documentation Agent
+            </option>
+
+            <option value="design">
+                Design Agent
+            </option>
+
+            <option value="all">
+                Full Engineering Team
+            </option>
+
+        </select>
+
+
+        <div
+            style="
+                display:grid;
+                grid-template-columns:
+                    repeat(2,minmax(0,1fr));
+                gap:8px;
+            ">
+
+            <button
+                id="agentRunButton"
+                class="primary"
+                type="button"
+                onclick="runAgent()">
+
+                <i class="fa-solid fa-play"></i>
+                Run Agent
+
+            </button>
+
+
+            <button
+                class="secondary"
+                type="button"
+                onclick="clearAgentTask()">
+
+                <i class="fa-solid fa-eraser"></i>
+                Clear
+
+            </button>
+
+        </div>
+
+    </div>
+
+
+    <!-- AGENT RESULT -->
+    <div
+        id="agentResult"
+        class="result"
+        style="display:none;">
+    </div>
+
+
+    <!-- AGENT TEAM -->
+    <div class="section-title">
+
+        <h2>
+            Engineering Team
+        </h2>
+
+        <span>
+            Specialized AI
+        </span>
+
+    </div>
+
+
+    <div class="grid">
+
+        <!-- CODE AGENT -->
+        <div
+            class="card"
+            onclick="selectAgent('code')">
+
+            <i class="fa-solid fa-code"></i>
+
+            <h3>
+                Code Agent
+            </h3>
+
+            <p>
+                Writes and improves engineering code.
+            </p>
+
+        </div>
+
+
+        <!-- RESEARCH AGENT -->
+        <div
+            class="card"
+            onclick="selectAgent('research')">
+
+            <i class="fa-solid fa-magnifying-glass"></i>
+
+            <h3>
+                Research Agent
+            </h3>
+
+            <p>
+                Researches technical concepts and solutions.
+            </p>
+
+        </div>
+
+
+        <!-- DEBUG AGENT -->
+        <div
+            class="card"
+            onclick="selectAgent('debug')">
+
+            <i class="fa-solid fa-bug"></i>
+
+            <h3>
+                Debug Agent
+            </h3>
+
+            <p>
+                Finds bugs and explains possible fixes.
+            </p>
+
+        </div>
+
+
+        <!-- TEST AGENT -->
+        <div
+            class="card"
+            onclick="selectAgent('test')">
+
+            <i class="fa-solid fa-vial"></i>
+
+            <h3>
+                Test Agent
+            </h3>
+
+            <p>
+                Creates tests and checks expected behavior.
+            </p>
+
+        </div>
+
+
+        <!-- DOCUMENTATION AGENT -->
+        <div
+            class="card"
+            onclick="selectAgent('documentation')">
+
+            <i class="fa-solid fa-book"></i>
+
+            <h3>
+                Documentation Agent
+            </h3>
+
+            <p>
+                Creates technical documentation and guides.
+            </p>
+
+        </div>
+
+
+        <!-- DESIGN AGENT -->
+        <div
+            class="card"
+            onclick="selectAgent('design')">
+
+            <i class="fa-solid fa-palette"></i>
+
+            <h3>
+                Design Agent
+            </h3>
+
+            <p>
+                Plans architecture, interfaces and system structure.
+            </p>
+
+        </div>
+
+    </div>
+
+
+    <!-- WORKFLOW -->
+    <div class="section-title">
+
+        <h2>
+            Agent Workflow
+        </h2>
+
+        <span>
+            How it works
+        </span>
+
+    </div>
+
+
+    <div class="list">
+
+        <div class="list-row">
+
+            <div class="list-icon">
+                <i class="fa-solid fa-1"></i>
+            </div>
+
+            <div class="list-info">
+
+                <b>
+                    Understand
+                </b>
+
+                <small>
+                    Analyze the engineering task and requirements.
+                </small>
+
+            </div>
+
+        </div>
+
+
+        <div class="list-row">
+
+            <div class="list-icon">
+                <i class="fa-solid fa-2"></i>
+            </div>
+
+            <div class="list-info">
+
+                <b>
+                    Plan
+                </b>
+
+                <small>
+                    Break the task into useful engineering steps.
+                </small>
+
+            </div>
+
+        </div>
+
+
+        <div class="list-row">
+
+            <div class="list-icon">
+                <i class="fa-solid fa-3"></i>
+            </div>
+
+            <div class="list-info">
+
+                <b>
+                    Execute
+                </b>
+
+                <small>
+                    Specialized agents work on the task.
+                </small>
+
+            </div>
+
+        </div>
+
+
+        <div class="list-row">
+
+            <div class="list-icon">
+                <i class="fa-solid fa-4"></i>
+            </div>
+
+            <div class="list-info">
+
+                <b>
+                    Verify
+                </b>
+
+                <small>
+                    Review results and identify possible problems.
+                </small>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- FULL TEAM -->
+    <div class="section-title">
+
+        <h2>
+            Full Engineering Team
+        </h2>
+
+    </div>
+
+
+    <div class="hero">
+
+        <h1 style="font-size:18px;">
+            One task. Multiple agents. ⚡
+        </h1>
+
+        <p>
+            Full Engineering Team lets Engineer AI
+            coordinate multiple specialized agents
+            for a larger engineering workflow.
+        </p>
+
+
+        <button
+            class="primary"
+            type="button"
+            onclick="selectFullTeam()">
+
+            <i class="fa-solid fa-users"></i>
+            Use Full Team
+
+        </button>
+
+    </div>
+
+
+    <div style="height:10px;"></div>
+
+    </section><!-- =========================================================
+     PART 7 — PROJECTS + TOOLS
+========================================================= -->
+
+
+<!-- =========================================================
+     PROJECTS
+========================================================= -->
+
+<section id="projectsView" class="view">
+
+    <!-- HEADER -->
+    <div class="header">
+
+        <div class="brand">
+
+            <div class="logo">
+                <i class="fa-solid fa-folder-open"></i>
+            </div>
+
+            <div>
+
+                <div class="title">
+                    Projects
+                </div>
+
+                <div class="subtitle">
+                    Manage Your Engineering Projects
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="pill">
+            Workspace
+        </div>
+
+    </div>
+
+
+    <!-- INTRO -->
+    <div class="hero">
+
+        <h1>
+            Your projects. Your workspace. 🚀
+        </h1>
+
+        <p>
+            Create projects, organize source files,
+            analyze your code and use Engineer AI
+            to understand and improve your work.
+        </p>
+
+    </div>
+
+
+    <!-- PROJECT SEARCH -->
+    <div class="composer">
+
+        <i class="fa-solid fa-magnifying-glass"></i>
+
+        <input
+            id="projectSearch"
+            type="search"
+            placeholder="Search projects..."
+            oninput="filterProjects()"
+        >
+
+        <button
+            class="send"
+            type="button"
+            onclick="createProject()"
+            title="Create Project">
+
+            <i class="fa-solid fa-plus"></i>
+
+        </button>
+
+    </div>
+
+
+    <!-- NEW PROJECT -->
+    <div
+        class="form"
+        style="margin-top:12px;">
+
+        <div class="label">
+            New Project
+        </div>
+
+        <input
+            id="projectName"
+            class="field"
+            type="text"
+            placeholder="Project name"
+        >
+
+        <select
+            id="projectLanguage"
+            class="field">
+
+            <option value="Python">
+                Python
+            </option>
+
+            <option value="JavaScript">
+                JavaScript
+            </option>
+
+            <option value="TypeScript">
+                TypeScript
+            </option>
+
+            <option value="C">
+                C
+            </option>
+
+            <option value="C++">
+                C++
+            </option>
+
+            <option value="Java">
+                Java
+            </option>
+
+            <option value="Go">
+                Go
+            </option>
+
+            <option value="Rust">
+                Rust
+            </option>
+
+            <option value="HTML">
+                HTML
+            </option>
+
+            <option value="Other">
+                Other
+            </option>
+
+        </select>
+
+        <button
+            class="primary"
+            type="button"
+            onclick="createProject()">
+
+            <i class="fa-solid fa-folder-plus"></i>
+            Create Project
+
+        </button>
+
+    </div>
+
+
+    <!-- PROJECT LIST -->
+    <div class="section-title">
+
+        <h2>
+            Your Projects
+        </h2>
+
+        <span id="projectCountLabel">
+            0 projects
+        </span>
+
+    </div>
+
+
+    <div
+        id="projectList"
+        class="list">
+
+        <!-- Projects are inserted by JavaScript -->
+
+    </div>
+
+
+    <!-- EMPTY PROJECT STATE -->
+    <div
+        id="projectEmpty"
+        class="empty"
+        style="display:none;">
+
+        <i class="fa-solid fa-folder-open"></i>
+
+        <h3>
+            No projects found
+        </h3>
+
+        <p>
+            Create your first engineering project
+            to get started.
+        </p>
+
+    </div>
+
+
+    <!-- PROJECT ACTIONS -->
+    <div class="section-title">
+
+        <h2>
+            Project Intelligence
+        </h2>
+
+        <span>
+            AI Tools
+        </span>
+
+    </div>
+
+
+    <div class="grid">
+
+        <div
+            class="card"
+            onclick="analyzeSelectedProject()">
+
+            <i class="fa-solid fa-brain"></i>
+
+            <h3>
+                Analyze
+            </h3>
+
+            <p>
+                Understand project structure and code.
+            </p>
+
+        </div>
+
+
+        <div
+            class="card"
+            onclick="showProjectStats()">
+
+            <i class="fa-solid fa-chart-column"></i>
+
+            <h3>
+                Statistics
+            </h3>
+
+            <p>
+                View files, lines and language statistics.
+            </p>
+
+        </div>
+
+
+        <div
+            class="card"
+            onclick="askProjectQuestion()">
+
+            <i class="fa-solid fa-comments"></i>
+
+            <h3>
+                Ask AI
+            </h3>
+
+            <p>
+                Ask questions about your project.
+            </p>
+
+        </div>
+
+
+        <div
+            class="card"
+            onclick="openProjectMemory()">
+
+            <i class="fa-solid fa-memory"></i>
+
+            <h3>
+                Project Memory
+            </h3>
+
+            <p>
+                Save useful project knowledge for AI.
+            </p>
+
+        </div>
+
+    </div>
+
+
+    <div
+        id="projectResult"
+        class="result"
+        style="display:none;">
+    </div>
+
+
+    <div style="height:10px;"></div>
+
+</section>
+
+
+
+<!-- =========================================================
+     TOOLS
+========================================================= -->
+
+<section id="toolsView" class="view">
+
+    <!-- HEADER -->
+    <div class="header">
+
+        <div class="brand">
+
+            <div class="logo">
+                <i class="fa-solid fa-toolbox"></i>
+            </div>
+
+            <div>
+
+                <div class="title">
+                    Tools
+                </div>
+
+                <div class="subtitle">
+                    Engineering Utilities
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="pill">
+            Engineer Toolkit
+        </div>
+
+    </div>
+
+
+    <!-- INTRO -->
+    <div class="hero">
+
+        <h1>
+            Your engineering toolbox. 🛠️
+        </h1>
+
+        <p>
+            Useful utilities for coding,
+            debugging, development and
+            everyday engineering work.
+        </p>
+
+    </div>
+
+
+    <!-- TOOL GRID -->
+    <div class="section-title">
+
+        <h2>
+            Developer Tools
+        </h2>
+
+    </div>
+
+
+    <div class="grid">
+
+        <!-- CALCULATOR -->
+        <div
+            class="card"
+            onclick="openCalculator()">
+
+            <i class="fa-solid fa-calculator"></i>
+
+            <h3>
+                Calculator
+            </h3>
+
+            <p>
+                Perform engineering calculations.
+            </p>
+
+        </div>
+
+
+        <!-- CONVERTER -->
+        <div
+            class="card"
+            onclick="openConverter()">
+
+            <i class="fa-solid fa-arrow-right-arrow-left"></i>
+
+            <h3>
+                Converter
+            </h3>
+
+            <p>
+                Convert common engineering units.
+            </p>
+
+        </div>
+
+
+        <!-- JSON -->
+        <div
+            class="card"
+            onclick="openJsonTool()">
+
+            <i class="fa-solid fa-code"></i>
+
+            <h3>
+                JSON Formatter
+            </h3>
+
+            <p>
+                Format and inspect JSON data.
+            </p>
+
+        </div>
+
+
+        <!-- REGEX -->
+        <div
+            class="card"
+            onclick="openRegexTool()">
+
+            <i class="fa-solid fa-filter"></i>
+
+            <h3>
+                Regex Tester
+            </h3>
+
+            <p>
+                Test regular expressions quickly.
+            </p>
+
+        </div>
+
+
+        <!-- TIMESTAMP -->
+        <div
+            class="card"
+            onclick="openTimestampTool()">
+
+            <i class="fa-solid fa-clock"></i>
+
+            <h3>
+                Timestamp
+            </h3>
+
+            <p>
+                Convert Unix timestamps and dates.
+            </p>
+
+        </div>
+
+
+        <!-- COLOR -->
+        <div
+            class="card"
+            onclick="openColorTool()">
+
+            <i class="fa-solid fa-palette"></i>
+
+            <h3>
+                Color Tool
+            </h3>
+
+            <p>
+                Inspect HEX, RGB and HSL values.
+            </p>
+
+        </div>
+
+    </div>
+
+
+    <!-- QUICK UTILITIES -->
+    <div class="section-title">
+
+        <h2>
+            Quick Utilities
+        </h2>
+
+    </div>
+
+
+    <div class="list">
+
+        <div class="list-row">
+
+            <div class="list-icon">
+                <i class="fa-solid fa-terminal"></i>
+            </div>
+
+            <div class="list-info">
+
+                <b>
+                    Safe Terminal
+                </b>
+
+                <small>
+                    Execute supported development commands.
+                </small>
+
+            </div>
+
+            <button
+                class="secondary"
+                type="button"
+                onclick="navigateTo('code')">
+
+                Open
+
+            </button>
+
+        </div>
+
+
+        <div class="list-row">
+
+            <div class="list-icon">
+                <i class="fa-solid fa-vial"></i>
+            </div>
+
+            <div class="list-info">
+
+                <b>
+                    Test Runner
+                </b>
+
+                <small>
+                    Run supported project tests.
+                </small>
+
+            </div>
+
+            <button
+                class="secondary"
+                type="button"
+                onclick="navigateTo('code')">
+
+                Open
+
+            </button>
+
+        </div>
+
+
+        <div class="list-row">
+
+            <div class="list-icon">
+                <i class="fa-solid fa-shield-halved"></i>
+            </div>
+
+            <div class="list-info">
+
+                <b>
+                    Security Scanner
+                </b>
+
+                <small>
+                    Scan code for common security risks.
+                </small>
+
+            </div>
+
+            <button
+                class="secondary"
+                type="button"
+                onclick="navigateTo('review')">
+
+                Scan
+
+            </button>
+
+        </div>
+
+
+        <div class="list-row">
+
+            <div class="list-icon">
+                <i class="fa-solid fa-gauge-high"></i>
+            </div>
+
+            <div class="list-info">
+
+                <b>
+                    Performance Analyzer
+                </b>
+
+                <small>
+                    Find common performance bottlenecks.
+                </small>
+
+            </div>
+
+            <button
+                class="secondary"
+                type="button"
+                onclick="navigateTo('review')">
+
+                Analyze
+
+            </button>
+
+        </div>
+
+    </div>
+
+
+    <!-- TOOL RESULT -->
+    <div
+        id="toolResult"
+        class="result"
+        style="display:none;">
+    </div>
+
+
+    <div style="height:10px;"></div>
+
+</section>
+
+
+<!-- =========================================================
+     CALCULATOR
+========================================================= -->
+
+<section id="calculatorView" class="view">
+
+    <!-- HEADER -->
+    <div class="header">
+
+        <div class="brand">
+
+            <div class="logo">
+                <i class="fa-solid fa-calculator"></i>
+            </div>
+
+            <div>
+
+                <div class="title">
+                    Calculator
+                </div>
+
+                <div class="subtitle">
+                    Quick math, no AI needed
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- DISPLAY -->
+    <div
+        class="card"
+        style="
+            padding:20px;
+            margin-bottom:14px;
+            text-align:right;
+        ">
+
+        <div
+            id="calculatorDisplay"
+            style="
+                font-size:34px;
+                font-weight:700;
+                overflow-wrap:anywhere;
+                min-height:42px;
+            ">
+            0
+        </div>
+
+        <div
+            id="calculatorResult"
+            style="
+                margin-top:6px;
+                min-height:18px;
+                font-size:13px;
+                color:var(--muted);
+            ">
+        </div>
+
+    </div>
+
+
+    <!-- KEYPAD -->
+    <div
+        style="
+            display:grid;
+            grid-template-columns:repeat(4, 1fr);
+            gap:10px;
+        ">
+
+        <button class="secondary" type="button" onclick="calculatorClear()">C</button>
+        <button class="secondary" type="button" onclick="calculatorBackspace()">⌫</button>
+        <button class="secondary" type="button" onclick="calculatorInput('%')">%</button>
+        <button class="secondary" type="button" onclick="calculatorInput('/')">÷</button>
+
+        <button class="secondary" type="button" onclick="calculatorInput('7')">7</button>
+        <button class="secondary" type="button" onclick="calculatorInput('8')">8</button>
+        <button class="secondary" type="button" onclick="calculatorInput('9')">9</button>
+        <button class="secondary" type="button" onclick="calculatorInput('*')">×</button>
+
+        <button class="secondary" type="button" onclick="calculatorInput('4')">4</button>
+        <button class="secondary" type="button" onclick="calculatorInput('5')">5</button>
+        <button class="secondary" type="button" onclick="calculatorInput('6')">6</button>
+        <button class="secondary" type="button" onclick="calculatorInput('-')">−</button>
+
+        <button class="secondary" type="button" onclick="calculatorInput('1')">1</button>
+        <button class="secondary" type="button" onclick="calculatorInput('2')">2</button>
+        <button class="secondary" type="button" onclick="calculatorInput('3')">3</button>
+        <button class="secondary" type="button" onclick="calculatorInput('+')">+</button>
+
+        <button class="secondary" type="button" onclick="calculatorInput('(')">(</button>
+        <button class="secondary" type="button" onclick="calculatorInput('0')">0</button>
+        <button class="secondary" type="button" onclick="calculatorInput(')')">)</button>
+        <button class="secondary" type="button" onclick="calculatorInput('.')">.</button>
+
+        <button
+            class="primary"
+            type="button"
+            style="grid-column: span 4;"
+            onclick="calculatorEquals()">
+            =
+        </button>
+
+    </div>
+
+
+    <div style="height:10px;"></div>
+
+    </section>/* =========================================================
+   TOGGLE SWITCH
+========================================================= */
+
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 42px;
+    height: 24px;
+    flex: 0 0 42px;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.switch span {
+    position: absolute;
+    cursor: pointer;
+    inset: 0;
+    background: #1b2942;
+    border-radius: 999px;
+    transition: background .2s ease;
+}
+
+.switch span::before {
+    content: "";
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    left: 3px;
+    bottom: 3px;
+    background: white;
+    border-radius: 50%;
+    transition: transform .2s ease;
+}
+
+.switch input:checked + span {
+    background: var(--accent);
+}
+
+.switch input:checked + span::before {
+    transform: translateX(18px);
+}
