@@ -1,0 +1,1604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+
+<meta
+    name="viewport"
+    content="width=device-width,
+             initial-scale=1,
+             maximum-scale=1,
+             viewport-fit=cover"
+>
+
+<meta name="theme-color" content="#050811">
+
+<title>Engineer AI</title>
+
+<link
+    rel="preconnect"
+    href="https://cdnjs.cloudflare.com"
+>
+
+<link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css"
+>
+
+<style>
+
+/* =========================================================
+   ENGINEER AI
+   GLOBAL DESIGN SYSTEM
+========================================================= */
+
+:root {
+    --bg: #050811;
+    --panel: #0a1020;
+    --panel2: #0d1527;
+    --card: #101a2e;
+
+    --line: #1b2942;
+
+    --text: #f7f9ff;
+    --muted: #8290a8;
+
+    --accent: #4f8cff;
+    --accent2: #7c5cff;
+
+    --green: #32d583;
+    --yellow: #fdb022;
+    --red: #ff5c7a;
+
+    --nav-height: 72px;
+
+    --safe-bottom:
+        env(safe-area-inset-bottom, 0px);
+}
+
+
+/* =========================================================
+   RESET
+========================================================= */
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html,
+body {
+    width: 100%;
+    height: 100%;
+
+    background: var(--bg);
+    color: var(--text);
+
+    font-family:
+        Inter,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        Roboto,
+        sans-serif;
+
+    -webkit-tap-highlight-color:
+        transparent;
+}
+
+body {
+    overflow: hidden;
+}
+
+button,
+input,
+textarea,
+select {
+    font: inherit;
+}
+
+button {
+    border: none;
+}
+
+button,
+.card,
+.nav-item {
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+
+/* =========================================================
+   APP SHELL
+========================================================= */
+
+.app {
+    width: 100%;
+    height: 100dvh;
+
+    display: flex;
+    flex-direction: column;
+
+    overflow: hidden;
+
+    background:
+        radial-gradient(
+            700px 400px at 80% -10%,
+            rgba(79,140,255,.13),
+            transparent 60%
+        ),
+        var(--bg);
+}
+
+
+/* =========================================================
+   MAIN
+========================================================= */
+
+main {
+    position: relative;
+
+    flex: 1;
+    min-height: 0;
+
+    overflow: hidden;
+}
+
+
+/* =========================================================
+   VIEWS
+========================================================= */
+
+.view {
+    position: absolute;
+
+    inset: 0;
+
+    overflow-y: auto;
+    overflow-x: hidden;
+
+    padding:
+        16px
+        16px
+        calc(
+            var(--nav-height)
+            + 20px
+            + var(--safe-bottom)
+        );
+
+    opacity: 0;
+    visibility: hidden;
+
+    transform:
+        translate3d(12px, 0, 0);
+
+    pointer-events: none;
+
+    transition:
+        opacity .18s ease,
+        transform .18s ease,
+        visibility .18s;
+}
+
+.view.active {
+    opacity: 1;
+    visibility: visible;
+
+    transform:
+        translate3d(0, 0, 0);
+
+    pointer-events: auto;
+}
+
+.view::-webkit-scrollbar {
+    width: 4px;
+}
+
+.view::-webkit-scrollbar-thumb {
+    background: #263652;
+    border-radius: 10px;
+}
+
+
+/* =========================================================
+   HEADER
+========================================================= */
+
+.header {
+    display: flex;
+
+    align-items: center;
+    justify-content: space-between;
+
+    margin-bottom: 16px;
+}
+
+.brand {
+    display: flex;
+
+    align-items: center;
+
+    gap: 10px;
+}
+
+.logo {
+    width: 40px;
+    height: 40px;
+
+    flex: 0 0 40px;
+
+    border-radius: 13px;
+
+    display: grid;
+    place-items: center;
+
+    color: white;
+
+    background:
+        linear-gradient(
+            135deg,
+            var(--accent),
+            var(--accent2)
+        );
+
+    box-shadow:
+        0 8px 28px
+        rgba(79,140,255,.22);
+}
+
+.logo i {
+    font-size: 18px;
+}
+
+.title {
+    font-size: 15px;
+
+    font-weight: 800;
+}
+
+.subtitle {
+    margin-top: 2px;
+
+    font-size: 10px;
+
+    color: var(--muted);
+}
+
+.pill {
+    padding: 6px 9px;
+
+    border-radius: 999px;
+
+    font-size: 10px;
+
+    color: var(--muted);
+
+    background: #09101e;
+
+    border: 1px solid var(--line);
+}
+
+.pill.online {
+    color: var(--green);
+
+    border-color:
+        rgba(50,213,131,.25);
+}
+
+
+/* =========================================================
+   HERO
+========================================================= */
+
+.hero {
+    padding: 18px;
+
+    margin-bottom: 14px;
+
+    border-radius: 20px;
+
+    border: 1px solid var(--line);
+
+    background:
+        linear-gradient(
+            145deg,
+            #0e1930,
+            #080e1a
+        );
+}
+
+.hero h1 {
+    font-size: 25px;
+
+    letter-spacing: -.6px;
+}
+
+.hero p {
+    margin: 7px 0 15px;
+
+    font-size: 12px;
+
+    line-height: 1.5;
+
+    color: var(--muted);
+}
+
+
+/* =========================================================
+   COMPOSER
+========================================================= */
+
+.composer {
+    display: flex;
+
+    align-items: center;
+
+    gap: 8px;
+
+    padding: 8px;
+
+    background: #070d19;
+
+    border:
+        1px solid var(--line);
+
+    border-radius: 14px;
+}
+
+.composer input {
+    flex: 1;
+
+    min-width: 0;
+
+    padding: 7px;
+
+    color: var(--text);
+
+    background: transparent;
+
+    border: none;
+
+    outline: none;
+
+    font-size: 12px;
+}
+
+.icon-btn,
+.send {
+    width: 38px;
+    height: 38px;
+
+    flex: 0 0 38px;
+
+    border-radius: 11px;
+
+    display: grid;
+
+    place-items: center;
+
+    cursor: pointer;
+}
+
+.icon-btn {
+    color: var(--muted);
+
+    background: #101a2d;
+
+    border:
+        1px solid var(--line);
+}
+
+.send {
+    color: white;
+
+    background:
+        linear-gradient(
+            135deg,
+            var(--accent),
+            #6b62ff
+        );
+
+    box-shadow:
+        0 5px 18px
+        rgba(79,140,255,.22);
+}
+
+.send:disabled {
+    opacity: .45;
+
+    box-shadow: none;
+}
+
+
+/* =========================================================
+   GRID
+========================================================= */
+
+.grid {
+    display: grid;
+
+    grid-template-columns:
+        repeat(2, minmax(0, 1fr));
+
+    gap: 10px;
+}
+
+.card {
+    padding: 14px;
+
+    border-radius: 16px;
+
+    background:
+        linear-gradient(
+            145deg,
+            #0c1424,
+            #09101d
+        );
+
+    border:
+        1px solid var(--line);
+
+    cursor: pointer;
+
+    transition:
+        transform .12s ease,
+        border-color .12s ease;
+}
+
+.card:active {
+    transform: scale(.98);
+}
+
+.card:hover {
+    border-color: #294268;
+}
+
+.card i {
+    display: block;
+
+    margin-bottom: 10px;
+
+    font-size: 16px;
+
+    color: var(--accent);
+}
+
+.card h3 {
+    font-size: 12px;
+}
+
+.card p {
+    margin-top: 4px;
+
+    font-size: 10px;
+
+    line-height: 1.4;
+
+    color: var(--muted);
+}
+
+
+/* =========================================================
+   SECTION TITLES
+========================================================= */
+
+.section-title {
+    display: flex;
+
+    align-items: center;
+    justify-content: space-between;
+
+    margin:
+        18px 2px 9px;
+}
+
+.section-title h2 {
+    font-size: 13px;
+}
+
+.section-title span {
+    font-size: 10px;
+
+    color: var(--muted);
+}
+
+
+/* =========================================================
+   STATS
+========================================================= */
+
+.stats {
+    display: grid;
+
+    grid-template-columns:
+        repeat(2, minmax(0, 1fr));
+
+    gap: 10px;
+}
+
+.stat {
+    padding: 13px;
+
+    border-radius: 14px;
+
+    background: #0a1221;
+
+    border:
+        1px solid var(--line);
+}
+
+.stat b {
+    display: block;
+
+    font-size: 19px;
+}
+
+.stat span {
+    font-size: 9px;
+
+    color: var(--muted);
+}
+
+
+/* =========================================================
+   LIST
+========================================================= */
+
+.list {
+    display: grid;
+
+    gap: 9px;
+}
+
+.list-row {
+    display: flex;
+
+    align-items: center;
+
+    gap: 10px;
+
+    padding: 12px;
+
+    border-radius: 14px;
+
+    background: #0a1220;
+
+    border:
+        1px solid var(--line);
+}
+
+.list-icon {
+    width: 36px;
+    height: 36px;
+
+    flex: 0 0 36px;
+
+    display: grid;
+
+    place-items: center;
+
+    border-radius: 11px;
+
+    color: var(--accent);
+
+    background: #111d32;
+}
+
+.list-info {
+    flex: 1;
+
+    min-width: 0;
+}
+
+.list-info b {
+    display: block;
+
+    font-size: 12px;
+}
+
+.list-info small {
+    display: block;
+
+    margin-top: 3px;
+
+    font-size: 9px;
+
+    color: var(--muted);
+
+    white-space: nowrap;
+
+    overflow: hidden;
+
+    text-overflow: ellipsis;
+}
+
+
+/* =========================================================
+   BUTTONS
+========================================================= */
+
+.primary {
+    min-height: 42px;
+
+    padding: 0 16px;
+
+    border-radius: 12px;
+
+    color: white;
+
+    background:
+        linear-gradient(
+            135deg,
+            var(--accent),
+            var(--accent2)
+        );
+
+    font-weight: 700;
+
+    cursor: pointer;
+
+    transition:
+        transform .12s ease,
+        filter .12s ease,
+        opacity .12s ease;
+}
+
+.primary:hover:not(:disabled) {
+    filter: brightness(1.08);
+}
+
+.primary:active:not(:disabled) {
+    transform: scale(.97);
+}
+
+.primary:disabled {
+    opacity: .55;
+
+    cursor: not-allowed;
+}
+
+.secondary {
+    min-height: 40px;
+
+    padding: 0 14px;
+
+    border-radius: 12px;
+
+    color: var(--text);
+
+    background: #101a2d;
+
+    border:
+        1px solid var(--line);
+
+    cursor: pointer;
+
+    transition:
+        background .12s ease,
+        border-color .12s ease,
+        transform .12s ease;
+}
+
+.secondary:hover:not(:disabled) {
+    background: #16233b;
+    border-color: var(--accent);
+}
+
+.secondary:active:not(:disabled) {
+    transform: scale(.97);
+}
+
+.secondary.active {
+    color: white;
+
+    background:
+        linear-gradient(
+            135deg,
+            var(--accent),
+            var(--accent2)
+        );
+
+    border-color: transparent;
+}
+
+.secondary:disabled {
+    opacity: .55;
+
+    cursor: not-allowed;
+}
+
+.danger {
+    color: white;
+
+    background:
+        linear-gradient(
+            135deg,
+            #ff4f70,
+            #c92f52
+        );
+}
+
+
+/* =========================================================
+   FORMS
+========================================================= */
+
+.form {
+    display: grid;
+
+    gap: 10px;
+}
+
+.label {
+    margin:
+        2px 2px -4px;
+
+    font-size: 10px;
+
+    color: var(--muted);
+}
+
+.field {
+    width: 100%;
+
+    padding: 11px;
+
+    color: var(--text);
+
+    background: #09111f;
+
+    border:
+        1px solid var(--line);
+
+    border-radius: 13px;
+
+    outline: none;
+
+    font-size: 12px;
+}
+
+.field:focus {
+    border-color: #355a91;
+
+    box-shadow:
+        0 0 0 3px
+        rgba(79,140,255,.08);
+}
+
+textarea.field {
+    min-height: 130px;
+
+    resize: vertical;
+}
+
+
+/* =========================================================
+   RESULT BOX
+========================================================= */
+
+.result {
+    margin-top: 12px;
+
+    padding: 12px;
+
+    border-radius: 14px;
+
+    background: #080f1b;
+
+    border:
+        1px solid var(--line);
+
+    font-size: var(--font-scale, 11px);
+
+    line-height: 1.5;
+
+    overflow-wrap: anywhere;
+}
+
+.result pre {
+    margin-top: 8px;
+
+    padding: 10px;
+
+    overflow: auto;
+
+    white-space: pre-wrap;
+
+    border-radius: 10px;
+
+    background: #050a12;
+
+    border:
+        1px solid #18253b;
+
+    font-size: 10px;
+}
+
+
+/* =========================================================
+   CHAT MESSAGES
+========================================================= */
+
+.chat-message {
+    display: flex;
+    flex-direction: column;
+
+    gap: 4px;
+
+    max-width: 88%;
+}
+
+.chat-message.user {
+    align-self: flex-end;
+    align-items: flex-end;
+    margin-left: auto;
+}
+
+.chat-message.assistant {
+    align-self: flex-start;
+    align-items: flex-start;
+    margin-right: auto;
+}
+
+.chat-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--muted);
+    padding: 0 4px;
+}
+
+.chat-bubble {
+    padding: 10px 13px;
+
+    border-radius: 16px;
+
+    font-size: 12px;
+    line-height: 1.5;
+
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.chat-message.user .chat-bubble {
+    color: white;
+    border-bottom-right-radius: 4px;
+
+    background:
+        linear-gradient(
+            135deg,
+            var(--accent),
+            var(--accent2)
+        );
+}
+
+.chat-message.assistant .chat-bubble {
+    color: var(--text);
+    border-bottom-left-radius: 4px;
+
+    background: var(--card);
+
+    border: 1px solid var(--line);
+}
+
+#chatMessages {
+    display: flex;
+    flex-direction: column;
+}
+
+
+/* =========================================================
+   PROGRESS
+========================================================= */
+
+.progress {
+    width: 100%;
+
+    height: 7px;
+
+    overflow: hidden;
+
+    border-radius: 999px;
+
+    background: #182338;
+}
+
+.progress-bar {
+    height: 100%;
+
+    border-radius: inherit;
+
+    background:
+        linear-gradient(
+            90deg,
+            var(--accent),
+            var(--accent2)
+        );
+
+    transition:
+        width .3s ease;
+}
+
+
+/* =========================================================
+   BADGES
+========================================================= */
+
+.badge {
+    display: inline-flex;
+
+    align-items: center;
+
+    gap: 5px;
+
+    padding: 5px 8px;
+
+    border-radius: 999px;
+
+    font-size: 9px;
+
+    color: var(--muted);
+
+    background: #0c1526;
+
+    border:
+        1px solid var(--line);
+}
+
+.badge.green {
+    color: var(--green);
+
+    border-color:
+        rgba(50,213,131,.22);
+}
+
+.badge.yellow {
+    color: var(--yellow);
+
+    border-color:
+        rgba(253,176,34,.22);
+}
+
+.badge.red {
+    color: var(--red);
+
+    border-color:
+        rgba(255,92,122,.22);
+}
+
+
+/* =========================================================
+   EMPTY STATE
+========================================================= */
+
+.empty {
+    padding: 30px 18px;
+
+    text-align: center;
+
+    border-radius: 16px;
+
+    background: #09111e;
+
+    border:
+        1px dashed #223451;
+}
+
+.empty i {
+    margin-bottom: 10px;
+
+    font-size: 28px;
+
+    color: var(--muted);
+}
+
+.empty h3 {
+    font-size: 13px;
+}
+
+.empty p {
+    margin-top: 5px;
+
+    font-size: 10px;
+
+    line-height: 1.5;
+
+    color: var(--muted);
+}
+
+
+/* =========================================================
+   LOADING
+========================================================= */
+
+.loading {
+    display: inline-flex;
+
+    align-items: center;
+
+    gap: 5px;
+
+    color: var(--muted);
+}
+
+.loading span {
+    width: 5px;
+    height: 5px;
+
+    border-radius: 50%;
+
+    background: currentColor;
+
+    animation:
+        loadingPulse 1s infinite ease-in-out;
+}
+
+.loading span:nth-child(2) {
+    animation-delay: .15s;
+}
+
+.loading span:nth-child(3) {
+    animation-delay: .30s;
+}
+
+@keyframes loadingPulse {
+    0%,
+    80%,
+    100% {
+        opacity: .25;
+        transform: scale(.8);
+    }
+
+    40% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+
+/* =========================================================
+   TOAST
+========================================================= */
+
+.toast {
+    position: fixed;
+
+    left: 50%;
+
+    bottom:
+        calc(
+            var(--nav-height)
+            + 18px
+            + var(--safe-bottom)
+        );
+
+    transform:
+        translate(-50%, 15px);
+
+    z-index: 9999;
+
+    max-width:
+        calc(100% - 32px);
+
+    padding: 11px 15px;
+
+    border-radius: 12px;
+
+    color: white;
+
+    background: #111d31;
+
+    border:
+        1px solid #294268;
+
+    box-shadow:
+        0 10px 30px
+        rgba(0,0,0,.35);
+
+    font-size: 11px;
+
+    opacity: 0;
+
+    pointer-events: none;
+
+    transition:
+        opacity .2s ease,
+        transform .2s ease;
+}
+
+.toast.show {
+    opacity: 1;
+
+    transform:
+        translate(-50%, 0);
+}
+
+
+/* =========================================================
+   BOTTOM NAVIGATION
+========================================================= */
+
+.bottom-nav {
+    position: fixed;
+
+    left: 0;
+    right: 0;
+    bottom: 0;
+
+    z-index: 500;
+
+    height:
+        calc(
+            var(--nav-height)
+            + var(--safe-bottom)
+        );
+
+    padding:
+        8px
+        8px
+        var(--safe-bottom);
+
+    display: grid;
+
+    grid-template-columns:
+        repeat(5, 1fr);
+
+    gap: 5px;
+
+    background:
+        rgba(7,12,22,.94);
+
+    border-top:
+        1px solid var(--line);
+
+    backdrop-filter:
+        blur(18px);
+
+    -webkit-backdrop-filter:
+        blur(18px);
+}
+
+.nav-item {
+    display: flex;
+
+    flex-direction: column;
+
+    align-items: center;
+
+    justify-content: center;
+
+    gap: 4px;
+
+    border-radius: 12px;
+
+    color: var(--muted);
+
+    background: transparent;
+
+    cursor: pointer;
+
+    transition:
+        background .15s ease,
+        color .15s ease;
+}
+
+.nav-item i {
+    font-size: 15px;
+}
+
+.nav-item span {
+    font-size: 8px;
+}
+
+.nav-item.active {
+    color: white;
+
+    background:
+        rgba(79,140,255,.12);
+}
+
+.nav-item.active i {
+    color: var(--accent);
+}
+
+
+/* =========================================================
+   DESKTOP
+========================================================= */
+
+@media (min-width: 700px) {
+
+    .view {
+        max-width: 1100px;
+
+        margin: 0 auto;
+
+        left: 50%;
+        right: auto;
+
+        width: min(
+            100%,
+            1100px
+        );
+
+        transform:
+            translate3d(
+                calc(-50% + 12px),
+                0,
+                0
+            );
+    }
+
+    .view.active {
+        transform:
+            translate3d(
+                -50%,
+                0,
+                0
+            );
+    }
+
+    .grid {
+        grid-template-columns:
+            repeat(3, minmax(0, 1fr));
+    }
+
+    .stats {
+        grid-template-columns:
+            repeat(4, minmax(0, 1fr));
+    }
+
+    .bottom-nav {
+        left: 50%;
+
+        right: auto;
+
+        width: min(
+            700px,
+            100%
+        );
+
+        transform:
+            translateX(-50%);
+
+        border:
+            1px solid var(--line);
+
+        border-bottom: none;
+
+        border-radius:
+            18px 18px 0 0;
+    }
+}
+
+
+/* =========================================================
+   ACCESSIBILITY
+========================================================= */
+
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+    outline:
+        2px solid var(--accent);
+
+    outline-offset: 2px;
+}
+
+</style>
+
+<style>
+#engineerBackButton{position:fixed;top:calc(10px + env(safe-area-inset-top));left:10px;z-index:9999;display:none;align-items:center;gap:6px;padding:10px 14px;border:1px solid var(--line);border-radius:14px;background:rgba(10,16,32,.94);color:var(--text);font-weight:700;box-shadow:0 8px 30px rgba(0,0,0,.35);backdrop-filter:blur(10px)}
+#engineerBackButton:active{transform:scale(.97)}
+</style>
+  </head>
+  /* =========================================================
+   CODE REVIEW & SECURITY FUNCTIONS
+========================================================= */
+
+async function runCodeReview() {
+    const codeInput = $("reviewCode");
+    const fileInput = $("reviewFileName");
+    const result = $("reviewResult");
+    const button = $("reviewButton");
+    
+    const code = codeInput ? codeInput.value.trim() : "";
+    const fileName = fileInput ? fileInput.value.trim() : "main.py";
+    const language = getReviewLanguage();
+
+    if (!code) { 
+        toast("Please provide code to review."); 
+        return; 
+    }
+
+    if (result) result.textContent = "🛡️ Running AI Code Review...";
+    if (button) { button.disabled = true; button.textContent = "Reviewing..."; }
+
+    try {
+        const data = await apiRequest("/api/chat", {
+            method: "POST",
+            body: JSON.stringify({
+                prompt: `Perform a ${reviewMode} review for this file named '${fileName}' (${language}).
+Provide insights on quality, structure, performance, and potential bug vectors.
+
+CODE:
+${code}`,
+                provider: getSelectedProvider()
+            })
+        });
+        if (result) result.innerHTML = renderMarkdown(getApiText(data));
+    } catch (err) {
+        if (result) result.textContent = "Review failed:\n" + getApiText(err?.message || err);
+        toast("Code review request failed.");
+    } finally {
+        if (button) { button.disabled = false; button.textContent = "Run AI Review"; }
+    }
+}
+
+async function runSecurityScan() {
+    const codeInput = $("reviewCode");
+    const result = $("securityResult");
+    const code = codeInput ? codeInput.value.trim() : "";
+
+    if (!code) { 
+        toast("Please paste code in the review editor first."); 
+        return; 
+    }
+
+    if (result) result.textContent = "🔒 Scanning code for security vulnerabilities...";
+
+    try {
+        const data = await apiRequest("/api/chat", {
+            method: "POST",
+            body: JSON.stringify({
+                prompt: `Perform a static security vulnerability scan on this code. Highlight SQL injection, XSS, memory leaks, hardcoded secrets, or insecure configuration.
+
+CODE:
+${code}`,
+                provider: getSelectedProvider()
+            })
+        });
+        if (result) result.innerHTML = renderMarkdown(getApiText(data));
+    } catch (err) {
+        if (result) result.textContent = "Security scan failed:\n" + getApiText(err?.message || err);
+        toast("Security scan failed.");
+    }
+}
+
+async function runPerformanceAnalysis() {
+    const codeInput = $("reviewCode");
+    const result = $("performanceResult");
+    const code = codeInput ? codeInput.value.trim() : "";
+
+    if (!code) { 
+        toast("Please paste code in the review editor first."); 
+        return; 
+    }
+
+    if (result) result.textContent = "⚡ Analyzing execution performance and Big-O complexity...";
+
+    try {
+        const data = await apiRequest("/api/chat", {
+            method: "POST",
+            body: JSON.stringify({
+                prompt: `Analyze the time and space complexity of this code. Suggest performance optimizations or algorithm improvements.
+
+CODE:
+${code}`,
+                provider: getSelectedProvider()
+            })
+        });
+        if (result) result.innerHTML = renderMarkdown(getApiText(data));
+    } catch (err) {
+        if (result) result.textContent = "Performance analysis failed:\n" + getApiText(err?.message || err);
+        toast("Performance analysis failed.");
+    }
+}
+  /* =========================================================
+   AI AGENTS WORKFLOW
+========================================================= */
+
+function selectAgent(type) {
+    const agentSelect = $("agentType");
+    if (agentSelect) {
+        agentSelect.value = type;
+        toast("Selected Agent: " + type.toUpperCase());
+    }
+}
+
+function selectFullTeam() {
+    selectAgent("all");
+}
+
+function clearAgentTask() {
+    const taskInput = $("agentTask");
+    const result = $("agentResult");
+    if (taskInput) taskInput.value = "";
+    if (result) {
+        result.textContent = "";
+        result.style.display = "none";
+    }
+    toast("Task cleared.");
+}
+
+async function runAgent() {
+    const taskInput = $("agentTask");
+    const agentSelect = $("agentType");
+    const result = $("agentResult");
+    const button = $("agentRunButton");
+
+    const task = taskInput ? taskInput.value.trim() : "";
+    const agentType = agentSelect ? agentSelect.value : "code";
+
+    if (!task) {
+        toast("Enter an engineering task for the agent.");
+        return;
+    }
+
+    if (result) result.textContent = `🤖 Agent [${agentType.toUpperCase()}] is executing task...`;
+    if (button) { button.disabled = true; button.textContent = "Running..."; }
+
+    try {
+        const data = await apiRequest("/api/chat", {
+            method: "POST",
+            body: JSON.stringify({
+                prompt: `You are operating as a specialized engineering AI Agent (${agentType}).
+Fulfill the following engineering request step-by-step:
+
+TASK:
+${task}`,
+                provider: getSelectedProvider()
+            })
+        });
+        if (result) result.innerHTML = renderMarkdown(getApiText(data));
+    } catch (err) {
+        if (result) result.textContent = "Agent execution failed:\n" + getApiText(err?.message || err);
+        toast("Agent request failed.");
+    } finally {
+        if (button) { button.disabled = false; button.textContent = "Run Agent"; }
+    }
+}
+  /* =========================================================
+   PROJECT MANAGEMENT & SEARCH
+========================================================= */
+
+function loadProjects() {
+    const saved = localStorage.getItem("engineer_ai_projects");
+    if (saved) {
+        try { projects = JSON.parse(saved); } catch { projects = []; }
+    } else {
+        projects = [
+            { id: "OS Kernel", name: "OS Kernel", lang: "C", progress: "65%" },
+            { id: "AI Chat App", name: "AI Chat App", lang: "JavaScript", progress: "80%" },
+            { id: "Web Scraper", name: "Web Scraper", lang: "Python", progress: "40%" }
+        ];
+    }
+    renderProjects();
+}
+
+function renderProjects() {
+    const list = $("projectList");
+    const empty = $("projectEmpty");
+    const countLabel = $("projectCountLabel");
+
+    if (!list) return;
+
+    list.innerHTML = "";
+    if (countLabel) countLabel.textContent = `${projects.length} projects`;
+
+    if (projects.length === 0) {
+        if (empty) empty.style.display = "block";
+        return;
+    }
+    if (empty) empty.style.display = "none";
+
+    projects.forEach(p => {
+        const row = document.createElement("div");
+        row.className = "list-row";
+        row.onclick = () => openProject(p.id);
+        row.innerHTML = `
+            <div class="list-icon"><i class="fa-solid fa-folder"></i></div>
+            <div class="list-info">
+                <b>${escapeHtml(p.name)}</b>
+                <small>${escapeHtml(p.lang)} • Active</small>
+            </div>
+            <span class="badge green">${p.progress || "100%"}</span>
+        `;
+        list.appendChild(row);
+    });
+}
+
+function createProject() {
+    const nameInput = $("projectName");
+    const langSelect = $("projectLanguage");
+    const name = nameInput ? nameInput.value.trim() : "";
+    const lang = langSelect ? langSelect.value : "Python";
+
+    if (!name) { toast("Provide a project name."); return; }
+
+    const newProj = { id: name, name: name, lang: lang, progress: "0%" };
+    projects.push(newProj);
+    localStorage.setItem("engineer_ai_projects", JSON.stringify(projects));
+    
+    if (nameInput) nameInput.value = "";
+    renderProjects();
+    toast("Project created successfully.");
+}
+
+function filterProjects() {
+    const searchInput = $("projectSearch");
+    const query = searchInput ? searchInput.value.toLowerCase() : "";
+    const rows = document.querySelectorAll("#projectList .list-row");
+
+    rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(query) ? "flex" : "none";
+    });
+}
+
+function analyzeSelectedProject() {
+    const result = $("projectResult");
+    if (result) {
+        result.textContent = "Analyzing overall project metrics, complexity, and structural design...";
+    }
+}
+
+function showProjectStats() {
+    const result = $("projectResult");
+    if (result) {
+        result.textContent = `Total Projects: ${projects.length}\nActive Workspace: Ready`;
+    }
+}
+
+function askProjectQuestion() {
+    navigateTo("chat");
+}
+
+function openProjectMemory() {
+    toast("Project Memory active.");
+}
+  /* =========================================================
+   ENGINEERING TOOLS & CALCULATOR
+========================================================= */
+
+function openCalculator() { navigateTo("calculator"); }
+function openConverter() { toast("Unit Converter coming soon."); }
+function openJsonTool() { navigateTo("code"); toast("Use Format in Code Studio for JSON."); }
+function openRegexTool() { toast("Regex Tester tool ready."); }
+function openTimestampTool() { toast("Current Unix Timestamp: " + Math.floor(Date.now() / 1000)); }
+function openColorTool() { toast("Color inspector ready."); }
+
+function calculatorInput(val) {
+    calculatorExpression += val;
+    updateCalcDisplay();
+}
+
+function calculatorClear() {
+    calculatorExpression = "";
+    updateCalcDisplay();
+    const res = $("calculatorResult");
+    if (res) res.textContent = "";
+}
+
+function calculatorBackspace() {
+    calculatorExpression = calculatorExpression.slice(0, -1);
+    updateCalcDisplay();
+}
+
+function updateCalcDisplay() {
+    const disp = $("calculatorDisplay");
+    if (disp) disp.textContent = calculatorExpression || "0";
+}
+
+function calculatorEquals() {
+    const res = $("calculatorResult");
+    try {
+        const evalResult = eval(calculatorExpression);
+        if (res) res.textContent = "= " + evalResult;
+    } catch {
+        if (res) res.textContent = "Error";
+    }
+}
+  
