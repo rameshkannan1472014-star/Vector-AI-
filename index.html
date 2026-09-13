@@ -819,6 +819,7 @@ textarea.field {
 
 /* =========================================================
    CHAT MESSAGES
+   (built by addChatMessage() in JS — previously unstyled)
 ========================================================= */
 
 .chat-message {
@@ -1293,359 +1294,2099 @@ select:focus-visible {
 #engineerBackButton{position:fixed;top:calc(10px + env(safe-area-inset-top));left:10px;z-index:9999;display:none;align-items:center;gap:6px;padding:10px 14px;border:1px solid var(--line);border-radius:14px;background:rgba(10,16,32,.94);color:var(--text);font-weight:700;box-shadow:0 8px 30px rgba(0,0,0,.35);backdrop-filter:blur(10px)}
 #engineerBackButton:active{transform:scale(.97)}
 </style>
-  </head>
-  /* =========================================================
-   CODE REVIEW & SECURITY FUNCTIONS
-========================================================= */
+</head>
 
-async function runCodeReview() {
-    const codeInput = $("reviewCode");
-    const fileInput = $("reviewFileName");
-    const result = $("reviewResult");
-    const button = $("reviewButton");
-    
-    const code = codeInput ? codeInput.value.trim() : "";
-    const fileName = fileInput ? fileInput.value.trim() : "main.py";
-    const language = getReviewLanguage();
+<body>
 
-    if (!code) { 
-        toast("Please provide code to review."); 
-        return; 
-    }
+<div class="app">
 
-    if (result) result.textContent = "🛡️ Running AI Code Review...";
-    if (button) { button.disabled = true; button.textContent = "Reviewing..."; }
+    <main id="main">
 
-    try {
-        const data = await apiRequest("/api/chat", {
-            method: "POST",
-            body: JSON.stringify({
-                prompt: `Perform a ${reviewMode} review for this file named '${fileName}' (${language}).
-Provide insights on quality, structure, performance, and potential bug vectors.
+    </main>
 
-CODE:
-${code}`,
-                provider: getSelectedProvider()
-            })
-        });
-        if (result) result.innerHTML = renderMarkdown(getApiText(data));
-    } catch (err) {
-        if (result) result.textContent = "Review failed:\n" + getApiText(err?.message || err);
-        toast("Code review request failed.");
-    } finally {
-        if (button) { button.disabled = false; button.textContent = "Run AI Review"; }
-    }
-}
+</div>
 
-async function runSecurityScan() {
-    const codeInput = $("reviewCode");
-    const result = $("securityResult");
-    const code = codeInput ? codeInput.value.trim() : "";
+<div
+    id="toast"
+    class="toast"
+    role="status"
+    aria-live="polite">
+    </div><!-- =========================================================
+     PART 2 — HOME SCREEN
+========================================================= -->
 
-    if (!code) { 
-        toast("Please paste code in the review editor first."); 
-        return; 
-    }
+<section id="homeView" class="view active">
 
-    if (result) result.textContent = "🔒 Scanning code for security vulnerabilities...";
+    <!-- HEADER -->
+    <div class="header">
 
-    try {
-        const data = await apiRequest("/api/chat", {
-            method: "POST",
-            body: JSON.stringify({
-                prompt: `Perform a static security vulnerability scan on this code. Highlight SQL injection, XSS, memory leaks, hardcoded secrets, or insecure configuration.
+        <div class="brand">
 
-CODE:
-${code}`,
-                provider: getSelectedProvider()
-            })
-        });
-        if (result) result.innerHTML = renderMarkdown(getApiText(data));
-    } catch (err) {
-        if (result) result.textContent = "Security scan failed:\n" + getApiText(err?.message || err);
-        toast("Security scan failed.");
-    }
-}
-
-async function runPerformanceAnalysis() {
-    const codeInput = $("reviewCode");
-    const result = $("performanceResult");
-    const code = codeInput ? codeInput.value.trim() : "";
-
-    if (!code) { 
-        toast("Please paste code in the review editor first."); 
-        return; 
-    }
-
-    if (result) result.textContent = "⚡ Analyzing execution performance and Big-O complexity...";
-
-    try {
-        const data = await apiRequest("/api/chat", {
-            method: "POST",
-            body: JSON.stringify({
-                prompt: `Analyze the time and space complexity of this code. Suggest performance optimizations or algorithm improvements.
-
-CODE:
-${code}`,
-                provider: getSelectedProvider()
-            })
-        });
-        if (result) result.innerHTML = renderMarkdown(getApiText(data));
-    } catch (err) {
-        if (result) result.textContent = "Performance analysis failed:\n" + getApiText(err?.message || err);
-        toast("Performance analysis failed.");
-    }
-}
-  /* =========================================================
-   AI AGENTS WORKFLOW
-========================================================= */
-
-function selectAgent(type) {
-    const agentSelect = $("agentType");
-    if (agentSelect) {
-        agentSelect.value = type;
-        toast("Selected Agent: " + type.toUpperCase());
-    }
-}
-
-function selectFullTeam() {
-    selectAgent("all");
-}
-
-function clearAgentTask() {
-    const taskInput = $("agentTask");
-    const result = $("agentResult");
-    if (taskInput) taskInput.value = "";
-    if (result) {
-        result.textContent = "";
-        result.style.display = "none";
-    }
-    toast("Task cleared.");
-}
-
-async function runAgent() {
-    const taskInput = $("agentTask");
-    const agentSelect = $("agentType");
-    const result = $("agentResult");
-    const button = $("agentRunButton");
-
-    const task = taskInput ? taskInput.value.trim() : "";
-    const agentType = agentSelect ? agentSelect.value : "code";
-
-    if (!task) {
-        toast("Enter an engineering task for the agent.");
-        return;
-    }
-
-    if (result) result.textContent = `🤖 Agent [${agentType.toUpperCase()}] is executing task...`;
-    if (button) { button.disabled = true; button.textContent = "Running..."; }
-
-    try {
-        const data = await apiRequest("/api/chat", {
-            method: "POST",
-            body: JSON.stringify({
-                prompt: `You are operating as a specialized engineering AI Agent (${agentType}).
-Fulfill the following engineering request step-by-step:
-
-TASK:
-${task}`,
-                provider: getSelectedProvider()
-            })
-        });
-        if (result) result.innerHTML = renderMarkdown(getApiText(data));
-    } catch (err) {
-        if (result) result.textContent = "Agent execution failed:\n" + getApiText(err?.message || err);
-        toast("Agent request failed.");
-    } finally {
-        if (button) { button.disabled = false; button.textContent = "Run Agent"; }
-    }
-}
-  /* =========================================================
-   PROJECT MANAGEMENT & SEARCH
-========================================================= */
-
-function loadProjects() {
-    const saved = localStorage.getItem("engineer_ai_projects");
-    if (saved) {
-        try { projects = JSON.parse(saved); } catch { projects = []; }
-    } else {
-        projects = [
-            { id: "OS Kernel", name: "OS Kernel", lang: "C", progress: "65%" },
-            { id: "AI Chat App", name: "AI Chat App", lang: "JavaScript", progress: "80%" },
-            { id: "Web Scraper", name: "Web Scraper", lang: "Python", progress: "40%" }
-        ];
-    }
-    renderProjects();
-}
-
-function renderProjects() {
-    const list = $("projectList");
-    const empty = $("projectEmpty");
-    const countLabel = $("projectCountLabel");
-
-    if (!list) return;
-
-    list.innerHTML = "";
-    if (countLabel) countLabel.textContent = `${projects.length} projects`;
-
-    if (projects.length === 0) {
-        if (empty) empty.style.display = "block";
-        return;
-    }
-    if (empty) empty.style.display = "none";
-
-    projects.forEach(p => {
-        const row = document.createElement("div");
-        row.className = "list-row";
-        row.onclick = () => openProject(p.id);
-        row.innerHTML = `
-            <div class="list-icon"><i class="fa-solid fa-folder"></i></div>
-            <div class="list-info">
-                <b>${escapeHtml(p.name)}</b>
-                <small>${escapeHtml(p.lang)} • Active</small>
+            <div class="logo">
+                <i class="fa-solid fa-microchip"></i>
             </div>
-            <span class="badge green">${p.progress || "100%"}</span>
-        `;
-        list.appendChild(row);
-    });
-}
 
-function createProject() {
-    const nameInput = $("projectName");
-    const langSelect = $("projectLanguage");
-    const name = nameInput ? nameInput.value.trim() : "";
-    const lang = langSelect ? langSelect.value : "Python";
+            <div>
+                <div class="title">
+                    Engineer AI
+                </div>
 
-    if (!name) { toast("Provide a project name."); return; }
+                <div class="subtitle">
+                    Engineering Intelligence Platform
+                </div>
+            </div>
 
-    const newProj = { id: name, name: name, lang: lang, progress: "0%" };
-    projects.push(newProj);
-    localStorage.setItem("engineer_ai_projects", JSON.stringify(projects));
-    
-    if (nameInput) nameInput.value = "";
-    renderProjects();
-    toast("Project created successfully.");
-}
+        </div>
 
-function filterProjects() {
-    const searchInput = $("projectSearch");
-    const query = searchInput ? searchInput.value.toLowerCase() : "";
-    const rows = document.querySelectorAll("#projectList .list-row");
+        <div class="pill online">
+            <i class="fa-solid fa-circle"
+               style="font-size:6px;"></i>
+            Online
+        </div>
 
-    rows.forEach(row => {
-        const text = row.textContent.toLowerCase();
-        row.style.display = text.includes(query) ? "flex" : "none";
-    });
-}
+    </div>
 
-function analyzeSelectedProject() {
-    const result = $("projectResult");
-    if (result) {
-        result.textContent = "Analyzing overall project metrics, complexity, and structural design...";
-    }
-}
 
-function showProjectStats() {
-    const result = $("projectResult");
-    if (result) {
-        result.textContent = `Total Projects: ${projects.length}\nActive Workspace: Ready`;
-    }
-}
+    <!-- HERO -->
+    <div class="hero">
 
-function askProjectQuestion() {
-    navigateTo("chat");
-}
+        <h1>
+            Build smarter. 🚀
+        </h1>
 
-function openProjectMemory() {
-    toast("Project Memory active.");
-}
-  /* =========================================================
-   ENGINEERING TOOLS & CALCULATOR
-========================================================= */
+        <p>
+            Your AI engineering workspace for coding,
+            debugging, projects, security and intelligent
+            development.
+        </p>
 
-function openCalculator() { navigateTo("calculator"); }
-function openConverter() { toast("Unit Converter coming soon."); }
-function openJsonTool() { navigateTo("code"); toast("Use Format in Code Studio for JSON."); }
-function openRegexTool() { toast("Regex Tester tool ready."); }
-function openTimestampTool() { toast("Current Unix Timestamp: " + Math.floor(Date.now() / 1000)); }
-function openColorTool() { toast("Color inspector ready."); }
 
-function calculatorInput(val) {
-    calculatorExpression += val;
-    updateCalcDisplay();
-}
+        <!-- HOME AI COMPOSER -->
+        <div class="composer">
 
-function calculatorClear() {
-    calculatorExpression = "";
-    updateCalcDisplay();
-    const res = $("calculatorResult");
-    if (res) res.textContent = "";
-}
+            <button
+                class="icon-btn"
+                type="button"
+                onclick="showToast('Voice input coming soon')"
+                aria-label="Voice input">
 
-function calculatorBackspace() {
-    calculatorExpression = calculatorExpression.slice(0, -1);
-    updateCalcDisplay();
-}
+                <i class="fa-solid fa-microphone"></i>
 
-function updateCalcDisplay() {
-    const disp = $("calculatorDisplay");
-    if (disp) disp.textContent = calculatorExpression || "0";
-}
+            </button>
 
-function calculatorEquals() {
-    const res = $("calculatorResult");
-    try {
-        const evalResult = eval(calculatorExpression);
-        if (res) res.textContent = "= " + evalResult;
-    } catch {
-        if (res) res.textContent = "Error";
-    }
-}
-    /* =========================================================
-   PROFILE, SETTINGS & ENGINE BOOTSTRAP
-========================================================= */
 
-function updateProfile() {
-    const projEl = $("profileProjects");
-    const tasksEl = $("profileTasks");
-    const agentsEl = $("profileAgents");
+            <input
+                id="homePrompt"
+                type="text"
+                placeholder="Ask Engineer AI anything..."
+                autocomplete="off"
+                onkeydown="
+                    if(event.key === 'Enter'){
+                        sendHomePrompt();
+                    }
+                "
+            >
 
-    if (projEl) projEl.textContent = projects.length;
-    if (tasksEl) tasksEl.textContent = "12";
-    if (agentsEl) agentsEl.textContent = "6";
-}
 
-function showAnalytics() { toast("Analytics active."); }
-function checkSystemStatus() {
-    const status = $("profileSystemStatus");
-    const backStatus = $("settingsBackendStatus");
-    if (status) status.textContent = "All Systems Operational";
-    if (backStatus) backStatus.textContent = "Online";
-    toast("System check completed.");
-}
+            <button
+                id="homeSend"
+                class="send"
+                type="button"
+                onclick="sendHomePrompt()"
+                aria-label="Send">
 
-function showAbout() { toast("Engineer AI Platform v1.0"); }
+                <i class="fa-solid fa-arrow-up"></i>
 
-function changeTheme() { toast("Theme updated."); }
-function changeAccent() { toast("Accent color updated."); }
-function changeFontSize() { toast("Font size updated."); }
-function saveSettings() { toast("Settings saved successfully."); }
-function clearLocalData() {
-    localStorage.clear();
-    toast("Local storage data cleared.");
-}
+            </button>
 
-/* App Initialization Entry Point */
-document.addEventListener("DOMContentLoaded", () => {
-    autoRevealResultPanels();
-    setupAppHistory();
-    loadProjects();
-    loadCode();
-    loadChatHistory();
-    updateLineNumbers();
-});
-</script>
-</body>
-</html>
+        </div>
 
-  
+    </div>
+
+
+    <!-- QUICK ACCESS -->
+    <div class="section-title">
+
+        <h2>
+            Quick Access
+        </h2>
+
+        <span>
+            Tools
+        </span>
+
+    </div>
+
+
+    <div class="grid">
+
+        <!-- AI CHAT -->
+        <div
+            class="card"
+            onclick="navigateTo('chat')">
+
+            <i class="fa-solid fa-message"></i>
+
+            <h3>
+                AI Chat
+            </h3>
+
+            <p>
+                Ask engineering questions and get AI help.
+            </p>
+
+        </div>
+
+
+        <!-- CODE STUDIO -->
+        <div
+            class="card"
+            onclick="navigateTo('code')">
+
+            <i class="fa-solid fa-code"></i>
+
+            <h3>
+                Code Studio
+            </h3>
+
+            <p>
+                Write, run and improve your code.
+            </p>
+
+        </div>
+
+
+        <!-- DEBUGGER -->
+        <div
+            class="card"
+            onclick="navigateTo('debugger')">
+
+            <i class="fa-solid fa-bug"></i>
+
+            <h3>
+                Debugger
+            </h3>
+
+            <p>
+                Find bugs and understand errors faster.
+            </p>
+
+        </div>
+
+
+        <!-- PROJECTS -->
+        <div
+            class="card"
+            onclick="navigateTo('projects')">
+
+            <i class="fa-solid fa-folder-open"></i>
+
+            <h3>
+                Projects
+            </h3>
+
+            <p>
+                Manage your engineering projects.
+            </p>
+
+        </div>
+
+
+        <!-- AGENTS -->
+        <div
+            class="card"
+            onclick="navigateTo('agents')">
+
+            <i class="fa-solid fa-robot"></i>
+
+            <h3>
+                AI Agents
+            </h3>
+
+            <p>
+                Use specialized engineering agents.
+            </p>
+
+        </div>
+
+
+        <!-- SECURITY -->
+        <div
+            class="card"
+            onclick="navigateTo('review')">
+
+            <i class="fa-solid fa-shield-halved"></i>
+
+            <h3>
+                Security
+            </h3>
+
+            <p>
+                Scan and review code for vulnerabilities.
+            </p>
+
+        </div>
+
+
+        <!-- PERFORMANCE -->
+        <div
+            class="card"
+            onclick="navigateTo('tools')">
+
+            <i class="fa-solid fa-gauge-high"></i>
+
+            <h3>
+                Performance
+            </h3>
+
+            <p>
+                Analyze code performance and efficiency.
+            </p>
+
+        </div>
+
+
+        <!-- CALCULATOR -->
+        <div
+            class="card"
+            onclick="openCalculator()">
+
+            <i class="fa-solid fa-calculator"></i>
+
+            <h3>
+                Calculator
+            </h3>
+
+            <p>
+                Engineering calculations made simple.
+            </p>
+
+        </div>
+
+    </div>
+
+
+    <!-- RECENT PROJECTS -->
+    <div class="section-title">
+
+        <h2>
+            Recent Projects
+        </h2>
+
+        <span>
+            View all
+        </span>
+
+    </div>
+
+
+    <div class="list">
+
+
+        <!-- PROJECT 1 -->
+        <div
+            class="list-row"
+            onclick="openProject('OS Kernel')">
+
+            <div class="list-icon">
+
+                <i class="fa-solid fa-microchip"></i>
+
+            </div>
+
+
+            <div class="list-info">
+
+                <b>
+                    OS Kernel
+                </b>
+
+                <small>
+                    C • Last edited recently
+                </small>
+
+            </div>
+
+
+            <span class="badge green">
+                65%
+            </span>
+
+        </div>
+
+
+        <!-- PROJECT 2 -->
+        <div
+            class="list-row"
+            onclick="openProject('AI Chat App')">
+
+            <div class="list-icon">
+
+                <i class="fa-brands fa-js"></i>
+
+            </div>
+
+
+            <div class="list-info">
+
+                <b>
+                    AI Chat App
+                </b>
+
+                <small>
+                    JavaScript • Last edited recently
+                </small>
+
+            </div>
+
+
+            <span class="badge green">
+                80%
+            </span>
+
+        </div>
+
+
+        <!-- PROJECT 3 -->
+        <div
+            class="list-row"
+            onclick="openProject('Web Scraper')">
+
+            <div class="list-icon">
+
+                <i class="fa-brands fa-python"></i>
+
+            </div>
+
+
+            <div class="list-info">
+
+                <b>
+                    Web Scraper
+                </b>
+
+                <small>
+                    Python • Last edited recently
+                </small>
+
+            </div>
+
+
+            <span class="badge yellow">
+                40%
+            </span>
+
+        </div>
+
+    </div>
+
+
+    <!-- DAILY PROGRESS -->
+    <div class="section-title">
+
+        <h2>
+            Daily Progress
+        </h2>
+
+        <span>
+            Today
+        </span>
+
+    </div>
+
+
+    <div class="stat">
+
+        <div
+            style="
+                display:flex;
+                justify-content:space-between;
+                align-items:center;
+                margin-bottom:9px;
+            ">
+
+            <div>
+
+                <b style="font-size:19px;">
+                    72%
+                </b>
+
+                <span>
+                    Engineering goal
+                </span>
+
+            </div>
+
+            <span class="badge green">
+                +12%
+            </span>
+
+        </div>
+
+
+        <div class="progress">
+
+            <div
+                class="progress-bar"
+                style="width:72%;">
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- SYSTEM STATS -->
+    <div class="section-title">
+
+        <h2>
+            System Overview
+        </h2>
+
+        <span>
+            Live
+        </span>
+
+    </div>
+
+
+    <div class="stats">
+
+        <div class="stat">
+
+            <b id="homeProjectsCount">
+                3
+            </b>
+
+            <span>
+                Projects
+            </span>
+
+        </div>
+
+
+        <div class="stat">
+
+            <b id="homeAgentsCount">
+                6
+            </b>
+
+            <span>
+                AI Agents
+            </span>
+
+        </div>
+
+
+        <div class="stat">
+
+            <b id="homeTasksCount">
+                24
+            </b>
+
+            <span>
+                Tasks
+            </span>
+
+        </div>
+
+
+        <div class="stat">
+
+            <b id="homeSuccessRate">
+                98%
+            </b>
+
+            <span>
+                Success Rate
+            </span>
+
+        </div>
+
+    </div>
+
+
+    <!-- SPACE -->
+    <div style="height:10px;"></div>
+
+    </section><!-- =========================================================
+     PART 2 — BOTTOM NAVIGATION
+========================================================= -->
+
+<nav
+    class="bottom-nav"
+    id="bottomNav"
+    aria-label="Main navigation">
+
+
+    <!-- HOME -->
+    <button
+        class="nav-item active"
+        type="button"
+        data-view="home"
+        onclick="navigateTo('home')">
+
+        <i class="fa-solid fa-house"></i>
+
+        <span>
+            Home
+        </span>
+
+    </button>
+
+
+    <!-- AI CHAT -->
+    <button
+        class="nav-item"
+        type="button"
+        data-view="chat"
+        onclick="navigateTo('chat')">
+
+        <i class="fa-solid fa-message"></i>
+
+        <span>
+            AI Chat
+        </span>
+
+    </button>
+
+
+    <!-- CODE -->
+    <button
+        class="nav-item"
+        type="button"
+        data-view="code"
+        onclick="navigateTo('code')">
+
+        <i class="fa-solid fa-code"></i>
+
+        <span>
+            Code
+        </span>
+
+    </button>
+
+
+    <!-- TOOLS -->
+    <button
+        class="nav-item"
+        type="button"
+        data-view="tools"
+        onclick="navigateTo('tools')">
+
+        <i class="fa-solid fa-toolbox"></i>
+
+        <span>
+            Tools
+        </span>
+
+    </button>
+
+
+    <!-- PROFILE -->
+    <button
+        class="nav-item"
+        type="button"
+        data-view="profile"
+        onclick="navigateTo('profile')">
+
+        <i class="fa-solid fa-user"></i>
+
+        <span>
+            Profile
+        </span>
+
+    </button>
+
+</nav>
+
+
+<!-- =========================================================
+     PART 3 — AI CHAT SCREEN
+========================================================= -->
+
+<section id="chatView" class="view">
+
+    <!-- HEADER -->
+    <div class="header">
+
+        <div class="brand">
+
+            <div class="logo">
+                <i class="fa-solid fa-robot"></i>
+            </div>
+
+            <div>
+
+                <div class="title">
+                    AI Chat
+                </div>
+
+                <div class="subtitle">
+                    Engineer AI Assistant
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="pill online">
+
+            <i
+                class="fa-solid fa-circle"
+                style="font-size:6px;">
+            </i>
+
+            AI Ready
+
+        </div>
+
+    </div>
+
+
+    <!-- CHAT INTRO -->
+    <div
+        id="chatWelcome"
+        class="hero"
+        style="margin-bottom:12px;">
+
+        <h1>
+            How can I help? 🤖
+        </h1>
+
+        <p>
+            Ask me about programming, system design,
+            debugging, security, algorithms, AI,
+            operating systems or engineering.
+        </p>
+
+    </div>
+
+
+    <!-- CHAT MESSAGES -->
+    <div
+        id="chatMessages"
+        class="list"
+        style="gap:10px;">
+
+        <!-- USER MESSAGE EXAMPLE -->
+
+        <div
+            class="list-row"
+            style="
+                align-items:flex-start;
+                background:#0b1425;
+            ">
+
+            <div
+                class="list-icon"
+                style="color:var(--accent);">
+
+                <i class="fa-solid fa-robot"></i>
+
+            </div>
+
+            <div class="list-info">
+
+                <b>
+                    Engineer AI
+                </b>
+
+                <small
+                    style="
+                        white-space:normal;
+                        overflow:visible;
+                    ">
+
+                    Welcome! Ask me anything about
+                    engineering or coding.
+
+                </small>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- CHAT RESULT -->
+    <div
+        id="chatLoading"
+        class="result"
+        style="display:none;">
+
+        <div class="loading">
+
+            <span></span>
+            <span></span>
+            <span></span>
+
+            <span style="margin-left:4px;">
+                Engineer AI is thinking...
+            </span>
+
+        </div>
+
+    </div>
+
+
+    <!-- CHAT COMPOSER -->
+    <div
+        class="composer"
+        style="
+            position:sticky;
+            bottom:0;
+            margin-top:12px;
+            z-index:10;
+        ">
+
+        <button
+            class="icon-btn"
+            type="button"
+            onclick="showToast('Voice input coming soon')"
+            aria-label="Voice input">
+
+            <i class="fa-solid fa-microphone"></i>
+
+        </button>
+
+
+        <input
+            id="chatInput"
+            type="text"
+            placeholder="Message Engineer AI..."
+            autocomplete="off"
+            onkeydown="
+                if(event.key === 'Enter'){
+                    sendChat();
+                }
+            "
+        >
+
+
+        <button
+            id="chatSend"
+            class="send"
+            type="button"
+            onclick="sendChat()"
+            aria-label="Send message">
+
+            <i class="fa-solid fa-arrow-up"></i>
+
+        </button>
+
+    </div>
+
+
+    <!-- QUICK PROMPTS -->
+    <div
+        class="section-title"
+        style="margin-top:14px;">
+
+        <h2>
+            Quick Prompts
+        </h2>
+
+    </div>
+
+
+    <div class="grid">
+
+        <div
+            class="card"
+            onclick="useChatPrompt('Explain this code to me')">
+
+            <i class="fa-solid fa-lightbulb"></i>
+
+            <h3>
+                Explain Code
+            </h3>
+
+            <p>
+                Understand how code works.
+            </p>
+
+        </div>
+
+
+        <div
+            class="card"
+            onclick="useChatPrompt('Find bugs in my code')">
+
+            <i class="fa-solid fa-bug"></i>
+
+            <h3>
+                Find Bugs
+            </h3>
+
+            <p>
+                Analyze code and identify problems.
+            </p>
+
+        </div>
+
+
+        <div
+            class="card"
+            onclick="useChatPrompt('Design a software architecture')">
+
+            <i class="fa-solid fa-diagram-project"></i>
+
+            <h3>
+                Architecture
+            </h3>
+
+            <p>
+                Design scalable systems.
+            </p>
+
+        </div>
+
+
+        <div
+            class="card"
+            onclick="useChatPrompt('Review my code for security issues')">
+
+            <i class="fa-solid fa-shield-halved"></i>
+
+            <h3>
+                Security Review
+            </h3>
+
+            <p>
+                Find common security problems.
+            </p>
+
+        </div>
+
+    </div>
+
+
+    <!-- CHAT ACTIONS -->
+    <div
+        style="
+            display:flex;
+            gap:8px;
+            margin-top:12px;
+            flex-wrap:wrap;
+        ">
+
+        <button
+            class="secondary"
+            type="button"
+            onclick="clearChat()">
+
+            <i class="fa-solid fa-trash"></i>
+            Clear Chat
+
+        </button>
+
+
+        <button
+            class="secondary"
+            type="button"
+            onclick="showToast('Chat history feature coming soon')">
+
+            <i class="fa-solid fa-clock-rotate-left"></i>
+            History
+
+        </button>
+
+    </div>
+
+
+    <div style="height:10px;"></div>
+
+    </section><!-- =========================================================
+     PART 4 — CODE STUDIO
+========================================================= -->
+
+<section id="codeView" class="view">
+
+    <!-- HEADER -->
+    <div class="header">
+
+        <div class="brand">
+
+            <div class="logo">
+                <i class="fa-solid fa-code"></i>
+            </div>
+
+            <div>
+
+                <div class="title">
+                    Code Studio
+                </div>
+
+                <div class="subtitle">
+                    AI-Powered Development Workspace
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="pill online">
+
+            <i
+                class="fa-solid fa-circle"
+                style="font-size:6px;">
+            </i>
+
+            Ready
+
+        </div>
+
+    </div>
+
+
+    <!-- PROJECT / FILE BAR -->
+    <div
+        class="list-row"
+        style="
+            justify-content:space-between;
+            margin-bottom:10px;
+        ">
+
+        <div
+            style="
+                display:flex;
+                align-items:center;
+                gap:9px;
+                min-width:0;
+            ">
+
+            <div class="list-icon">
+
+                <i class="fa-brands fa-python"></i>
+
+            </div>
+
+            <div class="list-info">
+
+                <b id="currentFileName">
+                    main.py
+                </b>
+
+                <small id="currentLanguage">
+                    Python
+                </small>
+
+            </div>
+
+        </div>
+
+
+        <button
+            class="secondary"
+            type="button"
+            onclick="newFile()">
+
+            <i class="fa-solid fa-plus"></i>
+            New
+
+        </button>
+
+    </div>
+
+
+    <!-- EDITOR -->
+    <div
+        class="result"
+        style="
+            padding:0;
+            overflow:hidden;
+        ">
+
+        <!-- EDITOR HEADER -->
+        <div
+            style="
+                display:flex;
+                align-items:center;
+                justify-content:space-between;
+                padding:10px 12px;
+                background:#0b1424;
+                border-bottom:1px solid var(--line);
+            ">
+
+            <div
+                style="
+                    display:flex;
+                    align-items:center;
+                    gap:7px;
+                ">
+
+                <span
+                    style="
+                        width:8px;
+                        height:8px;
+                        border-radius:50%;
+                        background:var(--green);
+                    ">
+                </span>
+
+                <span
+                    style="
+                        font-size:10px;
+                        color:var(--muted);
+                    ">
+
+                    Editor
+
+                </span>
+
+            </div>
+
+
+            <span
+                id="editorStatus"
+                class="badge green">
+
+                Saved
+
+            </span>
+
+        </div>
+
+
+        <!-- CODE AREA -->
+        <div
+            style="
+                display:grid;
+                grid-template-columns:42px minmax(0,1fr);
+                background:#050a12;
+                min-height:280px;
+            ">
+
+            <!-- LINE NUMBERS -->
+            <div
+                id="lineNumbers"
+                style="
+                    padding:12px 8px;
+                    text-align:right;
+                    color:#4e607b;
+                    border-right:1px solid #18253b;
+                    font-family:monospace;
+                    font-size:11px;
+                    line-height:1.65;
+                    white-space:pre;
+                    user-select:none;
+                ">
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+            </div>
+
+
+            <!-- CODE INPUT -->
+            <textarea
+                id="codeEditor"
+                spellcheck="false"
+                autocomplete="off"
+                autocapitalize="off"
+                autocorrect="off"
+                style="
+                    width:100%;
+                    min-height:280px;
+                    padding:12px;
+                    resize:vertical;
+                    border:none;
+                    outline:none;
+                    color:#dbe7ff;
+                    background:#050a12;
+                    font-family: Consolas, 'Liberation Mono', monospace;
+                    font-size:11px;
+                    line-height:1.65;
+                "
+                oninput="updateLineNumbers()"
+                onkeydown="handleEditorKey(event)"
+>def greet(name):
+    return "Hello, " + name
+
+name = "Developer"
+
+print(greet(name))</textarea>
+
+        </div>
+
+    </div>
+
+
+    <!-- EDITOR ACTIONS -->
+    <div
+        style="
+            display:flex;
+            gap:8px;
+            margin-top:10px;
+            flex-wrap:wrap;
+        ">
+
+        <button
+            id="runCodeButton"
+            class="primary"
+            type="button"
+            onclick="runCode()">
+
+            <i class="fa-solid fa-play"></i>
+            Run Code
+
+        </button>
+
+
+        <button
+            class="secondary"
+            type="button"
+            onclick="saveCurrentCode()">
+
+            <i class="fa-solid fa-floppy-disk"></i>
+            Save
+
+        </button>
+
+
+        <button
+            class="secondary"
+            type="button"
+            onclick="formatCode()">
+
+            <i class="fa-solid fa-wand-magic-sparkles"></i>
+            Format
+
+        </button>
+
+    </div>
+
+
+    <!-- EXECUTION OUTPUT -->
+    <div class="section-title">
+
+        <h2>
+            Execution Output
+        </h2>
+
+        <span id="executionStatus">
+            Ready
+        </span>
+
+    </div>
+
+
+    <div
+        id="executionOutput"
+        class="result">
+
+        <span style="color:var(--muted);">
+            Run your code to see the output here.
+        </span>
+
+    </div>
+
+
+    <!-- AI CODING ASSISTANT -->
+    <div class="section-title">
+
+        <h2>
+            AI Coding Assistant
+        </h2>
+
+        <span>
+            Engineer AI
+        </span>
+
+    </div>
+
+
+    <div class="composer">
+
+        <input
+            id="codeAiInput"
+            type="text"
+            placeholder="Ask AI about your code..."
+            autocomplete="off"
+            onkeydown="
+                if(event.key === 'Enter'){
+                    askCodeAI();
+                }
+            "
+        >
+
+        <button
+            id="codeAiSend"
+            class="send"
+            type="button"
+            onclick="askCodeAI()"
+            aria-label="Ask AI">
+
+            <i class="fa-solid fa-arrow-up"></i>
+
+        </button>
+
+    </div>
+
+
+    <div
+        id="codeAiResult"
+        class="result"
+        style="display:none;">
+    </div>
+
+
+    <!-- AI ACTIONS -->
+    <div
+        style="
+            display:grid;
+            grid-template-columns:
+                repeat(2,minmax(0,1fr));
+            gap:8px;
+            margin-top:10px;
+        ">
+
+        <button
+            class="secondary"
+            type="button"
+            onclick="
+                askCodeQuick(
+                    'Explain this code step by step'
+                )
+            ">
+
+            <i class="fa-solid fa-lightbulb"></i>
+            Explain
+
+        </button>
+
+
+        <button
+            class="secondary"
+            type="button"
+            onclick="
+                askCodeQuick(
+                    'Find bugs and possible fixes'
+                )
+            ">
+
+            <i class="fa-solid fa-bug"></i>
+            Find Bugs
+
+        </button>
+
+
+        <button
+            class="secondary"
+            type="button"
+            onclick="
+                askCodeQuick(
+                    'Improve the performance of this code'
+                )
+            ">
+
+            <i class="fa-solid fa-gauge-high"></i>
+            Optimize
+
+        </button>
+
+
+        <button
+            class="secondary"
+            type="button"
+            onclick="
+                askCodeQuick(
+                    'Review this code for security problems'
+                )
+            ">
+
+            <i class="fa-solid fa-shield-halved"></i>
+            Security
+
+        </button>
+
+    </div>
+
+
+    <!-- TERMINAL -->
+    <div class="section-title">
+
+        <h2>
+            Terminal
+        </h2>
+
+        <span>
+            Safe Mode
+        </span>
+
+    </div>
+
+
+    <div
+        class="result"
+        style="
+            padding:0;
+            overflow:hidden;
+        ">
+
+        <div
+            style="
+                padding:8px 11px;
+                background:#0b1424;
+                border-bottom:1px solid var(--line);
+                font-family:monospace;
+                font-size:9px;
+                color:var(--muted);
+            ">
+
+            Engineer AI Terminal
+
+        </div>
+
+
+        <div
+            id="terminalOutput"
+            style="
+                min-height:130px;
+                max-height:220px;
+                overflow:auto;
+                padding:11px;
+                background:#03070d;
+                color:#b9c8df;
+                font-family:monospace;
+                font-size:10px;
+                line-height:1.6;
+                white-space:pre-wrap;
+            ">Engineer AI terminal ready.
+Type "help" to see supported commands.</div>
+
+
+        <div
+            style="
+                display:flex;
+                align-items:center;
+                gap:6px;
+                padding:8px;
+                border-top:1px solid var(--line);
+                background:#070d17;
+            ">
+
+            <span
+                style="
+                    color:var(--green);
+                    font-family:monospace;
+                    font-size:10px;
+                ">
+                $
+            </span>
+
+
+            <input
+                id="terminalInput"
+                type="text"
+                placeholder="Enter command..."
+                autocomplete="off"
+                style="
+                    flex:1;
+                    min-width:0;
+                    border:none;
+                    outline:none;
+                    color:var(--text);
+                    background:transparent;
+                    font-family:monospace;
+                    font-size:10px;
+                "
+                onkeydown="
+                    if(event.key === 'Enter'){
+                        executeTerminalCommand();
+                    }
+                "
+            >
+
+
+            <button
+                class="icon-btn"
+                type="button"
+                onclick="executeTerminalCommand()"
+                aria-label="Execute command">
+
+                <i class="fa-solid fa-terminal"></i>
+
+            </button>
+
+        </div>
+
+    </div>
+
+
+    <!-- CODE FILE ACTIONS -->
+    <div
+        style="
+            display:flex;
+            gap:8px;
+            margin-top:12px;
+            flex-wrap:wrap;
+        ">
+
+        <button
+            class="secondary"
+            type="button"
+            onclick="showToast('File upload coming soon')">
+
+            <i class="fa-solid fa-upload"></i>
+            Import File
+
+        </button>
+
+
+        <button
+            class="secondary"
+            type="button"
+            onclick="downloadCurrentCode()">
+
+            <i class="fa-solid fa-download"></i>
+            Export
+
+        </button>
+
+    </div>
+
+
+    <div style="height:10px;"></div>
+
+    </section><!-- =========================================================
+     PART 5 — DEBUGGER + CODE REVIEW + SECURITY
+========================================================= -->
+
+
+<!-- =========================================================
+     DEBUGGER
+========================================================= -->
+
+<section id="debuggerView" class="view">
+
+    <!-- HEADER -->
+    <div class="header">
+
+        <div class="brand">
+
+            <div class="logo">
+                <i class="fa-solid fa-bug"></i>
+            </div>
+
+            <div>
+
+                <div class="title">
+                    Debugger
+                </div>
+
+                <div class="subtitle">
+                    AI Error Analysis
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="pill">
+            Smart Debug
+        </div>
+
+    </div>
+
+
+    <!-- INTRO -->
+    <div class="hero">
+
+        <h1>
+            Find the problem. 🔎
+        </h1>
+
+        <p>
+            Paste your code or error message and
+            Engineer AI will analyze the problem,
+            explain the cause and suggest fixes.
+        </p>
+
+    </div>
+
+
+    <!-- ERROR INPUT -->
+    <div class="form">
+
+        <div class="label">
+            Error Message
+        </div>
+
+        <textarea
+            id="debugError"
+            class="field"
+            placeholder="Paste the error message here..."
+        ></textarea>
+
+
+        <div class="label">
+            Code
+        </div>
+
+        <textarea
+            id="debugCode"
+            class="field"
+            placeholder="Paste the code that caused the error..."
+        ></textarea>
+
+
+        <div class="label">
+            Programming Language
+        </div>
+
+        <select
+            id="debugLanguage"
+            class="field">
+
+            <option value="Python">
+                Python
+            </option>
+
+            <option value="JavaScript">
+                JavaScript
+            </option>
+
+            <option value="TypeScript">
+                TypeScript
+            </option>
+
+            <option value="C">
+                C
+            </option>
+
+            <option value="C++">
+                C++
+            </option>
+
+            <option value="Java">
+                Java
+            </option>
+
+            <option value="Go">
+                Go
+            </option>
+
+            <option value="Rust">
+                Rust
+            </option>
+
+        </select>
+
+
+        <button
+            id="debugButton"
+            class="primary"
+            type="button"
+            onclick="runDebugger()">
+
+            <i class="fa-solid fa-magnifying-glass"></i>
+            Analyze Error
+
+        </button>
+
+    </div>
+
+
+    <!-- DEBUG RESULT -->
+    <div
+        id="debugResult"
+        class="result"
+        style="display:none;">
+    </div>
+
+
+    <!-- DEBUG ACTIONS -->
+    <div
+        style="
+            display:grid;
+            grid-template-columns:
+                repeat(2,minmax(0,1fr));
+            gap:8px;
+            margin-top:10px;
+        ">
+
+        <button
+            class="secondary"
+            type="button"
+            onclick="loadDebugExample()">
+
+            <i class="fa-solid fa-flask"></i>
+            Example
+
+        </button>
+
+
+        <button
+            class="secondary"
+            type="button"
+            onclick="clearDebugger()">
+
+            <i class="fa-solid fa-eraser"></i>
+            Clear
+
+        </button>
+
+    </div>
+
+
+    <!-- DEBUG CHECKLIST -->
+    <div class="section-title">
+
+        <h2>
+            Debugging Checks
+        </h2>
+
+        <span>
+            AI Analysis
+        </span>
+
+    </div>
+
+
+    <div class="list">
+
+        <div class="list-row">
+
+            <div class="list-icon">
+                <i class="fa-solid fa-circle-check"></i>
+            </div>
+
+            <div class="list-info">
+
+                <b>
+                    Syntax Analysis
+                </b>
+
+                <small>
+                    Check for syntax and parsing problems.
+                </small>
+
+            </div>
+
+        </div>
+
+
+        <div class="list-row">
+
+            <div class="list-icon">
+                <i class="fa-solid fa-code"></i>
+            </div>
+
+            <div class="list-info">
+
+                <b>
+                    Logic Analysis
+                </b>
+
+                <small>
+                    Look for incorrect program behavior.
+                </small>
+
+            </div>
+
+        </div>
+
+
+        <div class="list-row">
+
+            <div class="list-icon">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+
+            <div class="list-info">
+
+                <b>
+                    Runtime Analysis
+                </b>
+
+                <small>
+                    Identify likely runtime failures.
+                </small>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <div style="height:10px;"></div>
+
+</section>
+
+
+
+<!-- =========================================================
+     CODE REVIEW + SECURITY
+========================================================= -->
+
+<section id="reviewView" class="view">
+
+    <!-- HEADER -->
+    <div class="header">
+
+        <div class="brand">
+
+            <div class="logo">
+                <i class="fa-solid fa-shield-halved"></i>
+            </div>
+
+            <div>
+
+                <div class="title">
+                    Code Review
+                </div>
+
+                <div class="subtitle">
+                    Quality • Security • Performance
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="pill">
+            AI Review
+        </div>
+
+    </div>
+
+
+    <!-- INTRO -->
+    <div class="hero">
+
+        <h1>
+            Review your code. 🛡️
+        </h1>
+
+        <p>
+            Engineer AI can inspect your code for
+            quality problems, security risks,
+            performance issues and maintainability.
+        </p>
+
+    </div>
+
+
+    <!-- REVIEW TYPE -->
+    <div class="section-title">
+
+        <h2>
+            Review Type
+        </h2>
+
+    </div>
+
+
+    <div
+        style="
+            display:grid;
+            grid-template-columns:
+                repeat(2,minmax(0,1fr));
+            gap:8px;
+        ">
+
+
+        <button
+            id="reviewTab"
+            class="secondary"
+            type="button"
+            data-review-mode="review"
+            onclick="setReviewMode('review')">
+
+            <i class="fa-solid fa-code"></i>
+            Code Review
+
+        </button>
+
+
+        <button
+            id="securityTab"
+            class="secondary"
+            type="button"
+            data-review-mode="security"
+            onclick="setReviewMode('security')">
+
+            <i class="fa-solid fa-shield"></i>
+            Security
+
+        </button>
+
+
+        <button
+            id="performanceTab"
+            class="secondary"
+            type="button"
+            data-review-mode="performance"
+            onclick="setReviewMode('performance')">
+
+            <i class="fa-solid fa-gauge-high"></i>
+            Performance
+
+        </button>
+
+
+        <button
+            class="secondary"
+            type="button"
+            data-review-mode="all"
+            onclick="setReviewMode('all')">
+
+            <i class="fa-solid fa-layer-group"></i>
+            Full Review
+
+        </button>
+
+    </div>
+
+
+    <!-- REVIEW FORM -->
+    <div
+        class="form"
+        style="margin-top:12px;">
+
+        <div class="label">
+            File Name
+        </div>
+
+        <input
+            id="reviewFileName"
+            class="field"
+            type="text"
+            value="main.py"
+            placeholder="example.py"
+        >
+
+
+        <div class="label">
+            Code
+        </div>
+
+        <textarea
+            id="reviewCode"
+            class="field"
+            style="min-height:220px;"
+            placeholder="Paste your code here..."
+        ></textarea>
+
+
+        <button
+            id="reviewButton"
+            class="primary"
+            type="button"
+            onclick="runCodeReview()">
+
+            <i class="fa-solid fa-wand-magic-sparkles"></i>
+            Run AI Review
+
+        </button>
+
+    </div>
+
+
+    <!-- REVIEW RESULT -->
+    <div
+        id="reviewResult"
+        class="result"
+        style="display:none;">
+    </div>
+
+
+    <!-- STATIC SECURITY SCANNER -->
+    <div class="section-title">
+
+        <h2>
+            Security Scanner
+        </h2>
+
+        <span>
+            Static Analysis
+        </span>
+
+    </div>
+
+
+    <div
+        class="list-row">
+
+        <div class="list-icon">
+
+            <i class="fa-solid fa-lock"></i>
+
+        </div>
+
+
+        <div class="list-info">
+
+            <b>
+                Quick Security Scan
+            </b>
+
+            <small>
+                Detect common unsafe coding patterns.
+            </small>
+
+        </div>
+
+
+        <button
+            class="secondary"
+            type="button"
+            onclick="runSecurityScan()">
+
+            Scan
+
+        </button>
+
+    </div>
+
+
+    <div
+        id="securityResult"
+        class="result"
+        style="display:none;">
+    </div>
+
+
+    <!-- QUICK PERFORMANCE SCAN -->
+    <div class="section-title">
+
+        <h2>
+            Performance Analyzer
+        </h2>
+
+        <span>
+            Static Analysis
+        </span>
+
+    </div>
+
+
+    <div
+        class="list-row">
+
+        <div class="list-icon">
+
+            <i class="fa-solid fa-gauge-high"></i>
+
+        </div>
+
+
+        <div class="list-info">
+
+            <b>
+                Quick Performance Scan
+            </b>
+
+            <small>
+                Find likely bottlenecks and inefficiencies.
+            </small>
+
+        </div>
+
+
+        <button
+            class="secondary"
+            type="button"
+            onclick="runPerformanceAnalysis()">
+
+            Analyze
+
+        </button>
+
+    </div>
+
+
+    <div
+        id="performanceResult"
+        class="result"
+        style="display:none;">
+    </div>
+
+
+    <!-- REVIEW SUMMARY -->
+    <div class="section-title">
+
+        <h2>
+            What We Check
+        </h2>
+
+    </div>
+
+
+    <div class="grid">
+
+        <div class="card">
+
+            <i class="fa-solid fa-bug"></i>
+
+            <h3>
+                Bugs
+            </h3>
+
+            <p>
+                Potential errors and incorrect logic.
+            </p>
+
+        </div>
+
+
+        <div class="card">
+
+            <i class="fa-solid fa-shield-halved"></i>
+
+            <h3>
+                Security
+            </h3>
+
+            <p>
+                Common security vulnerabilities.
+            </p>
+
+        </div>
+
+
+        <div class="card">
+
+            <i class="fa-solid fa-gauge-high"></i>
+
+            <h3>
+                Performance
+            </h3>
+
+            <p>
+                Inefficient code and bottlenecks.
+            </p>
+
+        </div>
+
+
+        <div class="card">
+
+            <i class="fa-solid fa-screwdriver-wrench"></i>
+
+            <h3>
+                Maintainability
+            </h3>
+
+            <p>
+                Code quality and long-term maintainability.
+            </p>
+
+        </div>
+
+    </div>
+
+
+    <div style="height:10px;"></div>
+
+    </section>
