@@ -50,10 +50,24 @@
     --yellow: #fdb022;
     --red: #ff5c7a;
 
+    --surface: #0a1220;
+    --surface2: #0c1424;
+    --surface3: #16233b;
+    --result-bg: #080f1b;
+    --result-bg2: #050a12;
+    --border: #18253b;
+    --border2: #294268;
+
     --nav-height: 72px;
 
     --safe-bottom:
         env(safe-area-inset-bottom, 0px);
+
+    --font-scale: 16px;
+}
+
+html {
+    font-size: var(--font-scale, 16px);
 }
 
 
@@ -249,11 +263,11 @@ main {
 }
 
 .logo i {
-    font-size: 18px;
+    font-size: 1.125rem;
 }
 
 .title {
-    font-size: 15px;
+    font-size: 0.9375rem;
 
     font-weight: 800;
 }
@@ -261,7 +275,7 @@ main {
 .subtitle {
     margin-top: 2px;
 
-    font-size: 10px;
+    font-size: 0.625rem;
 
     color: var(--muted);
 }
@@ -271,7 +285,7 @@ main {
 
     border-radius: 999px;
 
-    font-size: 10px;
+    font-size: 0.625rem;
 
     color: var(--muted);
 
@@ -304,13 +318,13 @@ main {
     background:
         linear-gradient(
             145deg,
-            #0e1930,
-            #080e1a
+            var(--surface2),
+            var(--result-bg2)
         );
 }
 
 .hero h1 {
-    font-size: 25px;
+    font-size: 1.5625rem;
 
     letter-spacing: -.6px;
 }
@@ -318,7 +332,7 @@ main {
 .hero p {
     margin: 7px 0 15px;
 
-    font-size: 12px;
+    font-size: 0.75rem;
 
     line-height: 1.5;
 
@@ -339,7 +353,7 @@ main {
 
     padding: 8px;
 
-    background: #070d19;
+    background: var(--surface);
 
     border:
         1px solid var(--line);
@@ -362,7 +376,7 @@ main {
 
     outline: none;
 
-    font-size: 12px;
+    font-size: 0.75rem;
 }
 
 .icon-btn,
@@ -384,7 +398,7 @@ main {
 .icon-btn {
     color: var(--muted);
 
-    background: #101a2d;
+    background: var(--surface2);
 
     border:
         1px solid var(--line);
@@ -433,8 +447,8 @@ main {
     background:
         linear-gradient(
             145deg,
-            #0c1424,
-            #09101d
+            var(--surface2),
+            var(--surface2)
         );
 
     border:
@@ -452,7 +466,7 @@ main {
 }
 
 .card:hover {
-    border-color: #294268;
+    border-color: var(--border2);
 }
 
 .card i {
@@ -460,19 +474,19 @@ main {
 
     margin-bottom: 10px;
 
-    font-size: 16px;
+    font-size: 1rem;
 
     color: var(--accent);
 }
 
 .card h3 {
-    font-size: 12px;
+    font-size: 0.75rem;
 }
 
 .card p {
     margin-top: 4px;
 
-    font-size: 10px;
+    font-size: 0.625rem;
 
     line-height: 1.4;
 
@@ -495,11 +509,11 @@ main {
 }
 
 .section-title h2 {
-    font-size: 13px;
+    font-size: 0.8125rem;
 }
 
 .section-title span {
-    font-size: 10px;
+    font-size: 0.625rem;
 
     color: var(--muted);
 }
@@ -523,7 +537,7 @@ main {
 
     border-radius: 14px;
 
-    background: #0a1221;
+    background: var(--surface);
 
     border:
         1px solid var(--line);
@@ -532,11 +546,11 @@ main {
 .stat b {
     display: block;
 
-    font-size: 19px;
+    font-size: 1.1875rem;
 }
 
 .stat span {
-    font-size: 9px;
+    font-size: 0.5625rem;
 
     color: var(--muted);
 }
@@ -563,10 +577,36 @@ main {
 
     border-radius: 14px;
 
-    background: #0a1220;
+    background: var(--surface);
 
     border:
         1px solid var(--line);
+
+    transition:
+        border-color .15s ease,
+        background .15s ease;
+}
+
+.list-row.selected {
+    border-color: var(--accent);
+
+    background:
+        linear-gradient(
+            135deg,
+            rgba(79,140,255,.14),
+            rgba(124,92,255,.10)
+        );
+}
+
+.list-row.selected .list-icon {
+    color: white;
+
+    background:
+        linear-gradient(
+            135deg,
+            var(--accent),
+            var(--accent2)
+        );
 }
 
 .list-icon {
@@ -583,7 +623,7 @@ main {
 
     color: var(--accent);
 
-    background: #111d32;
+    background: var(--surface);
 }
 
 .list-info {
@@ -595,7 +635,7 @@ main {
 .list-info b {
     display: block;
 
-    font-size: 12px;
+    font-size: 0.75rem;
 }
 
 .list-info small {
@@ -603,7 +643,7 @@ main {
 
     margin-top: 3px;
 
-    font-size: 9px;
+    font-size: 0.5625rem;
 
     color: var(--muted);
 
@@ -668,7 +708,7 @@ main {
 
     color: var(--text);
 
-    background: #101a2d;
+    background: var(--surface2);
 
     border:
         1px solid var(--line);
@@ -682,7 +722,7 @@ main {
 }
 
 .secondary:hover:not(:disabled) {
-    background: #16233b;
+    background: var(--surface3);
     border-color: var(--accent);
 }
 
@@ -735,7 +775,7 @@ main {
     margin:
         2px 2px -4px;
 
-    font-size: 10px;
+    font-size: 0.625rem;
 
     color: var(--muted);
 }
@@ -747,7 +787,7 @@ main {
 
     color: var(--text);
 
-    background: #09111f;
+    background: var(--surface);
 
     border:
         1px solid var(--line);
@@ -756,11 +796,11 @@ main {
 
     outline: none;
 
-    font-size: 12px;
+    font-size: 0.75rem;
 }
 
 .field:focus {
-    border-color: #355a91;
+    border-color: var(--border2);
 
     box-shadow:
         0 0 0 3px
@@ -779,22 +819,65 @@ textarea.field {
 ========================================================= */
 
 .result {
+    position: relative;
+
     margin-top: 12px;
 
-    padding: 12px;
+    padding: 12px 40px 12px 12px;
 
     border-radius: 14px;
 
-    background: #080f1b;
+    background: var(--result-bg);
 
     border:
         1px solid var(--line);
 
-    font-size: var(--font-scale, 11px);
+    font-size: 0.6875rem;
 
     line-height: 1.5;
 
     overflow-wrap: anywhere;
+}
+
+.copy-btn {
+    position: absolute;
+
+    top: 8px;
+    right: 8px;
+
+    width: 26px;
+    height: 26px;
+
+    display: grid;
+    place-items: center;
+
+    border-radius: 8px;
+
+    color: var(--muted);
+
+    background: var(--surface2);
+
+    border: 1px solid var(--line);
+
+    cursor: pointer;
+
+    font-size: 0.6875rem;
+
+    transition:
+        color .15s ease,
+        border-color .15s ease;
+}
+
+.copy-btn:hover {
+    color: var(--text);
+
+    border-color: var(--accent);
+}
+
+.copy-btn.copied {
+    color: var(--green);
+
+    border-color: var(--green);
 }
 
 .result pre {
@@ -808,12 +891,12 @@ textarea.field {
 
     border-radius: 10px;
 
-    background: #050a12;
+    background: var(--result-bg2);
 
     border:
-        1px solid #18253b;
+        1px solid var(--border);
 
-    font-size: 10px;
+    font-size: 0.625rem;
 }
 
 
@@ -844,7 +927,7 @@ textarea.field {
 }
 
 .chat-label {
-    font-size: 10px;
+    font-size: 0.625rem;
     font-weight: 600;
     color: var(--muted);
     padding: 0 4px;
@@ -855,7 +938,7 @@ textarea.field {
 
     border-radius: 16px;
 
-    font-size: 12px;
+    font-size: 0.75rem;
     line-height: 1.5;
 
     white-space: pre-wrap;
@@ -881,6 +964,33 @@ textarea.field {
     background: var(--card);
 
     border: 1px solid var(--line);
+}
+
+.msg-copy-btn {
+    align-self: flex-start;
+
+    margin-top: 2px;
+    padding: 3px 8px;
+
+    border-radius: 8px;
+
+    color: var(--muted);
+
+    background: transparent;
+
+    border: none;
+
+    font-size: 0.625rem;
+
+    cursor: pointer;
+}
+
+.msg-copy-btn:hover {
+    color: var(--text);
+}
+
+.msg-copy-btn.copied {
+    color: var(--green);
 }
 
 #chatMessages {
@@ -937,11 +1047,11 @@ textarea.field {
 
     border-radius: 999px;
 
-    font-size: 9px;
+    font-size: 0.5625rem;
 
     color: var(--muted);
 
-    background: #0c1526;
+    background: var(--surface);
 
     border:
         1px solid var(--line);
@@ -980,28 +1090,28 @@ textarea.field {
 
     border-radius: 16px;
 
-    background: #09111e;
+    background: var(--surface);
 
     border:
-        1px dashed #223451;
+        1px dashed var(--border);
 }
 
 .empty i {
     margin-bottom: 10px;
 
-    font-size: 28px;
+    font-size: 1.75rem;
 
     color: var(--muted);
 }
 
 .empty h3 {
-    font-size: 13px;
+    font-size: 0.8125rem;
 }
 
 .empty p {
     margin-top: 5px;
 
-    font-size: 10px;
+    font-size: 0.625rem;
 
     line-height: 1.5;
 
@@ -1088,16 +1198,16 @@ textarea.field {
 
     color: white;
 
-    background: #111d31;
+    background: var(--result-bg);
 
     border:
-        1px solid #294268;
+        1px solid var(--border2);
 
     box-shadow:
         0 10px 30px
         rgba(0,0,0,.35);
 
-    font-size: 11px;
+    font-size: 0.6875rem;
 
     opacity: 0;
 
@@ -1185,11 +1295,11 @@ textarea.field {
 }
 
 .nav-item i {
-    font-size: 15px;
+    font-size: 0.9375rem;
 }
 
 .nav-item span {
-    font-size: 8px;
+    font-size: 0.5rem;
 }
 
 .nav-item.active {
@@ -2757,12 +2867,20 @@ Type "help" to see supported commands.</div>
         <button
             class="secondary"
             type="button"
-            onclick="showToast('File upload coming soon')">
+            onclick="triggerImportFile()">
 
             <i class="fa-solid fa-upload"></i>
             Import File
 
         </button>
+
+        <input
+            id="importFileInput"
+            type="file"
+            accept=".py,.js,.ts,.java,.c,.cpp,.go,.rs,.html,.css,.json,.txt,.md"
+            style="display:none;"
+            onchange="handleImportFile(event)"
+        >
 
 
         <button
@@ -4303,6 +4421,13 @@ Type "help" to see supported commands.</div>
     </div>
 
 
+    <!-- INLINE TOOL PANEL -->
+    <div
+        id="toolPanel"
+        style="display:none;">
+    </div>
+
+
     <!-- QUICK UTILITIES -->
     <div class="section-title">
 
@@ -5339,6 +5464,62 @@ function hide(id) {
    if it's ever cleared back to empty.
 ========================================================= */
 
+function copyElementText(el, btn) {
+    if (!el) return;
+
+    const text = el.innerText || el.textContent || "";
+
+    if (!text.trim()) {
+        toast("Nothing to copy yet.");
+        return;
+    }
+
+    navigator.clipboard.writeText(text.trim()).then(() => {
+        toast("Copied.");
+        if (btn) {
+            btn.classList.add("copied");
+            setTimeout(() => btn.classList.remove("copied"), 1200);
+        }
+    }).catch(() => {
+        toast("Could not copy — try selecting the text manually.");
+    });
+}
+
+function copyBubbleText(btn) {
+    const bubble = btn.previousElementSibling;
+    copyElementText(bubble, btn);
+    btn.classList.add("copied");
+    setTimeout(() => btn.classList.remove("copied"), 1200);
+}
+
+
+function attachExecutionOutputCopyButton() {
+    const el = $("executionOutput");
+    if (!el) return;
+
+    let observer;
+
+    const ensureButton = () => {
+        if (el.querySelector(":scope > .copy-btn")) return;
+
+        const btn = document.createElement("button");
+        btn.className = "copy-btn";
+        btn.type = "button";
+        btn.setAttribute("aria-label", "Copy");
+        btn.innerHTML = '<i class="fa-solid fa-copy"></i>';
+        btn.onclick = () => copyElementText(el, btn);
+
+        observer.disconnect();
+        el.appendChild(btn);
+        observer.observe(el, { childList: true, subtree: true });
+    };
+
+    observer = new MutationObserver(ensureButton);
+    ensureButton();
+    observer.observe(el, { childList: true, subtree: true });
+}
+
+
 function autoRevealResultPanels() {
     const ids = [
         "codeAiResult",
@@ -5358,17 +5539,39 @@ function autoRevealResultPanels() {
 
         if (!el) return;
 
+        let observer;
+
         const reveal = () => {
+            const existingBtn = el.querySelector(":scope > .copy-btn");
+            if (existingBtn) existingBtn.remove();
+
             const hasContent =
                 el.textContent.trim().length > 0;
 
             el.style.display =
                 hasContent ? "block" : "none";
+
+            if (hasContent) {
+                const btn = document.createElement("button");
+                btn.className = "copy-btn";
+                btn.type = "button";
+                btn.setAttribute("aria-label", "Copy");
+                btn.innerHTML = '<i class="fa-solid fa-copy"></i>';
+                btn.onclick = () => copyElementText(el, btn);
+
+                observer.disconnect();
+                el.appendChild(btn);
+                observer.observe(el, {
+                    childList: true,
+                    characterData: true,
+                    subtree: true
+                });
+            }
         };
 
-        reveal();
+        observer = new MutationObserver(reveal);
 
-        const observer = new MutationObserver(reveal);
+        reveal();
 
         observer.observe(el, {
             childList: true,
@@ -5646,6 +5849,11 @@ function addChatMessage(
             ? "You"
             : "Engineer AI";
 
+    const copyButton =
+        role === "assistant"
+            ? `<button class="msg-copy-btn" type="button" onclick="copyBubbleText(this)"><i class="fa-solid fa-copy"></i> Copy</button>`
+            : "";
+
     wrapper.innerHTML = `
         <div class="chat-label">
             ${label}
@@ -5654,6 +5862,8 @@ function addChatMessage(
         <div class="chat-bubble">
             ${renderMarkdown(message)}
         </div>
+
+        ${copyButton}
     `;
 
     container.appendChild(wrapper);
@@ -5926,11 +6136,11 @@ ${code}`,
                     provider: getSelectedProvider()
                 })
             });
-            output.textContent = "ℹ️ " + getApiText(data);
+            output.innerHTML = renderMarkdown("ℹ️ " + getApiText(data));
         }
         if (status) status.textContent = "Completed";
     } catch (error) {
-        output.textContent = "Execution error:\n" + getApiText(error?.message || error);
+        output.innerHTML = renderMarkdown("Execution error:\n" + getApiText(error?.message || error));
         if (status) status.textContent = "Error";
     }
 }
@@ -5985,6 +6195,46 @@ function handleEditorKey(event) {
 }
 
 
+/* Import File button opens a native file picker; reading the
+   file happens in handleImportFile once one is chosen. */
+function triggerImportFile() {
+    const input = $("importFileInput");
+    if (input) input.click();
+}
+
+function handleImportFile(event) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+
+    reader.onload = () => {
+        const editor = $("codeEditor");
+        const fileName = $("currentFileName");
+
+        if (editor) {
+            editor.value = reader.result;
+            updateLineNumbers();
+        }
+
+        if (fileName) {
+            fileName.textContent = file.name;
+        }
+
+        toast(`Imported ${file.name}`);
+    };
+
+    reader.onerror = () => {
+        toast("Could not read that file.");
+    };
+
+    reader.readAsText(file);
+
+    // allow re-importing the same filename later
+    event.target.value = "";
+}
+
+
 function newFile() {
     const editor = $("codeEditor");
     const fileName = $("currentFileName");
@@ -6011,7 +6261,7 @@ function newFile() {
     }
 
     if (aiResult) {
-        aiResult.textContent = "";
+        aiResult.innerHTML = renderMarkdown("");
     }
 
     toast("New file created.");
@@ -6224,8 +6474,7 @@ async function sendCodeAI(action = "help") {
     }
 
     if (result) {
-        result.textContent =
-            "Thinking...";
+        result.innerHTML = renderMarkdown("Thinking...");
     }
 
     try {
@@ -6248,16 +6497,14 @@ async function sendCodeAI(action = "help") {
             );
 
         if (result) {
-            result.textContent =
-                getApiText(data);
+            result.innerHTML = renderMarkdown(getApiText(data));
         }
 
     } catch (error) {
 
         if (result) {
-            result.textContent =
-                "Error: " +
-                error.message;
+            result.innerHTML = renderMarkdown("Error: " +
+                error.message);
         }
 
         toast("Code AI failed.");
@@ -6365,17 +6612,29 @@ function escapeHtml(value) {
 function renderMarkdown(text) {
     let html = escapeHtml(text);
 
-    // fenced code blocks: ```code```
+    // Protect fenced/inline code FIRST by pulling it out into placeholders.
+    // Without this, the bold/italic passes below run over the whole string
+    // again afterward and can mangle asterisks that are meant to be literal
+    // code (pointers, **kwargs, exponentiation, multiplication) rather than
+    // markdown formatting.
+    const codeBlocks = [];
+
     html = html.replace(
         /```[a-zA-Z]*\n?([\s\S]*?)```/g,
-        (match, code) =>
-            "<pre><code>" + code.trim() + "</code></pre>"
+        (match, code) => {
+            const token = `\u0000CODEBLOCK${codeBlocks.length}\u0000`;
+            codeBlocks.push("<pre><code>" + code.trim() + "</code></pre>");
+            return token;
+        }
     );
 
-    // inline code
     html = html.replace(
         /`([^`\n]+)`/g,
-        "<code>$1</code>"
+        (match, code) => {
+            const token = `\u0000CODEBLOCK${codeBlocks.length}\u0000`;
+            codeBlocks.push("<code>" + code + "</code>");
+            return token;
+        }
     );
 
     // headings
@@ -6416,6 +6675,12 @@ function renderMarkdown(text) {
     // remaining line breaks
     html = html.replace(/\n{2,}/g, "<br><br>");
     html = html.replace(/\n/g, "<br>");
+
+    // restore the protected code blocks, exactly as captured
+    html = html.replace(
+        /\u0000CODEBLOCK(\d+)\u0000/g,
+        (match, index) => codeBlocks[Number(index)]
+    );
 
     return html;
 }
@@ -6478,7 +6743,7 @@ function clearDebugger() {
     if (codeInput) codeInput.value = "";
 
     if (result) {
-        result.textContent = "";
+        result.innerHTML = renderMarkdown("");
         result.style.display = "none";
     }
 
@@ -6497,7 +6762,7 @@ async function runDebugger() {
     const language = languageInput ? languageInput.value : "python";
 
     if (!error && !code) { toast("Enter an error or some code to debug."); return; }
-    if (result) result.textContent = "🔎 Analyzing your code...";
+    if (result) result.innerHTML = renderMarkdown("🔎 Analyzing your code...");
     if (button) { button.disabled = true; button.textContent = "Debugging..."; }
 
     try {
@@ -6513,7 +6778,7 @@ ${code || "No code supplied."}`,
         });
         if (result) result.innerHTML = renderMarkdown(getApiText(data));
     } catch (err) {
-        if (result) result.textContent = "Debugger error:\n" + getApiText(err?.message || err);
+        if (result) result.innerHTML = renderMarkdown("Debugger error:\n" + getApiText(err?.message || err));
         toast("Debugger request failed.");
     } finally {
         if (button) { button.disabled = false; button.textContent = "Run Debugger"; }
@@ -6578,7 +6843,7 @@ async function runCodeReview() {
     const code = codeInput ? codeInput.value.trim() : "";
     const fileName = fileInput ? fileInput.value.trim() : "code";
     if (!code) { toast("Paste some code to review."); return; }
-    if (result) result.textContent = "🧠 Reviewing code...";
+    if (result) result.innerHTML = renderMarkdown("🧠 Reviewing code...");
     if (button) { button.disabled = true; button.textContent = "Reviewing..."; }
     try {
         const data = await apiRequest("/api/code/review", {
@@ -6592,7 +6857,7 @@ async function runCodeReview() {
         });
         if (result) result.innerHTML = renderMarkdown(getApiText(data));
     } catch (err) {
-        if (result) result.textContent = "Review error:\n" + getApiText(err?.message || err);
+        if (result) result.innerHTML = renderMarkdown("Review error:\n" + getApiText(err?.message || err));
         toast("Code review failed.");
     } finally {
         if (button) { button.disabled = false; button.textContent = "Run Review"; }
@@ -6610,7 +6875,7 @@ async function runSecurityScan() {
     const button = document.querySelector("[onclick*='runSecurityScan']");
     const code = codeInput ? codeInput.value.trim() : "";
     if (!code) { toast("Paste code before scanning."); return; }
-    if (result) result.textContent = "🛡️ Scanning for security issues...";
+    if (result) result.innerHTML = renderMarkdown("🛡️ Scanning for security issues...");
     if (button) button.disabled = true;
     try {
         const data = await apiRequest("/api/security/scan", {
@@ -6623,7 +6888,7 @@ async function runSecurityScan() {
         });
         if (result) result.innerHTML = renderMarkdown(getApiText(data));
     } catch (err) {
-        if (result) result.textContent = "Security scan error:\n" + getApiText(err?.message || err);
+        if (result) result.innerHTML = renderMarkdown("Security scan error:\n" + getApiText(err?.message || err));
         toast("Security scan failed.");
     } finally {
         if (button) button.disabled = false;
@@ -6641,7 +6906,7 @@ async function runPerformanceAnalysis() {
     const button = document.querySelector("[onclick*='runPerformanceAnalysis']");
     const code = codeInput ? codeInput.value.trim() : "";
     if (!code) { toast("Paste code before analyzing."); return; }
-    if (result) result.textContent = "⚡ Analyzing performance...";
+    if (result) result.innerHTML = renderMarkdown("⚡ Analyzing performance...");
     if (button) button.disabled = true;
     try {
         const data = await apiRequest("/api/performance/analyze", {
@@ -6654,7 +6919,7 @@ async function runPerformanceAnalysis() {
         });
         if (result) result.innerHTML = renderMarkdown(getApiText(data));
     } catch (err) {
-        if (result) result.textContent = "Performance error:\n" + getApiText(err?.message || err);
+        if (result) result.innerHTML = renderMarkdown("Performance error:\n" + getApiText(err?.message || err));
         toast("Performance analysis failed.");
     } finally {
         if (button) button.disabled = false;
@@ -6729,8 +6994,7 @@ function clearAgentTask() {
     }
 
     if (result) {
-        result.textContent =
-            "Agent output will appear here.";
+        result.innerHTML = renderMarkdown("Agent output will appear here.");
     }
 
     toast(
@@ -6751,7 +7015,7 @@ async function runAgent() {
     const taskText = task ? task.value.trim() : "";
     if (!taskText) { toast("Enter an engineering task first."); return; }
     const agentType = agent ? agent.value : "all";
-    if (result) result.textContent = "🤖 Engineer AI is working...";
+    if (result) result.innerHTML = renderMarkdown("🤖 Engineer AI is working...");
     if (button) { button.disabled = true; button.textContent = "Running..."; }
     try {
         const data = await apiRequest("/api/agent/execute", {
@@ -6768,9 +7032,9 @@ async function runAgent() {
         });
         let output = getApiText(data);
         if (data && data.workflow) output += "\n\n━━━━━━━━ WORKFLOW ━━━━━━━━\n\n" + safeStringify(data.workflow);
-        if (result) result.textContent = output;
+        if (result) result.innerHTML = renderMarkdown(output);
     } catch (err) {
-        if (result) result.textContent = "Agent error:\n" + getApiText(err?.message || err);
+        if (result) result.innerHTML = renderMarkdown("Agent error:\n" + getApiText(err?.message || err));
         toast("Agent execution failed.");
     } finally {
         if (button) { button.disabled = false; button.textContent = "Run Agent"; }
@@ -6953,13 +7217,45 @@ async function createProject() {
     const name = nameInput ? nameInput.value.trim() : "";
     const language = languageInput ? languageInput.value : "text";
     if (!name) { toast("Enter a project name."); return; }
-    const project = { id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()), name, language, progress: 0, created_at: new Date().toISOString() };
-    projects.unshift(project);
-    localStorage.setItem("engineer_ai_projects", JSON.stringify(projects));
-    selectedProjectId = project.id;
-    if (nameInput) nameInput.value = "";
-    renderProjects();
-    toast("Project created.");
+
+    try {
+        const data = await apiRequest("/api/projects", {
+            method: "POST",
+            body: JSON.stringify({
+                name: name,
+                language: language
+            })
+        });
+
+        const project = data && data.project
+            ? data.project
+            : {
+                id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+                name, language, progress: 0,
+                created_at: new Date().toISOString()
+            };
+
+        projects.unshift(project);
+        localStorage.setItem("engineer_ai_projects", JSON.stringify(projects));
+        selectedProjectId = project.id;
+        if (nameInput) nameInput.value = "";
+        renderProjects();
+        toast("Project created.");
+
+    } catch (error) {
+        toast("Could not save project to the server — saved locally only.");
+
+        const project = {
+            id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+            name, language, progress: 0,
+            created_at: new Date().toISOString()
+        };
+        projects.unshift(project);
+        localStorage.setItem("engineer_ai_projects", JSON.stringify(projects));
+        selectedProjectId = project.id;
+        if (nameInput) nameInput.value = "";
+        renderProjects();
+    }
 }
 
 
@@ -6982,8 +7278,7 @@ async function analyzeSelectedProject() {
         $("projectResult");
 
     if (result) {
-        result.textContent =
-            "🧠 Analyzing project...";
+        result.innerHTML = renderMarkdown("🧠 Analyzing project...");
     }
 
 
@@ -7006,16 +7301,14 @@ async function analyzeSelectedProject() {
             );
 
         if (result) {
-            result.textContent =
-                getApiText(data);
+            result.innerHTML = renderMarkdown(getApiText(data));
         }
 
     } catch (error) {
 
         if (result) {
-            result.textContent =
-                "Project analysis error:\n" +
-                error.message;
+            result.innerHTML = renderMarkdown("Project analysis error:\n" +
+                error.message);
         }
 
         toast(
@@ -7040,8 +7333,7 @@ async function showProjectStats() {
         $("projectResult");
 
     if (result) {
-        result.textContent =
-            "📊 Loading project statistics...";
+        result.innerHTML = renderMarkdown("📊 Loading project statistics...");
     }
 
 
@@ -7056,16 +7348,14 @@ async function showProjectStats() {
             );
 
         if (result) {
-            result.textContent =
-                safeStringify(data);
+            result.innerHTML = renderMarkdown(safeStringify(data));
         }
 
     } catch (error) {
 
         if (result) {
-            result.textContent =
-                "Stats error:\n" +
-                error.message;
+            result.innerHTML = renderMarkdown("Stats error:\n" +
+                error.message);
         }
 
         toast(
@@ -7097,8 +7387,7 @@ async function askProjectQuestion() {
         $("projectResult");
 
     if (result) {
-        result.textContent =
-            "💭 Thinking about your project...";
+        result.innerHTML = renderMarkdown("💭 Thinking about your project...");
     }
 
 
@@ -7124,16 +7413,14 @@ async function askProjectQuestion() {
             );
 
         if (result) {
-            result.textContent =
-                getApiText(data);
+            result.innerHTML = renderMarkdown(getApiText(data));
         }
 
     } catch (error) {
 
         if (result) {
-            result.textContent =
-                "Project question error:\n" +
-                error.message;
+            result.innerHTML = renderMarkdown("Project question error:\n" +
+                error.message);
         }
 
         toast(
@@ -7148,7 +7435,7 @@ async function openProjectMemory() {
     if (!selectedProjectId) { toast("Select a project first."); return; }
     const key = "engineer_ai_memory_" + selectedProjectId;
     const memory = localStorage.getItem(key) || "No saved project memory yet.";
-    if (result) result.textContent = "🧠 Project Memory:\n\n" + memory;
+    if (result) result.innerHTML = renderMarkdown("🧠 Project Memory:\n\n" + memory);
 }
 
 
@@ -7156,165 +7443,272 @@ async function openProjectMemory() {
    TOOLS
 ========================================================= */
 
-function openConverter() {
+/* =========================================================
+   INLINE TOOL PANELS
+   Replaces the old window.prompt()-based tools, which were
+   easy to lose track of on mobile (two stacked native popups
+   read like separate unrelated questions).
+========================================================= */
 
-    const value =
-        window.prompt(
-            "Enter a conversion, for example: 100 km to miles"
-        );
+const UNIT_CONVERSIONS = {
+    km: { m: 1000, mi: 0.621371, ft: 3280.84 },
+    m: { km: 0.001, ft: 3.28084, cm: 100, mi: 0.000621371 },
+    cm: { m: 0.01, in: 0.393701 },
+    mi: { km: 1.60934, m: 1609.34, ft: 5280 },
+    ft: { m: 0.3048, cm: 30.48, in: 12 },
+    in: { cm: 2.54, ft: 0.0833333 },
+    kg: { lb: 2.20462, g: 1000 },
+    g: { kg: 0.001, lb: 0.00220462 },
+    lb: { kg: 0.453592, g: 453.592 },
+    l: { ml: 1000, gal: 0.264172 },
+    ml: { l: 0.001 },
+    gal: { l: 3.78541 }
+};
 
-    if (!value) return;
+function convertUnits() {
+    const valueInput = $("converterValue");
+    const fromInput = $("converterFrom");
+    const toInput = $("converterTo");
+    const result = $("converterResult");
 
-    const result =
-        $("toolResult");
+    const value = parseFloat(valueInput ? valueInput.value : "");
+    const from = (fromInput ? fromInput.value : "").trim().toLowerCase();
+    const to = (toInput ? toInput.value : "").trim().toLowerCase();
 
-    if (result) {
-        result.textContent =
-            "Converter request:\n\n" +
-            value +
-            "\n\nUse Engineer AI to calculate the conversion.";
+    if (!result) return;
+
+    if (isNaN(value) || !from || !to) {
+        result.textContent = "Enter a value, and both units (e.g. km, mi, kg, lb, l, gal).";
+        return;
     }
 
-    navigateTo("tools");
+    // Temperature needs formulas, not a flat multiplier
+    const temp = { c: "c", celsius: "c", f: "f", fahrenheit: "f", k: "k", kelvin: "k" };
+    if (temp[from] && temp[to]) {
+        const f1 = temp[from], f2 = temp[to];
+        let celsius;
+        if (f1 === "c") celsius = value;
+        else if (f1 === "f") celsius = (value - 32) * 5/9;
+        else celsius = value - 273.15;
+
+        let out;
+        if (f2 === "c") out = celsius;
+        else if (f2 === "f") out = celsius * 9/5 + 32;
+        else out = celsius + 273.15;
+
+        result.textContent = `${value} °${from[0].toUpperCase()} = ${out.toFixed(2)} °${to[0].toUpperCase()}`;
+        return;
+    }
+
+    if (UNIT_CONVERSIONS[from] && UNIT_CONVERSIONS[from][to] !== undefined) {
+        const out = value * UNIT_CONVERSIONS[from][to];
+        result.textContent = `${value} ${from} = ${out.toFixed(4)} ${to}`;
+    } else {
+        result.textContent = `Don't know how to convert "${from}" to "${to}" yet. Supported: km, m, cm, mi, ft, in, kg, g, lb, l, ml, gal, and c/f/k for temperature.`;
+    }
 }
 
+function openConverter() {
+    const panel = $("toolPanel");
+    if (!panel) return;
+
+    panel.innerHTML = `
+        <div class="section-title"><h2>Unit Converter</h2></div>
+        <div class="form">
+            <input id="converterValue" class="field" type="number" placeholder="Value (e.g. 100)">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                <input id="converterFrom" class="field" type="text" placeholder="From (e.g. km)">
+                <input id="converterTo" class="field" type="text" placeholder="To (e.g. mi)">
+            </div>
+            <button class="primary" type="button" onclick="convertUnits()">Convert</button>
+        </div>
+        <div id="converterResult" class="result">Enter a value and units above.</div>
+    `;
+    panel.style.display = "block";
+    navigateTo("tools");
+    setTimeout(() => panel.scrollIntoView({ behavior: "smooth", block: "center" }), 100);
+}
+
+
+function formatJsonInline() {
+    const input = $("jsonInput");
+    const result = $("jsonResult");
+    if (!input || !result) return;
+
+    try {
+        const formatted = JSON.stringify(JSON.parse(input.value), null, 2);
+        result.textContent = formatted;
+    } catch (error) {
+        result.textContent = "❌ Invalid JSON: " + error.message;
+    }
+}
 
 function openJsonTool() {
+    const panel = $("toolPanel");
+    if (!panel) return;
 
-    const input =
-        window.prompt(
-            "Paste JSON to format:"
-        );
-
-    if (!input) return;
-
-    const result =
-        $("toolResult");
-
-    try {
-
-        const formatted =
-            JSON.stringify(
-                JSON.parse(input),
-                null,
-                2
-            );
-
-        if (result) {
-            result.textContent =
-                formatted;
-        }
-
-    } catch {
-
-        if (result) {
-            result.textContent =
-                "❌ Invalid JSON.";
-        }
-    }
-
+    panel.innerHTML = `
+        <div class="section-title"><h2>JSON Formatter</h2></div>
+        <div class="form">
+            <textarea id="jsonInput" class="field" style="min-height:120px;" placeholder='Paste JSON, e.g. {"a":1,"b":[2,3]}'></textarea>
+            <button class="primary" type="button" onclick="formatJsonInline()">Format</button>
+        </div>
+        <div id="jsonResult" class="result"><pre style="margin:0;">Paste JSON above and tap Format.</pre></div>
+    `;
+    panel.style.display = "block";
     navigateTo("tools");
+    setTimeout(() => panel.scrollIntoView({ behavior: "smooth", block: "center" }), 100);
 }
 
+
+function testRegexInline() {
+    const patternInput = $("regexPattern");
+    const flagsInput = $("regexFlags");
+    const textInput = $("regexText");
+    const result = $("regexResult");
+    if (!result) return;
+
+    const pattern = patternInput ? patternInput.value : "";
+    const flags = flagsInput ? flagsInput.value.trim() : "g";
+    const text = textInput ? textInput.value : "";
+
+    if (!pattern) {
+        result.textContent = "Enter a pattern first.";
+        return;
+    }
+
+    try {
+        const regex = new RegExp(pattern, flags);
+        const matches = [...text.matchAll(regex)];
+        result.textContent = matches.length
+            ? `✅ ${matches.length} match(es):\n\n` + matches.map(m => m[0]).join("\n")
+            : "❌ No matches found.";
+    } catch (error) {
+        result.textContent = "Invalid regular expression: " + error.message;
+    }
+}
 
 function openRegexTool() {
+    const panel = $("toolPanel");
+    if (!panel) return;
 
-    const pattern =
-        window.prompt(
-            "Enter a regular expression:"
-        );
-
-    if (!pattern) return;
-
-    const text =
-        window.prompt(
-            "Enter text to test:"
-        );
-
-    if (text === null) return;
-
-    const result =
-        $("toolResult");
-
-    try {
-
-        const regex =
-            new RegExp(
-                pattern
-            );
-
-        const match =
-            text.match(regex);
-
-        if (result) {
-
-            result.textContent =
-                match
-                    ? "✅ Match found:\n\n" +
-                      safeStringify(match)
-                    : "❌ No match found.";
-        }
-
-    } catch (error) {
-
-        if (result) {
-            result.textContent =
-                "Invalid regular expression.";
-        }
-    }
-
+    panel.innerHTML = `
+        <div class="section-title"><h2>Regex Tester</h2></div>
+        <div class="form">
+            <input id="regexPattern" class="field" type="text" placeholder="Pattern, e.g. \\d+">
+            <input id="regexFlags" class="field" type="text" placeholder="Flags (default: g)" value="g">
+            <textarea id="regexText" class="field" style="min-height:100px;" placeholder="Text to test against"></textarea>
+            <button class="primary" type="button" onclick="testRegexInline()">Test</button>
+        </div>
+        <div id="regexResult" class="result">Enter a pattern and some text above.</div>
+    `;
+    panel.style.display = "block";
     navigateTo("tools");
+    setTimeout(() => panel.scrollIntoView({ behavior: "smooth", block: "center" }), 100);
 }
 
+
+function convertTimestampInline() {
+    const input = $("timestampInput");
+    const result = $("timestampResult");
+    if (!result) return;
+
+    const raw = input ? input.value.trim() : "";
+
+    if (!raw) {
+        const now = new Date();
+        result.textContent = `Now:\nISO: ${now.toISOString()}\nUnix ms: ${now.getTime()}\nUnix s: ${Math.floor(now.getTime()/1000)}`;
+        return;
+    }
+
+    // Numeric input → treat as a Unix timestamp (seconds or ms)
+    if (/^-?\d+$/.test(raw)) {
+        const num = parseInt(raw, 10);
+        const ms = raw.length > 10 ? num : num * 1000;
+        const date = new Date(ms);
+        result.textContent = isNaN(date.getTime())
+            ? "❌ Could not parse that as a timestamp."
+            : `Unix ${raw} → ${date.toISOString()}\nLocal: ${date.toString()}`;
+        return;
+    }
+
+    // Otherwise treat as a date string → convert to Unix
+    const date = new Date(raw);
+    result.textContent = isNaN(date.getTime())
+        ? "❌ Could not parse that as a date. Try a Unix timestamp or an ISO date."
+        : `${raw} → Unix ms: ${date.getTime()}, Unix s: ${Math.floor(date.getTime()/1000)}`;
+}
 
 function openTimestampTool() {
+    const panel = $("toolPanel");
+    if (!panel) return;
 
-    const now =
-        new Date();
-
-    const result =
-        $("toolResult");
-
-    if (result) {
-
-        result.textContent =
-            "Current timestamp:\n\n" +
-            now.toISOString() +
-            "\n\nUnix milliseconds:\n" +
-            now.getTime();
-    }
-
+    panel.innerHTML = `
+        <div class="section-title"><h2>Timestamp Converter</h2></div>
+        <div class="form">
+            <input id="timestampInput" class="field" type="text" placeholder="Unix timestamp or date (leave empty for now)">
+            <button class="primary" type="button" onclick="convertTimestampInline()">Convert</button>
+        </div>
+        <div id="timestampResult" class="result">Leave empty and tap Convert to see the current time.</div>
+    `;
+    panel.style.display = "block";
     navigateTo("tools");
+    setTimeout(() => panel.scrollIntoView({ behavior: "smooth", block: "center" }), 100);
 }
 
 
-function openColorTool() {
+function inspectColorInline() {
+    const input = $("colorInput");
+    const result = $("colorResult");
+    const swatch = $("colorSwatch");
+    if (!result) return;
 
-    const color =
-        window.prompt(
-            "Enter a color, for example #4f8cff:"
-        );
+    const color = (input ? input.value : "").trim();
+    const valid = /^#[0-9a-fA-F]{6}$/.test(color);
 
-    if (!color) return;
-
-    const result =
-        $("toolResult");
-
-    const valid =
-        /^#[0-9a-fA-F]{6}$/.test(
-            color
-        );
-
-    if (result) {
-
-        result.textContent =
-            valid
-                ? "✅ Valid HEX color:\n\n" +
-                  color
-                : "❌ Invalid HEX color.\nUse #RRGGBB.";
+    if (!valid) {
+        result.textContent = "❌ Enter a HEX color like #4f8cff.";
+        if (swatch) swatch.style.background = "transparent";
+        return;
     }
 
+    const r = parseInt(color.slice(1,3), 16);
+    const g = parseInt(color.slice(3,5), 16);
+    const b = parseInt(color.slice(5,7), 16);
+
+    const rN = r/255, gN = g/255, bN = b/255;
+    const max = Math.max(rN,gN,bN), min = Math.min(rN,gN,bN);
+    let h, s, l = (max+min)/2;
+    if (max === min) { h = s = 0; }
+    else {
+        const d = max-min;
+        s = l > 0.5 ? d/(2-max-min) : d/(max+min);
+        if (max === rN) h = (gN-bN)/d + (gN < bN ? 6 : 0);
+        else if (max === gN) h = (bN-rN)/d + 2;
+        else h = (rN-gN)/d + 4;
+        h *= 60;
+    }
+
+    if (swatch) swatch.style.background = color;
+    result.textContent = `HEX: ${color}\nRGB: rgb(${r}, ${g}, ${b})\nHSL: hsl(${Math.round(h)}, ${Math.round(s*100)}%, ${Math.round(l*100)}%)`;
+}
+
+function openColorTool() {
+    const panel = $("toolPanel");
+    if (!panel) return;
+
+    panel.innerHTML = `
+        <div class="section-title"><h2>Color Inspector</h2></div>
+        <div class="form">
+            <input id="colorInput" class="field" type="text" placeholder="#4f8cff" value="#4f8cff">
+            <button class="primary" type="button" onclick="inspectColorInline()">Inspect</button>
+        </div>
+        <div id="colorSwatch" style="height:44px;border-radius:12px;margin-top:10px;background:#4f8cff;border:1px solid var(--line);"></div>
+        <div id="colorResult" class="result">Enter a HEX color and tap Inspect.</div>
+    `;
+    panel.style.display = "block";
     navigateTo("tools");
+    setTimeout(() => panel.scrollIntoView({ behavior: "smooth", block: "center" }), 100);
 }
 
 
@@ -7571,17 +7965,15 @@ function calculatorEquals() {
         updateCalculatorDisplay();
 
         if (result) {
-            result.textContent =
-                "Result: " +
-                answer;
+            result.innerHTML = renderMarkdown("Result: " +
+                answer);
         }
 
     } catch (error) {
 
         if (result) {
-            result.textContent =
-                "❌ " +
-                error.message;
+            result.innerHTML = renderMarkdown("❌ " +
+                error.message);
         }
     }
 }
@@ -7667,8 +8059,7 @@ async function showAnalytics() {
         $("profileResult");
 
     if (result) {
-        result.textContent =
-            "📊 Loading analytics...";
+        result.innerHTML = renderMarkdown("📊 Loading analytics...");
     }
 
     try {
@@ -7679,16 +8070,14 @@ async function showAnalytics() {
             );
 
         if (result) {
-            result.textContent =
-                safeStringify(data);
+            result.innerHTML = renderMarkdown(safeStringify(data));
         }
 
     } catch (error) {
 
         if (result) {
-            result.textContent =
-                "Analytics error:\n" +
-                error.message;
+            result.innerHTML = renderMarkdown("Analytics error:\n" +
+                error.message);
         }
     }
 }
@@ -7700,8 +8089,7 @@ async function checkSystemStatus() {
         $("profileResult");
 
     if (result) {
-        result.textContent =
-            "🔄 Checking Engineer AI...";
+        result.innerHTML = renderMarkdown("🔄 Checking Engineer AI...");
     }
 
     try {
@@ -7712,17 +8100,15 @@ async function checkSystemStatus() {
             );
 
         if (result) {
-            result.textContent =
-                "🟢 System online\n\n" +
-                safeStringify(data);
+            result.innerHTML = renderMarkdown("🟢 System online\n\n" +
+                safeStringify(data));
         }
 
     } catch (error) {
 
         if (result) {
-            result.textContent =
-                "🔴 System check failed\n\n" +
-                error.message;
+            result.innerHTML = renderMarkdown("🔴 System check failed\n\n" +
+                error.message);
         }
     }
 }
@@ -7735,11 +8121,10 @@ function showAbout() {
 
     if (result) {
 
-        result.textContent =
-            "Engineer AI\n\n" +
+        result.innerHTML = renderMarkdown("Engineer AI\n\n" +
             "An engineering-focused AI platform " +
             "for coding, debugging, project intelligence, " +
-            "testing, security and performance analysis.";
+            "testing, security and performance analysis.");
     }
 }
 
@@ -7891,6 +8276,41 @@ function applySettings() {
             "#667085"
         );
 
+        document.documentElement.style.setProperty(
+            "--surface",
+            "#eef2f7"
+        );
+
+        document.documentElement.style.setProperty(
+            "--surface2",
+            "#ffffff"
+        );
+
+        document.documentElement.style.setProperty(
+            "--surface3",
+            "#e3e8f0"
+        );
+
+        document.documentElement.style.setProperty(
+            "--result-bg",
+            "#f4f6fa"
+        );
+
+        document.documentElement.style.setProperty(
+            "--result-bg2",
+            "#eaeef4"
+        );
+
+        document.documentElement.style.setProperty(
+            "--border",
+            "#dde3ec"
+        );
+
+        document.documentElement.style.setProperty(
+            "--border2",
+            "#c3ccd9"
+        );
+
     } else {
 
         document.documentElement.style.setProperty(
@@ -7926,6 +8346,41 @@ function applySettings() {
         document.documentElement.style.setProperty(
             "--muted",
             "#8290a8"
+        );
+
+        document.documentElement.style.setProperty(
+            "--surface",
+            "#0a1220"
+        );
+
+        document.documentElement.style.setProperty(
+            "--surface2",
+            "#0c1424"
+        );
+
+        document.documentElement.style.setProperty(
+            "--surface3",
+            "#16233b"
+        );
+
+        document.documentElement.style.setProperty(
+            "--result-bg",
+            "#080f1b"
+        );
+
+        document.documentElement.style.setProperty(
+            "--result-bg2",
+            "#050a12"
+        );
+
+        document.documentElement.style.setProperty(
+            "--border",
+            "#18253b"
+        );
+
+        document.documentElement.style.setProperty(
+            "--border2",
+            "#294268"
         );
     }
 
@@ -8029,8 +8484,7 @@ function saveSettings() {
 
     if (result) {
 
-        result.textContent =
-            "✅ Settings saved successfully.";
+        result.innerHTML = renderMarkdown("✅ Settings saved successfully.");
     }
 
     toast(
@@ -8104,8 +8558,7 @@ function clearLocalData() {
 
     if (result) {
 
-        result.textContent =
-            "✅ Local data cleared.";
+        result.innerHTML = renderMarkdown("✅ Local data cleared.");
     }
 
 
@@ -8335,6 +8788,8 @@ function initializeEngineerAI() {
     loadSettings();
 
     autoRevealResultPanels();
+
+    attachExecutionOutputCopyButton();
 
 
     /* -----------------------------------------------------
