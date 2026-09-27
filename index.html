@@ -9250,5 +9250,135 @@ html[data-theme="dark"] #chatView .composer{background:#151e2e!important;border-
   #chatView #chatMain{padding-bottom:80px!important}
 }
 </style>
+<style>
+/* Project chat uses the same full-height, scrollable conversation layout. */
+#projectChatView.active{display:flex!important;flex-direction:column!important;gap:10px!important;overflow-y:hidden!important}
+#projectChatView>.header,#projectChatView>.hero{flex:0 0 auto!important;width:100%!important}
+#projectChatMessages{flex:1 1 auto!important;min-height:90px!important;width:100%!important;max-width:100%!important;overflow-y:auto!important;padding:12px!important;border:1px solid #dce2eb!important;border-radius:16px!important;background:#fff!important}
+#projectChatView .feature-composer{display:flex!important;align-items:flex-end!important;gap:8px!important;flex:0 0 auto!important;position:sticky!important;bottom:0!important;width:100%!important;max-width:100%!important;margin:0!important;padding:10px!important;border:1px solid #dce2eb!important;border-radius:16px!important;background:#fff!important;box-shadow:0 8px 28px #21314c12!important}
+#projectChatInput{flex:1 1 auto!important;min-width:0!important;min-height:48px!important;max-height:150px!important;resize:vertical!important;border:0!important;background:transparent!important;color:#1d2939!important}
+#projectChatView .chat-message{max-width:min(88%,760px)!important;margin:10px 0!important}
+#projectChatView .chat-message.user{margin-left:auto!important}
+#projectChatView .chat-message.assistant{margin-right:auto!important}
+#projectChatView .chat-bubble{padding:12px 15px!important;border-radius:15px!important;line-height:1.55!important;overflow-wrap:anywhere!important}
+html[data-theme="dark"] #projectChatMessages,html[data-theme="dark"] #projectChatView .feature-composer{background:#111a2a!important;border-color:#344158!important}
+html[data-theme="dark"] #projectChatInput{color:#eef2f8!important}
+#chatView.right-tools-collapsed #chatToolsRail{display:none!important}
+#chatView.right-tools-collapsed #chatAppLayout{grid-template-columns:66px 280px minmax(0,1fr)!important}
+.right-rail-toggle{display:inline-grid!important;place-items:center!important;width:38px!important;height:38px!important;flex:0 0 38px!important;border:1px solid #d9dfeb!important;border-radius:10px!important;background:#f2f4f8!important;color:#364152!important;cursor:pointer!important}
+.right-rail-toggle:hover{background:#e8ebf2!important;color:#5141c5!important}
+html[data-theme="dark"] .right-rail-toggle{background:#1b2434!important;border-color:#3b465c!important;color:#e2e7f0!important}
+@media(min-width:761px) and (max-width:1000px){#chatView.right-tools-collapsed #chatAppLayout{grid-template-columns:52px 210px minmax(0,1fr)!important}}
+@media(max-width:760px){
+ #chatView.right-tools-collapsed #chatToolsRail{display:none!important}
+ #chatView.right-tools-collapsed #chatMain{padding-right:10px!important}
+ #chatView.right-tools-collapsed .composer{right:10px!important}
+ #projectChatView.active{padding-bottom:12px!important}
+ #projectChatMessages{padding:8px!important}
+}
+</style>
+<script>
+/* Make project progress usable in both deployed and local preview modes. */
+function estimateLocalProjectPlan(project,history){
+  const code=String(project.code||"").trim(),turns=history.filter(m=>m.role==="user").length;
+  const evidence=(code?Math.min(55,Math.round(code.length/90)):0)+(turns?Math.min(35,turns*6):0);
+  const progress=Math.max(Number(project.progress)||0,Math.min(90,evidence));
+  const checkpoint=code?`Found ${code.length} characters of saved project code and ${turns} project-chat question${turns===1?"":"s"}.`:turns?`The project has ${turns} saved project-chat question${turns===1?"":"s"}, but no saved code yet.`:"The project is saved, but it has no code or project-chat history yet.";
+  const next=code?"Run or review the saved code, then ask the project assistant to plan the next feature.":"Add the first code file or describe the first feature in Project Chat.";
+  const timeline=[{task:"Add or review the first project feature",estimate:"First session"},{task:"Run the project and fix issues",estimate:"After implementation"},{task:"Review remaining requirements",estimate:"Final pass"}];
+  return {progress,checkpoint,next_mission:next,timeline,localEstimate:true};
+}
+window.createProject=async function(){
+  const nameInput=$("projectName"),languageInput=$("projectLanguage"),name=nameInput?.value.trim()||"",language=languageInput?.value||"text";
+  if(!name){toast("Enter a project name.");return;}
+  try{const d=await apiRequest("/api/projects",{method:"POST",body:JSON.stringify({name,language,description:"",code:""})});projects.unshift(d.project);selectedProjectId=d.project.id;toast("Project saved.");}
+  catch{const local={id:"local-"+Date.now(),name,language,description:"",code:"",progress:0,created_at:new Date().toISOString(),updated_at:new Date().toISOString()};projects.unshift(local);localStorage.setItem("engineer_ai_projects",JSON.stringify(projects));selectedProjectId=local.id;toast("Project saved on this device; connect the server for AI replies.");}
+  if(nameInput)nameInput.value="";renderProjects();refreshDashboardProgress();
+};
+window.openProjectPlan=async function(id){
+  const project=projects.find(p=>String(p.id)===String(id));if(!project){toast("Project details are still loading. Try again.");return;}
+  let history=[];try{history=JSON.parse(localStorage.getItem(getProjectChatKey(project.id))||"[]");}catch{}
+  const backdrop=featureModal("Project progress",'<p id="projectPlanStatus">Reviewing saved code and this project’s conversation…</p><div id="projectPlanResult"></div>',[{label:"Close",action:closeFeatureModal}]);
+  let plan;try{const data=await apiRequest(`/api/projects/${encodeURIComponent(id)}/plan`,{method:"POST",body:JSON.stringify({history:history.slice(-40),provider:getSelectedProvider()})});plan={...data,localEstimate:false};}
+  catch{plan=estimateLocalProjectPlan(project,history);}
+  project.progress=Math.max(0,Math.min(100,Number(plan.progress)||0));project.updated_at=plan.updated_at||new Date().toISOString();localStorage.setItem("engineer_ai_projects",JSON.stringify(projects));
+  const status=$("projectPlanStatus");if(status)status.textContent=plan.localEstimate?"The server is unavailable here, so this is a local estimate from saved code and project chat.":"AI updated this project’s progress.";
+  const result=$("projectPlanResult");if(result)result.innerHTML=`<p><b>${escapeHtml(project.name)} · ${project.progress}% complete</b></p><div class="progress"><div class="progress-bar" style="width:${project.progress}%"></div></div><p><b>Where we left off:</b> ${escapeHtml(plan.checkpoint||"Project reviewed.")}</p><p><b>Next mission:</b> ${escapeHtml(plan.next_mission||"Continue the next project task.")}</p><h3>Estimated timetable</h3><ol class="plan-timeline">${(plan.timeline||[]).map(x=>`<li>${escapeHtml(x.task)} <small>${escapeHtml(x.estimate)}</small></li>`).join("")}</ol>${plan.localEstimate?"<small>Local estimate based on saved code and project chat. AI progress updates resume when the server is available.</small>":"<small>Progress was updated by AI from saved code and project chat.</small>"}`;
+  renderProjects();refreshDashboardProgress();
+};
+
+/* Use the same project-aware chat controls and keep the input visible. */
+function ensureRightRailToggle(){
+  const view=$("chatView"),header=view?.querySelector(":scope > .header");if(!view||!header||$("rightRailToggle"))return;
+  const button=document.createElement("button");button.id="rightRailToggle";button.type="button";button.className="right-rail-toggle";button.innerHTML='<i class="fa-solid fa-ellipsis-vertical"></i>';button.title="Show or hide tools";button.setAttribute("aria-label","Toggle right tools sidebar");
+  const collapsed=localStorage.getItem("engineer_ai_right_tools_collapsed")==="true";view.classList.toggle("right-tools-collapsed",collapsed);button.setAttribute("aria-expanded",String(!collapsed));button.onclick=()=>{const hide=view.classList.toggle("right-tools-collapsed");localStorage.setItem("engineer_ai_right_tools_collapsed",String(hide));button.setAttribute("aria-expanded",String(!hide));};header.appendChild(button);
+}
+const buildBeforeRightToggle=window.buildChatWorkspace;
+if(typeof buildBeforeRightToggle==="function")window.buildChatWorkspace=function(){buildBeforeRightToggle();ensureRightRailToggle();};
+if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",ensureRightRailToggle,{once:true});else ensureRightRailToggle();
+
+/* Live mode requests camera and microphone together, captures video frames,
+   sends recognized speech, and speaks the AI answer aloud. */
+const previousStopLiveMode=window.stopLiveMode;
+window.stopLiveMode=function(){previousStopLiveMode?.();try{activeCameraStream?.getTracks().forEach(track=>track.stop());}catch{}activeCameraStream=null;$("liveModePreview")?.remove();const button=$("liveModeButton");if(button){button.classList.remove("active");button.innerHTML='<i class="fa-solid fa-wave-square"></i> Live';button.setAttribute("aria-pressed","false");}};
+window.toggleLiveMode=async function(){
+  if(liveVoiceEnabled){stopLiveMode();return;}
+  const Speech=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!Speech){toast("Live conversation needs speech recognition. Open this app in Chrome or Edge.");return;}
+  if(!navigator.mediaDevices?.getUserMedia){toast("Camera and microphone need HTTPS or localhost. Open the deployed app over HTTPS.");return;}
+  const button=$("liveModeButton");if(button){button.disabled=true;button.textContent="Connecting…";}
+  try{
+    activeCameraStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true},video:{facingMode:"user",width:{ideal:640},height:{ideal:480}}});
+    liveVoiceEnabled=true;liveVoiceSpeaking=false;
+    const panel=document.createElement("div");panel.id="liveModePreview";panel.innerHTML='<video autoplay muted playsinline></video><span>Live camera · mic on</span>';panel.querySelector("video").srcObject=activeCameraStream;document.body.appendChild(panel);
+    if(button){button.disabled=false;button.classList.add("active");button.innerHTML='<i class="fa-solid fa-stop"></i> Stop live';button.setAttribute("aria-pressed","true");}
+    liveVoiceRecognition=new Speech();liveVoiceRecognition.lang=navigator.language||"en-US";liveVoiceRecognition.continuous=true;liveVoiceRecognition.interimResults=false;
+    liveVoiceRecognition.onresult=event=>{for(let i=event.resultIndex;i<event.results.length;i++){const result=event.results[i];if(!result.isFinal)continue;const text=result[0].transcript.trim();if(!text)continue;const video=$("liveModePreview")?.querySelector("video"),input=$("chatInput");if(video&&video.videoWidth&&input){const canvas=document.createElement("canvas");canvas.width=video.videoWidth;canvas.height=video.videoHeight;canvas.getContext("2d").drawImage(video,0,0,canvas.width,canvas.height);pendingChatAttachments.push({name:`live-camera-${Date.now()}.jpg`,mime_type:"image/jpeg",data:canvas.toDataURL("image/jpeg",.68).split(",")[1]});renderPendingAttachments();}if(input){input.value=text;liveVoiceSpeaking=true;try{liveVoiceRecognition?.stop();}catch{}Promise.resolve(sendChat()).finally(()=>{if(!window.speechSynthesis?.speaking&&!window.speechSynthesis?.pending){liveVoiceSpeaking=false;if(liveVoiceEnabled)try{liveVoiceRecognition?.start();}catch{}}});}}};
+    liveVoiceRecognition.onerror=event=>{if(["not-allowed","service-not-allowed","audio-capture"].includes(event.error)){toast("Live mode could not use the microphone. Check browser permissions.");stopLiveMode();}};
+    liveVoiceRecognition.onend=()=>{if(liveVoiceEnabled&&!liveVoiceSpeaking){try{liveVoiceRecognition.start();}catch{}}};
+    liveVoiceRecognition.start();setChatActivity("Live mode is listening, watching, and ready to speak replies.",true);toast("Camera and microphone are on. Speak to ask; Engineer AI will answer aloud.");
+  }catch(error){stopLiveMode();toast("Could not start camera and microphone: "+(error.message||"permission denied"));}
+  finally{if(button){button.disabled=false;if(!liveVoiceEnabled){button.innerHTML='<i class="fa-solid fa-wave-square"></i> Live';button.setAttribute("aria-pressed","false");}}}
+};
+</script>
+<style>
+#liveModePreview{position:fixed;z-index:106;right:94px;bottom:88px;width:min(180px,32vw);padding:5px;border:1px solid #aeb9cc;border-radius:13px;background:#fff;box-shadow:0 8px 24px #18253a2b;color:#344054;font-size:10px}
+#liveModePreview video{display:block;width:100%;max-height:115px;object-fit:cover;border-radius:9px;background:#111}
+#liveModePreview span{display:block;padding:4px 3px 1px}
+html[data-theme="dark"] #liveModePreview{background:#182235;color:#e7ebf3;border-color:#3b465c}
+@media(max-width:760px){#liveModePreview{right:66px;bottom:82px;width:118px}#liveModePreview video{max-height:78px}}
+</style>
+<style>
+#projectChatToolsRail{position:fixed;z-index:105;top:0;right:0;bottom:0;width:70px;box-sizing:border-box;display:flex;flex-direction:column;align-items:stretch;gap:4px;padding:74px 5px 8px;background:#f0f1f5;border-left:2px solid #cbd0dc;overflow-y:auto}
+#projectChatView.active{padding-right:88px!important}
+#projectChatView .header{padding-right:44px!important}
+#projectChatView.project-tools-collapsed #projectChatToolsRail{display:none!important}
+#projectChatView.project-tools-collapsed{padding-right:30px!important}
+#projectChatToolsRail .workspace-tool-button{min-height:51px!important;color:#34415a!important}
+html[data-theme="dark"] #projectChatToolsRail{background:#1b2434;border-color:#3b465c}
+html[data-theme="dark"] #projectChatToolsRail .workspace-tool-button{color:#d2d9e7!important}
+@media(max-width:760px){
+ #projectChatView.active{padding:58px 74px 14px 14px!important}
+ #projectChatToolsRail{top:0;width:58px;padding:66px 3px 8px}
+ #projectChatToolsRail .workspace-tool-button{min-height:45px!important;padding:3px 1px!important}
+ #projectChatToolsRail .workspace-tool-button span{display:none!important}
+ #projectChatView .header{padding-left:40px!important;padding-right:0!important}
+}
+</style>
+<script>
+/* Give project conversations the same optional right tools rail. */
+function ensureProjectChatTools(){
+  const view=$("projectChatView"),header=view?.querySelector(":scope > .header");if(!view||!header)return;
+  if(!$("projectChatToolsRail")){
+    const rail=document.createElement("aside");rail.id="projectChatToolsRail";
+    const items=[["fa-message","Chat","chat"],["fa-code","Code","code"],["fa-terminal","Terminal","code","terminalOutput"],["fa-folder","Files","code","savedFilesList"],["fa-graduation-cap","Learn","learn"],["fa-toolbox","Tools","tools"],["fa-user","Profile","profile"],["fa-gear","Settings","settings"],["fa-brain","Memory","userMemory"]];
+    items.forEach(([icon,label,target,anchor])=>{const b=workspaceNavButton(icon,label,target,true);b.title=label;b.onclick=()=>{navigateTo(target);if(anchor)setTimeout(()=>document.getElementById(anchor)?.scrollIntoView({behavior:"smooth",block:"center"}),150);};rail.appendChild(b);});view.appendChild(rail);
+  }
+  if(!$("projectRightRailToggle")){const b=document.createElement("button");b.id="projectRightRailToggle";b.type="button";b.className="right-rail-toggle";b.title="Show or hide tools";b.setAttribute("aria-label","Toggle right tools sidebar");b.innerHTML='<i class="fa-solid fa-ellipsis-vertical"></i>';const hidden=localStorage.getItem("engineer_ai_right_tools_collapsed")==="true";view.classList.toggle("project-tools-collapsed",hidden);b.setAttribute("aria-expanded",String(!hidden));b.onclick=()=>{const collapsed=view.classList.toggle("project-tools-collapsed");localStorage.setItem("engineer_ai_right_tools_collapsed",String(collapsed));b.setAttribute("aria-expanded",String(!collapsed));};header.appendChild(b);}
+}
+const previousProjectChatInstall=window.installProjectChat;
+if(typeof previousProjectChatInstall==="function")window.installProjectChat=function(){previousProjectChatInstall();ensureProjectChatTools();};
+if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",ensureProjectChatTools,{once:true});else ensureProjectChatTools();
+</script>
 </body>
 </html>
