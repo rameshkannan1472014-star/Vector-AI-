@@ -13,8 +13,10 @@ from datetime import datetime, timezone
 from typing import Optional, Any
 import base64
 import binascii
+import tempfile
+import uuid
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, Field
@@ -185,6 +187,8 @@ init_database()
 # ANALYTICS
 # ============================================================
 
+media_generation_jobs: dict[str, dict[str, Any]] = {}
+
 analytics = {
     "total_requests": 0,
     "successful_requests": 0,
@@ -228,6 +232,11 @@ class ChatRequest(BaseModel):
     memory: dict[str, str] = Field(default_factory=dict)
 
     workspace_context: str = Field(default="", max_length=24000)
+
+
+class MediaGenerationRequest(BaseModel):
+
+    prompt: str = Field(..., min_length=3, max_length=3000)
 
 
 class FeedbackRequest(BaseModel):
@@ -2632,6 +2641,93 @@ Do not provide destructive system instructions.
 
 
 # ============================================================
+# 🎨 AI IMAGE AND VIDEO CREATION
+# Requires a Gemini API key with image/video model access.
+# ============================================================
+
+def generate_image_data(prompt: str) -> dict[str, str]:
+    client = get_gemini_client()
+    model = os.getenv("GEMINI_IMAGE_MODEL", "gemini-3.1-flash-image")
+    interaction = client.interactions.create(
+        model=model,
+        input=prompt,
+        response_format=[{"type": "image", "mime_type": "image/png", "aspect_ratio": "1:1"}],
+    )
+    image = getattr(interaction, "output_image", None)
+    image_data = getattr(image, "data", None) if image else None
+    if not image_data:
+        raise RuntimeError("Gemini did not return an image. Check model access and API quota.")
+    if isinstance(image_data, bytes):
+        image_data = base64.b64encode(image_data).decode("ascii")
+    return {"status": "complete", "data": image_data, "mime_type": getattr(image, "mime_type", None) or "image/png"}
+
+
+def run_video_generation(job_id: str, prompt: str) -> None:
+    job = media_generation_jobs.get(job_id)
+    if not job:
+        return
+    job["status"] = "running"
+    try:
+        client = get_gemini_client()
+        model = os.getenv("GEMINI_VIDEO_MODEL", "veo-3.1-generate-preview")
+        operation = client.models.generate_videos(model=model, prompt=prompt)
+        deadline = time.monotonic() + 900
+        while not operation.done:
+            if time.monotonic() >= deadline:
+                raise TimeoutError("Video generation took longer than 15 minutes.")
+            time.sleep(5)
+            operation = client.operations.get(operation)
+        videos = getattr(getattr(operation, "response", None), "generated_videos", None) or []
+        if not videos:
+            raise RuntimeError("Gemini finished without returning a video.")
+        generated_video = videos[0]
+        with tempfile.TemporaryDirectory(prefix="engineer-ai-media-") as temp_dir:
+            destination = os.path.join(temp_dir, "generated.mp4")
+            client.files.download(file=generated_video.video, destination=destination)
+            with open(destination, "rb") as media_file:
+                encoded = base64.b64encode(media_file.read()).decode("ascii")
+        job.update({"status": "complete", "data": encoded, "mime_type": "video/mp4", "finished_at": time.time()})
+    except Exception as error:
+        logger.exception("Video generation failed")
+        job.update({"status": "failed", "message": str(error)[:500], "finished_at": time.time()})
+
+
+@app.post("/api/media/image")
+async def create_image(request: MediaGenerationRequest):
+    if not os.getenv("GEMINI_API_KEY"):
+        raise HTTPException(status_code=503, detail={"message": "Image generation needs GEMINI_API_KEY configured on the server."})
+    try:
+        return await asyncio.to_thread(generate_image_data, request.prompt)
+    except Exception as error:
+        logger.exception("Image generation failed")
+        raise HTTPException(status_code=502, detail={"message": str(error)[:500]})
+
+
+@app.post("/api/media/video")
+async def create_video(request: MediaGenerationRequest, background_tasks: BackgroundTasks):
+    if not os.getenv("GEMINI_API_KEY"):
+        raise HTTPException(status_code=503, detail={"message": "Video generation needs GEMINI_API_KEY configured on the server."})
+    # Keep only a small number of recent results in memory on this server instance.
+    expired = [key for key, value in media_generation_jobs.items() if value.get("finished_at", 0) and time.time() - value["finished_at"] > 3600]
+    for key in expired:
+        media_generation_jobs.pop(key, None)
+    if len(media_generation_jobs) >= 8:
+        raise HTTPException(status_code=429, detail={"message": "The video generation queue is full. Try again later."})
+    job_id = uuid.uuid4().hex
+    media_generation_jobs[job_id] = {"status": "queued", "created_at": time.time()}
+    background_tasks.add_task(run_video_generation, job_id, request.prompt)
+    return {"status": "queued", "job_id": job_id}
+
+
+@app.get("/api/media/video/{job_id}")
+async def get_video_generation(job_id: str):
+    job = media_generation_jobs.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail={"message": "Video job not found; generation results are temporary."})
+    return {key: value for key, value in job.items() if key not in {"created_at", "finished_at"}}
+
+
+# ============================================================
 # 📊 ANALYTICS
 # ============================================================
 
@@ -2704,6 +2800,8 @@ async def api_information():
             "/api/projects",
             "/api/project/ask",
             "/api/terminal/execute",
+            "/api/media/image",
+            "/api/media/video",
             "/api/ops/analytics"
         ]
     }
