@@ -9006,5 +9006,105 @@ window.startNewChat=function(){pendingChatAttachments=[];engineerOriginalStartNe
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",installMoreCleanup,{once:true});else installMoreCleanup();
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",installActivityAndMemory,{once:true});else installActivityAndMemory();
 </script>
+<style>
+/* Single-screen Engineer AI workspace inspired by the supplied reference. */
+@media(min-width:761px){
+  #chatView.active{position:fixed!important;inset:0!important;left:0!important;right:0!important;transform:none!important;width:100vw!important;max-width:none!important;height:100dvh!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;overflow:hidden!important;display:flex!important;flex-direction:column!important;background:#fff!important;z-index:100!important}
+  #chatView>.header{height:64px!important;min-height:64px;margin:0!important;padding:0 18px!important;border-bottom:1px solid #e5e7eb;box-sizing:border-box;flex:0 0 64px}
+  #chatAppLayout{display:grid;grid-template-columns:66px 280px minmax(360px,1fr) 82px;min-height:0;flex:1;overflow:hidden}
+  #chatNavRail{display:flex;flex-direction:column;align-items:center;gap:8px;padding:12px 6px;border-right:1px solid #e7e5e4;background:#fafaf9;overflow-y:auto}
+  #chatSidebar{display:flex;flex-direction:column;gap:12px;min-width:0;padding:16px 14px;background:#f7f6f3;border-right:1px solid #e7e5e4;overflow-y:auto}
+  #chatMain{display:flex;flex-direction:column;min-width:0;min-height:0;padding:0 28px 14px;overflow:hidden;background:#fff}
+  #chatToolsRail{display:flex;flex-direction:column;align-items:stretch;gap:6px;padding:12px 6px;border-left:1px solid #eee;background:#fff;overflow-y:auto}
+  #chatView .bottom-nav{display:none!important}
+}
+#chatView .header .brand{display:flex;align-items:center;gap:10px;min-width:185px}
+#chatMobileMenu{display:none}
+.workspace-brand{font-size:16px;font-weight:750;color:#202938;padding:0 4px 4px}
+.workspace-nav-button,.workspace-tool-button{display:flex;align-items:center;justify-content:flex-start;gap:10px;width:100%;min-height:40px;padding:8px 10px;border:0;border-radius:10px;background:transparent;color:#586174;font-size:14px;text-align:left;cursor:pointer}
+.workspace-nav-button:hover,.workspace-tool-button:hover,.workspace-chat-item:hover{background:#eae8e4;color:#1f2937}
+.workspace-nav-button.active{background:#eeeaff;color:#6557e8;font-weight:700}
+.workspace-nav-button i{width:18px;text-align:center}
+.workspace-tool-button{justify-content:center;flex-direction:column;gap:5px;min-height:56px;padding:6px 3px;font-size:11px;text-align:center}
+.workspace-tool-button i{font-size:17px}
+#chatSidebar .chat-toolbar-actions{display:grid;gap:7px}
+#chatSidebar .chat-toolbar-actions button{width:100%;min-height:38px;text-align:left}
+#newChatButton{background:#6858e8!important;color:#fff!important;border-color:#6858e8!important;text-align:center!important}
+.workspace-section-title{font-size:12px;font-weight:700;color:#7b7b79;padding:4px 8px 0}
+#chatSidebarSearch{width:100%;box-sizing:border-box;min-height:40px;padding:9px 11px;border:1px solid #e3e0da;border-radius:11px;background:#fff;color:#243047}
+#sidebarProjects,#sidebarChats{display:grid;gap:3px}
+.workspace-chat-item{display:flex;align-items:center;gap:9px;width:100%;min-width:0;min-height:39px;padding:7px 9px;border:0;border-radius:9px;background:transparent;color:#4c5667;text-align:left;cursor:pointer}
+.workspace-chat-item.active{background:#eeebff;color:#5547dc}
+.workspace-chat-item span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.workspace-chat-item small{flex:0 0 auto;color:#9297a0;font-size:10px}
+.workspace-chat-delete{border:0;background:transparent;color:#8b92a1;cursor:pointer}
+.workspace-profile{margin-top:auto;padding:12px 6px 2px;border-top:1px solid #e5e1db;color:#525c6d;font-size:13px}
+#chatConversationBar{display:flex;align-items:center;gap:12px;min-height:68px;padding:8px 0;border-bottom:1px solid #eceef2;flex:0 0 auto}
+#chatConversationBar h2{margin:0;color:#1f2937;font-size:18px;line-height:1.25;overflow-wrap:anywhere}
+#chatCurrentTitle{min-width:0;flex:1}
+#chatStatus{display:flex;align-items:center;gap:8px;min-height:30px;margin:0;color:#767f8e;font-size:12px;flex:0 0 auto}
+#chatMessages{flex:1;min-height:0;width:100%;max-width:900px;margin:0 auto!important;overflow-y:auto;overscroll-behavior:contain}
+#chatView .composer{flex:0 0 auto;width:min(100%,900px);box-sizing:border-box;margin:12px auto 0!important;bottom:auto!important}
+#chatView #chatAttachments{flex:0 0 auto;max-width:900px;margin:0 auto;width:100%;box-sizing:border-box}
+#chatSidebar .workspace-chat-list{min-height:40px}
+#terminalOutput{display:block!important;box-sizing:border-box!important;height:auto!important;min-height:155px!important;max-height:220px!important;margin:0!important;padding:14px!important;vertical-align:top!important;}
+@media(min-width:761px) and (max-width:1000px){#chatAppLayout{grid-template-columns:56px 225px minmax(0,1fr)}#chatToolsRail{display:none}}
+@media(max-width:760px){
+  #chatView.active{width:100vw!important;max-width:100vw!important;left:0!important;right:0!important;transform:none!important}
+  #chatView>.header{position:sticky;top:0;z-index:22;background:#fff;padding:0 8px!important;border-bottom:1px solid #eceef2}
+  #chatMobileMenu{display:inline-flex!important;align-items:center;justify-content:center;width:38px;height:38px;border:1px solid #e5e7eb;border-radius:10px;background:#fff;color:#4b5563}
+  #chatSidebar{position:fixed;z-index:1200;left:0;top:0;bottom:0;width:min(84vw,310px);box-sizing:border-box;transform:translateX(-105%);transition:transform .22s ease;box-shadow:12px 0 35px #10182826}
+  #chatSidebar.open{transform:translateX(0)}
+  #chatSidebarBackdrop{position:fixed;inset:0;z-index:1199;background:#11182766;display:none}
+  #chatSidebarBackdrop.open{display:block}
+  #chatAppLayout{display:block;min-height:calc(100dvh - 60px);}
+  #chatNavRail{display:none}
+  #chatToolsRail{display:none}
+  #chatMain{display:flex;flex-direction:column;height:calc(100dvh - 140px);min-height:300px;padding:0 12px 10px;overflow:hidden}
+  #chatConversationBar{min-height:48px}
+  #chatConversationBar h2{font-size:16px}
+  #chatMessages{padding-bottom:10px!important}
+  #chatView .composer{margin-bottom:4px!important;bottom:0!important}
+  #chatSidebar .workspace-mobile-tools{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px}
+}
+html[data-theme="dark"] #chatView.active,html[data-theme="dark"] #chatView>.header,html[data-theme="dark"] #chatMain,html[data-theme="dark"] #chatToolsRail{background:#0c1220!important;color:#e5e7eb}
+html[data-theme="dark"] #chatSidebar,html[data-theme="dark"] #chatNavRail{background:#131a28!important;border-color:#283246}
+html[data-theme="dark"] #chatConversationBar{border-color:#283246}
+html[data-theme="dark"] #chatConversationBar h2,html[data-theme="dark"] .workspace-brand{color:#f3f4f6}
+html[data-theme="dark"] .workspace-chat-item{color:#c0c8d6}
+html[data-theme="dark"] .workspace-chat-item.active{background:#292649;color:#c5bcff}
+html[data-theme="dark"] #chatSidebarSearch{background:#0f1726;color:#f3f4f6;border-color:#344056}
+html[data-theme="dark"] .workspace-profile{border-color:#30394b;color:#c0c8d6}
+html[data-theme="dark"] #chatView>.header{border-color:#283246}
+html[data-theme="dark"] #chatMobileMenu{background:#1b2434;color:#e5e7eb;border-color:#374257}
+@media(min-width:761px){#bottomNav.chat-view-hidden{display:none!important}}
+</style>
+<script>
+/* Build the supplied no-tabs workspace layout around the existing feature views. */
+function workspaceNavButton(icon,label,view,rail=false){const b=document.createElement("button");b.type="button";b.className=rail?"workspace-tool-button":"workspace-nav-button";b.innerHTML=`<i class="fa-solid ${icon}"></i><span>${label}</span>`;b.onclick=()=>{navigateTo(view);if(view==="chat")closeChatSidebar();};b.dataset.workspaceView=view;return b;}
+function closeChatSidebar(){$("chatSidebar")?.classList.remove("open");$("chatSidebarBackdrop")?.classList.remove("open");}
+function toggleChatSidebar(){const open=!$("chatSidebar")?.classList.contains("open");$("chatSidebar")?.classList.toggle("open",open);$("chatSidebarBackdrop")?.classList.toggle("open",open);}
+function renderChatSidebar(){const chats=$("sidebarChats"),projectsHost=$("sidebarProjects");if(!chats||!projectsHost)return;const term=($("chatSidebarSearch")?.value||"").trim().toLowerCase();let sessions=readChatSessions().sort((a,b)=>String(b.updatedAt||"").localeCompare(String(a.updatedAt||"")));if(chatHistory.length&&!sessions.some(s=>s.id===currentConversationId))sessions.unshift({id:currentConversationId,title:chatHistory.find(m=>m.role==="user")?.content||"Current chat",messages:chatHistory,updatedAt:new Date().toISOString()});sessions=sessions.filter(s=>String(s.title||"").toLowerCase().includes(term));chats.innerHTML=sessions.length?sessions.map(s=>`<div class="workspace-chat-item ${s.id===currentConversationId?"active":""}" data-sidebar-chat="${escapeHtml(s.id)}"><i class="fa-regular fa-message"></i><span>${escapeHtml(s.title||"Conversation")}</span><small>${s.updatedAt?new Date(s.updatedAt).toLocaleDateString():""}</small><button class="workspace-chat-delete" type="button" title="Delete conversation" data-sidebar-delete="${escapeHtml(s.id)}">×</button></div>`).join(""):'<small style="padding:8px;color:#8b9099">Your saved conversations will appear here.</small>';chats.querySelectorAll("[data-sidebar-chat]").forEach(row=>row.onclick=e=>{if(e.target.closest("[data-sidebar-delete]"))return;openSavedChat(row.dataset.sidebarChat);renderChatSidebar();closeChatSidebar();});chats.querySelectorAll("[data-sidebar-delete]").forEach(b=>b.onclick=e=>{e.stopPropagation();const id=b.dataset.sidebarDelete;deleteSavedChat(id);if(id===currentConversationId)clearCurrentConversation();renderChatSidebar();});const allProjects=Array.isArray(projects)?projects:[];projectsHost.innerHTML=allProjects.length?allProjects.filter(p=>!term||String(p.name||"").toLowerCase().includes(term)).slice(0,12).map(p=>`<button class="workspace-chat-item" type="button" data-sidebar-project="${escapeHtml(p.id)}"><i class="fa-regular fa-folder"></i><span>${escapeHtml(p.name)}</span></button>`).join(""):'<small style="padding:8px;color:#8b9099">No saved projects yet.</small>';projectsHost.querySelectorAll("[data-sidebar-project]").forEach(b=>b.onclick=()=>{openProjectChat(b.dataset.sidebarProject);closeChatSidebar();});const name=readUserMemory().name||(()=>{try{return JSON.parse(localStorage.getItem("engineer_ai_profile")||"{}").name||"Engineer";}catch{return "Engineer";}})();const profile=$("chatSidebarProfile");if(profile)profile.textContent=name;refreshChatTitle();}
+function buildChatWorkspace(){const view=$("chatView"),header=view?.querySelector(":scope > .header"),toolbar=$("chatToolbar"),status=$("chatStatus"),messages=$("chatMessages");if(!view||!header||!toolbar||!messages||$("chatAppLayout"))return;const aside=document.createElement("aside");aside.id="chatSidebar";const layout=document.createElement("div");layout.id="chatAppLayout";const nav=document.createElement("nav");nav.id="chatNavRail";[workspaceNavButton("fa-house","Home","home",true),workspaceNavButton("fa-folder-open","Projects","projects",true),workspaceNavButton("fa-code","Code Studio","code",true),workspaceNavButton("fa-toolbox","Tools","tools",true),workspaceNavButton("fa-user","Profile","profile",true),workspaceNavButton("fa-graduation-cap","Learn","learn",true)].forEach(x=>nav.appendChild(x));const mobileTools=document.createElement("div");mobileTools.className="workspace-mobile-tools";[workspaceNavButton("fa-code","Code Studio","code"),workspaceNavButton("fa-terminal","Terminal","code"),workspaceNavButton("fa-folder","Files","code"),workspaceNavButton("fa-gear","Settings","settings"),workspaceNavButton("fa-circle-info","About","about"),workspaceNavButton("fa-comment-dots","Feedback","feedback"),workspaceNavButton("fa-brain","Memory","userMemory"),workspaceNavButton("fa-bug","Debugger","debugger"),workspaceNavButton("fa-shield-halved","Security","review"),workspaceNavButton("fa-calculator","Calculator","calculator")].forEach(x=>mobileTools.appendChild(x));aside.innerHTML='<div class="workspace-brand">Engineer AI</div><div class="workspace-section-title">Chats</div>';const actionGroup=toolbar.querySelector(".chat-toolbar-actions");if(actionGroup)aside.appendChild(actionGroup);aside.insertAdjacentHTML("beforeend",'<input id="chatSidebarSearch" placeholder="Search chats and projects" aria-label="Search chats and projects"><div class="workspace-section-title">Projects <button id="sidebarViewProjects" type="button" style="float:right;border:0;background:transparent;color:#6658e8">All</button></div><div id="sidebarProjects"></div><div class="workspace-section-title">Chats</div><div id="sidebarChats" class="workspace-chat-list"></div><div class="workspace-section-title">More</div>');aside.appendChild(mobileTools);aside.insertAdjacentHTML("beforeend",'<div class="workspace-profile">Developer · <span id="chatSidebarProfile">Engineer</span></div>');const main=document.createElement("main");main.id="chatMain";const conversation=document.createElement("div");conversation.id="chatConversationBar";conversation.innerHTML='<div id="chatCurrentTitle"><h2 id="chatCurrentHeading">New conversation</h2><span class="subtitle">Engineer AI · Gemini</span></div>';if($("chatTitle"))conversation.querySelector("#chatCurrentTitle").appendChild($("chatTitle"));main.appendChild(conversation);if(status)main.appendChild(status);const welcome=$("chatWelcome");if(welcome)main.appendChild(welcome);main.appendChild(messages);const loading=$("chatLoading");if(loading)main.appendChild(loading);const composer=view.querySelector(":scope > .composer");if(composer)main.appendChild(composer);const attachments=$("chatAttachments");if(attachments)main.appendChild(attachments);const rail=document.createElement("aside");rail.id="chatToolsRail";[{i:"fa-message",t:"Chat",v:"chat"},{i:"fa-code",t:"Code",v:"code"},{i:"fa-terminal",t:"Terminal",v:"code",to:"terminalOutput"},{i:"fa-graduation-cap",t:"Learn",v:"learn"},{i:"fa-folder",t:"Files",v:"code",to:"savedFilesList"},{i:"fa-toolbox",t:"Tools",v:"tools"},{i:"fa-user",t:"Profile",v:"profile"},{i:"fa-gear",t:"Settings",v:"settings"},{i:"fa-circle-info",t:"About",v:"about"},{i:"fa-comment-dots",t:"Feedback",v:"feedback"},{i:"fa-brain",t:"Memory",v:"userMemory"}].forEach(item=>{const b=workspaceNavButton(item.i,item.t,item.v,true);b.onclick=()=>{navigateTo(item.v);closeChatSidebar();if(item.to)setTimeout(()=>$(item.to)?.scrollIntoView({behavior:"smooth",block:"center"}),180);};rail.appendChild(b);});layout.append(nav,aside,main,rail);header.after(layout);const menu=document.createElement("button");menu.id="chatMobileMenu";menu.type="button";menu.setAttribute("aria-label","Open chat sidebar");menu.innerHTML='<i class="fa-solid fa-bars"></i>';header.prepend(menu);menu.onclick=toggleChatSidebar;const backdrop=document.createElement("div");backdrop.id="chatSidebarBackdrop";backdrop.onclick=closeChatSidebar;document.body.appendChild(backdrop);const title=$("chatTitle");if(title){title.className="workspace-current-chat-title";title.textContent=chatHistory.find(m=>m.role==="user")?.content?.slice(0,70)||"New conversation";title.removeAttribute("id");const h=conversation.querySelector("h2");h.textContent=title.textContent;title.remove();}const search=$("chatSidebarSearch");search.oninput=renderChatSidebar;$("sidebarViewProjects").onclick=()=>navigateTo("projects");const historyBtn=$("chatHistoryButton");if(historyBtn)historyBtn.onclick=()=>showChatHistory();const newBtn=$("newChatButton");if(newBtn)newBtn.onclick=()=>startNewChat();const clearBtn=$("clearCurrentChatButton");if(clearBtn)clearBtn.onclick=clearCurrentConversation;const copyBtn=$("copyFullChatButton");if(copyBtn)copyBtn.onclick=()=>copyTextToClipboard(chatHistory.map(m=>`${m.role==="user"?"You":"Engineer AI"}: ${m.content}`).join("\n\n")).then(()=>toast("Chat copied.")).catch(()=>toast("Clipboard permission is unavailable."));renderChatSidebar();loadProjects().then(renderChatSidebar).catch(()=>{});}
+const engineerLegacyInstallChatToolbar=window.installChatToolbar;
+window.installChatToolbar=function(){engineerLegacyInstallChatToolbar();buildChatWorkspace();};
+const engineerLegacyBuildChatWorkspace=window.buildChatWorkspace;
+window.buildChatWorkspace=function(){engineerLegacyBuildChatWorkspace();const nav=$("chatNavRail"),tools=$("chatToolsRail"),mobile=$("chatSidebar")?.querySelector(".workspace-mobile-tools");if(nav&&!nav.querySelector('[data-workspace-view="chat"]'))nav.prepend(workspaceNavButton("fa-message","Chat","chat",true));if(tools){[{i:"fa-folder-open",t:"Projects",v:"projects"},{i:"fa-bug",t:"Debugger",v:"debugger"},{i:"fa-shield-halved",t:"Security",v:"review"},{i:"fa-calculator",t:"Calculator",v:"calculator"},{i:"fa-robot",t:"Agents",v:"agents"}].forEach(x=>tools.appendChild(workspaceNavButton(x.i,x.t,x.v,true)));}if(mobile){[{i:"fa-folder-open",t:"Projects",v:"projects"},{i:"fa-toolbox",t:"Tools",v:"tools"},{i:"fa-user",t:"Profile",v:"profile"},{i:"fa-graduation-cap",t:"Learn",v:"learn"},{i:"fa-robot",t:"Agents",v:"agents"}].forEach(x=>mobile.appendChild(workspaceNavButton(x.i,x.t,x.v)));}const history=$("chatHistoryButton");if(history)history.onclick=()=>{closeChatSidebar();showChatHistory();};$("chatToolbar")?.remove();};
+const engineerLegacySaveChat=window.saveChatHistory;
+window.saveChatHistory=function(){engineerLegacySaveChat();renderChatSidebar();};
+const engineerLegacyOpenSavedChat=window.openSavedChat;
+window.openSavedChat=function(id){engineerLegacyOpenSavedChat(id);renderChatSidebar();closeChatSidebar();};
+const engineerLegacyStartNewChat=window.startNewChat;
+window.startNewChat=function(){engineerLegacyStartNewChat();renderChatSidebar();closeChatSidebar();};
+const engineerLegacyClearCurrent=window.clearCurrentConversation;
+window.clearCurrentConversation=function(){engineerLegacyClearCurrent();renderChatSidebar();};
+window.deleteSavedChat=function(id){localStorage.setItem("engineer_ai_chats",JSON.stringify(readChatSessions().filter(s=>s.id!==id)));if($("featureModalBackdrop")?.querySelector("[data-delete-chat]"))showChatHistory();else renderChatSidebar();};
+const engineerLegacyRefreshTitle=window.refreshChatTitle;
+window.refreshChatTitle=function(){engineerLegacyRefreshTitle();const h=$("chatCurrentHeading");if(h)h.textContent=chatHistory.find(m=>m.role==="user")?.content?.slice(0,70)||"New conversation";};
+const engineerLegacyNavigateTo=window.navigateTo;
+window.navigateTo=function(name,...args){const result=engineerLegacyNavigateTo(name,...args);const nav=$("bottomNav");if(nav)nav.classList.toggle("chat-view-hidden",name==="chat"&&window.matchMedia("(min-width: 761px)").matches);document.querySelectorAll("#chatNavRail [data-workspace-view]").forEach(button=>button.classList.toggle("active",button.dataset.workspaceView===name));return result;};
+function fixTerminalWhiteGap(){const output=$("terminalOutput");if(!output)return;const panel=output.parentElement;panel.style.setProperty("display","flex","important");panel.style.setProperty("flex-direction","column","important");panel.style.setProperty("gap","0","important");panel.style.setProperty("padding","0","important");panel.style.setProperty("background","#03070d","important");panel.style.setProperty("margin","0","important");Array.from(panel.children).forEach((child,index)=>{child.style.setProperty("margin","0","important");child.style.setProperty("background",index===0?"#0b1424":index===1?"#03070d":"#070d17","important");child.style.setProperty("color","#d4def0","important");child.style.setProperty("flex","0 0 auto","important");});output.style.setProperty("display","block","important");output.style.setProperty("box-sizing","border-box","important");output.style.setProperty("min-height","155px","important");output.style.setProperty("max-height","220px","important");output.style.setProperty("height","auto","important");output.style.setProperty("margin","0","important");output.style.setProperty("background","#03070d","important");}
+if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",fixTerminalWhiteGap,{once:true});else fixTerminalWhiteGap();
+</script>
 </body>
 </html>
