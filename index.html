@@ -9190,5 +9190,53 @@ html[data-theme="dark"] body.workspace-shell-ready .view{background:#0c1220!impo
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",buildGlobalWorkspace,{once:true});else buildGlobalWorkspace();
 })();
 </script>
+<style>
+/* Keep both workspace rails visible and distinct at every viewport size. */
+#bottomNav.workspace-global-nav{background:#e7e9f0!important;border-right:2px solid #cbd0dc!important}
+.workspace-global-section{color:#5f6674!important}
+#bottomNav.workspace-global-nav .workspace-global-link{color:#3c4658!important}
+#chatNavRail{background:#e6e9f0!important;border-color:#cbd0dc!important}
+#chatSidebar{background:#f0f1f5!important;border-color:#d6d9e2!important}
+#chatToolsRail{display:flex!important;visibility:visible!important;opacity:1!important;background:#f0f1f5!important;border-left:2px solid #cbd0dc!important}
+#chatToolsRail .workspace-tool-button{color:#34415a!important;min-width:0!important}
+#chatToolsRail .workspace-tool-button:hover{background:#e2e5ed!important;color:#4334bb!important}
+html[data-theme="dark"] #bottomNav.workspace-global-nav{background:#20293a!important;border-color:#3b465c!important}
+html[data-theme="dark"] #chatNavRail,html[data-theme="dark"] #chatSidebar,html[data-theme="dark"] #chatToolsRail{background:#1b2434!important;border-color:#3b465c!important}
+html[data-theme="dark"] #chatToolsRail .workspace-tool-button{color:#d2d9e7!important}
+html[data-theme="dark"] #chatToolsRail .workspace-tool-button:hover{background:#2a3549!important;color:#fff!important}
+@media(min-width:761px) and (max-width:1000px){
+  #chatAppLayout{grid-template-columns:52px 210px minmax(0,1fr) 64px!important}
+  #chatToolsRail{display:flex!important}
+  #chatToolsRail .workspace-tool-button span{font-size:9px!important}
+}
+@media(max-width:760px){
+  #chatToolsRail{position:fixed!important;z-index:108!important;top:64px!important;right:0!important;bottom:0!important;width:56px!important;box-sizing:border-box!important;display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:3px!important;padding:7px 3px!important;overflow-y:auto!important;border-left:2px solid #cbd0dc!important}
+  #chatToolsRail .workspace-tool-button{min-height:48px!important;padding:5px 1px!important;justify-content:center!important;gap:0!important}
+  #chatToolsRail .workspace-tool-button i{font-size:17px!important}
+  #chatToolsRail .workspace-tool-button span{display:none!important}
+  #chatMain{height:calc(100dvh - 68px)!important;min-height:0!important;padding:0 64px 8px 10px!important;box-sizing:border-box!important}
+  #chatAppLayout{height:calc(100dvh - 64px)!important;min-height:0!important}
+}
+</style>
+<script>
+/* Rebind tool-rail controls after the responsive workspace builds. */
+(function(){
+  function wireRightRail(){
+    const rail=document.getElementById("chatToolsRail");if(!rail)return;
+    rail.querySelectorAll("button[data-workspace-view]").forEach(button=>{
+      const label=button.textContent.trim();button.title=label;button.setAttribute("aria-label",label);
+      button.onclick=()=>{
+        const view=button.dataset.workspaceView;if(!document.getElementById(view+"View")){toast(`${label} is not available.`);return;}
+        window.navigateTo(view);closeChatSidebar();
+        const anchor=label==="Terminal"?"terminalOutput":label==="Files"?"savedFilesList":null;
+        if(anchor)setTimeout(()=>document.getElementById(anchor)?.scrollIntoView({behavior:"smooth",block:"center"}),160);
+      };
+    });
+  }
+  const previousBuild=window.buildChatWorkspace;
+  if(typeof previousBuild==="function")window.buildChatWorkspace=function(){previousBuild();wireRightRail();};
+  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",wireRightRail,{once:true});else wireRightRail();
+})();
+</script>
 </body>
 </html>
