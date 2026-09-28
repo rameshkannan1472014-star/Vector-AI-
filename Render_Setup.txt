@@ -1,0 +1,27 @@
+Engineer AI provider failover setup for Render
+
+Add these as Render Environment variables. Never put API secrets in index.html or commit them to GitHub.
+
+Existing Gemini primary keys (optional for coding fallback and image fallback, required for Gemini video):
+GEMINI_API_KEY
+GEMINI_API_KEY_2
+GEMINI_API_KEY_3
+GEMINI_API_KEY_4
+
+Groq coding fallback:
+GROQ_API_KEY = your Groq API key
+GROQ_MODEL = optional; defaults to openai/gpt-oss-120b
+Behavior: coding-related prompts try Gemini first. On Gemini key, quota, rate-limit, or temporary service failure, the server switches to Groq. Other general chat remains on Gemini.
+
+Cloudflare image fallback:
+CLOUDFLARE_ACCOUNT_ID = your Cloudflare account ID
+CLOUDFLARE_API_TOKEN = your Cloudflare API token with Workers AI inference permission
+CLOUDFLARE_IMAGE_MODEL = optional; defaults to @cf/black-forest-labs/flux-1-schnell
+CLOUDFLARE_IMAGE_STEPS = optional; defaults to 4 (maximum 8)
+Behavior: photo generation tries Gemini first and switches to Cloudflare on Gemini key, quota, rate-limit, or temporary service failure. If no Gemini keys are configured, photos go directly to Cloudflare. Video generation still uses Gemini.
+
+If you have a Cloudflare Global API Key instead of an API Token, configure both CLOUDFLARE_API_KEY and CLOUDFLARE_EMAIL plus CLOUDFLARE_ACCOUNT_ID.
+
+After adding variables, deploy the updated index.html, server.py, requirements.txt, and this setup note. Render must build with: pip install -r requirements.txt
+
+Provider APIs still have their own quotas, usage limits, and billing. This failover switches providers; it does not remove those limits.

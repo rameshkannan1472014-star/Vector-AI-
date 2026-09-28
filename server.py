@@ -16,6 +16,9 @@ import binascii
 import tempfile
 import uuid
 import threading
+import urllib.error
+import urllib.parse
+import urllib.request
 
 from collections import deque
 from fastapi import FastAPI, HTTPException, Query, BackgroundTasks, Request
@@ -723,6 +726,43 @@ def normalize_provider(provider: Optional[str]) -> str:
     return provider
 
 
+CODING_REQUEST_PATTERN = re.compile(
+    r"\b(code|coding|program|programming|python|javascript|typescript|html|css|sql|"
+    r"bug|debug|debugging|error|exception|function|class|script|compiler|compile|"
+    r"algorithm|api|server\.py|index\.html|refactor|implement|repository|github|"
+    r"code studio|terminal|snippet|syntax)\b",
+    re.IGNORECASE,
+)
+
+
+def is_coding_request(prompt: str) -> bool:
+    return bool(CODING_REQUEST_PATTERN.search(prompt or ""))
+
+
+def generate_groq_coding_response(prompt: str, max_tokens: int = 1500) -> str:
+    api_key = os.getenv("GROQ_API_KEY", "").strip()
+    if not api_key:
+        raise RuntimeError("GROQ_API_KEY is not configured on the server.")
+
+    client = OpenAICompatibleClient(
+        api_key=api_key,
+        base_url="https://api.groq.com/openai/v1",
+    )
+    model = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b").strip()
+    response = client.chat.completions.create(
+        model=model,
+        messages=[
+            {"role": "system", "content": SYSTEM_INSTRUCTION},
+            {"role": "user", "content": prompt},
+        ],
+        max_completion_tokens=max_tokens,
+    )
+    answer = response.choices[0].message.content
+    if not answer:
+        raise RuntimeError("Groq returned an empty response.")
+    return answer.strip()
+
+
 def solve_simple_arithmetic(prompt: str) -> Optional[str]:
     """Safely solve a directly stated numeric expression in a chat prompt."""
     match = re.search(
@@ -827,8 +867,25 @@ async def ask_ai(
         except Exception as error:
             # When every Gemini key/model is out of quota, use DeepSeek or
             # Kimi automatically if their keys are set on the server.
-            if images or not is_gemini_key_or_capacity_error(error):
+            if images:
                 raise
+            gemini_unavailable = (
+                not get_gemini_api_keys()
+                or is_gemini_key_or_capacity_error(error)
+            )
+            if not gemini_unavailable:
+                raise
+            groq_key = os.getenv("GROQ_API_KEY", "").strip()
+            if groq_key and is_coding_request(prompt):
+                logger.warning("Gemini unavailable for a coding request; switching to Groq.")
+                try:
+                    return await asyncio.to_thread(
+                        generate_groq_coding_response,
+                        prompt,
+                        max_tokens,
+                    )
+                except Exception:
+                    logger.exception("Groq coding fallback failed")
             for fallback in ("deepseek", "kimi"):
                 if not os.getenv(PROVIDER_CONFIGS[fallback]["api_key_env"]):
                     continue
@@ -868,6 +925,9 @@ def provider_status():
 
     for key, config in PROVIDER_CONFIGS.items():
         status[key] = bool(os.getenv(config["api_key_env"]))
+
+    status["groq_coding_fallback"] = bool(os.getenv("GROQ_API_KEY", "").strip())
+    status["cloudflare_image_fallback"] = cloudflare_image_configured()
 
     return status
 
@@ -1136,7 +1196,7 @@ If the user asks for a diagram, provide a simple diagram when useful.
         if status_code in {503, 504}:
             public_message = "Gemini is temporarily busy. Please try again in a minute."
         elif status_code == 429:
-            public_message = "Gemini quota/limit error: " + str(error)[:400]
+            public_message = "The configured Gemini projects have reached their current quota. Please try again later."
         else:
             public_message = str(error)[:1000]
         raise HTTPException(
@@ -2428,7 +2488,7 @@ Do not claim that code was executed.
         if status_code in {503, 504}:
             public_message = "Gemini is temporarily busy. Please try the project chat again in a minute."
         elif status_code == 429:
-            public_message = "Gemini quota/limit error: " + str(error)[:400]
+            public_message = "The configured Gemini projects have reached their current quota. Please try again later."
         else:
             public_message = str(error)[:1000]
         raise HTTPException(
@@ -2835,8 +2895,77 @@ Do not provide destructive system instructions.
 
 # ============================================================
 # 🎨 AI IMAGE AND VIDEO CREATION
-# Requires a Gemini API key with image/video model access.
+# Gemini is primary for images, with Cloudflare Workers AI as image fallback.
+# Video generation remains on Gemini.
 # ============================================================
+
+def cloudflare_image_configured() -> bool:
+    account_id = os.getenv("CLOUDFLARE_ACCOUNT_ID", "").strip()
+    token = os.getenv("CLOUDFLARE_API_TOKEN", "").strip()
+    global_key = os.getenv("CLOUDFLARE_API_KEY", "").strip()
+    email = os.getenv("CLOUDFLARE_EMAIL", "").strip()
+    return bool(account_id and (token or (global_key and email)))
+
+
+def generate_cloudflare_image(prompt: str) -> dict[str, str]:
+    account_id = os.getenv("CLOUDFLARE_ACCOUNT_ID", "").strip()
+    token = os.getenv("CLOUDFLARE_API_TOKEN", "").strip()
+    global_key = os.getenv("CLOUDFLARE_API_KEY", "").strip()
+    email = os.getenv("CLOUDFLARE_EMAIL", "").strip()
+    model = os.getenv(
+        "CLOUDFLARE_IMAGE_MODEL",
+        "@cf/black-forest-labs/flux-1-schnell",
+    ).strip()
+
+    if not account_id or not (token or (global_key and email)):
+        raise RuntimeError(
+            "Set CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN on the server to enable image fallback."
+        )
+    prompt = (prompt or "").strip()
+    if not prompt:
+        raise ValueError("Describe the image you want to create.")
+    if len(prompt) > 2048:
+        raise ValueError("Cloudflare image prompts must be 2048 characters or shorter.")
+
+    endpoint = (
+        "https://api.cloudflare.com/client/v4/accounts/"
+        f"{urllib.parse.quote(account_id, safe='')}/ai/run/"
+        f"{urllib.parse.quote(model, safe='@/-')}"
+    )
+    payload = {
+        "prompt": prompt,
+        "steps": min(8, max(1, int(os.getenv("CLOUDFLARE_IMAGE_STEPS", "4")))),
+    }
+    headers = {"Content-Type": "application/json", "Accept": "application/json"}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    else:
+        headers["X-Auth-Key"] = global_key
+        headers["X-Auth-Email"] = email
+
+    request = urllib.request.Request(
+        endpoint,
+        data=json.dumps(payload).encode("utf-8"),
+        headers=headers,
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=180) as response:
+            result = json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as error:
+        raise RuntimeError(f"Cloudflare image request failed (HTTP {error.code}).") from error
+    except urllib.error.URLError as error:
+        raise RuntimeError("Could not connect to Cloudflare Workers AI.") from error
+
+    image = (result.get("result") or {}).get("image")
+    if not result.get("success") or not image:
+        raise RuntimeError("Cloudflare did not return an image. Check its token, Workers AI access, and account quota.")
+    return {
+        "status": "complete",
+        "data": image,
+        "mime_type": "image/jpeg",
+        "provider": "cloudflare",
+    }
 
 def generate_image_data(prompt: str) -> dict[str, str]:
     model = os.getenv("GEMINI_IMAGE_MODEL", "gemini-3.1-flash-image")
@@ -2912,12 +3041,36 @@ def run_video_generation(job_id: str, prompt: str) -> None:
 
 @app.post("/api/media/image")
 async def create_image(request: MediaGenerationRequest):
-    if not get_gemini_api_keys():
-        raise HTTPException(status_code=503, detail={"message": "Image generation needs GEMINI_API_KEY configured on the server."})
+    gemini_keys = get_gemini_api_keys()
+    cloudflare_ready = cloudflare_image_configured()
+    if not gemini_keys and not cloudflare_ready:
+        raise HTTPException(
+            status_code=503,
+            detail={"message": "Configure Gemini keys or CLOUDFLARE_ACCOUNT_ID plus CLOUDFLARE_API_TOKEN on the server for image generation."},
+        )
+
+    if not gemini_keys and cloudflare_ready:
+        logger.info("Gemini keys are absent; generating image with Cloudflare Workers AI.")
+        try:
+            return await asyncio.to_thread(generate_cloudflare_image, request.prompt)
+        except Exception as error:
+            logger.exception("Cloudflare image generation failed")
+            raise HTTPException(status_code=502, detail={"message": str(error)[:500]})
+
     try:
         return await asyncio.to_thread(generate_image_data, request.prompt)
     except Exception as error:
         logger.exception("Image generation failed")
+        if cloudflare_ready and is_gemini_key_or_capacity_error(error):
+            logger.warning("Gemini image generation failed; switching to Cloudflare Workers AI.")
+            try:
+                return await asyncio.to_thread(generate_cloudflare_image, request.prompt)
+            except Exception as cloudflare_error:
+                logger.exception("Cloudflare image fallback failed")
+                raise HTTPException(
+                    status_code=502,
+                    detail={"message": f"Gemini and Cloudflare image generation both failed. Cloudflare error: {str(cloudflare_error)[:400]}"},
+                )
         status = getattr(error, "code", None) or getattr(error, "status_code", None)
         response_obj = getattr(error, "response", None)
         status = status or getattr(response_obj, "status_code", None)
@@ -2961,46 +3114,6 @@ async def get_video_generation(job_id: str):
 # ============================================================
 # 📊 ANALYTICS
 # ============================================================
-
-_last_diag = 0.0
-
-
-@app.get("/api/diagnose")
-async def diagnose():
-    """Tests every Gemini key x model with a tiny request and shows the exact error.
-    Remove this endpoint once everything works."""
-    global _last_diag
-    if time.monotonic() - _last_diag < 30:
-        raise HTTPException(status_code=429, detail={"message": "Wait 30 seconds between diagnose runs."})
-    _last_diag = time.monotonic()
-
-    def run():
-        keys = get_gemini_api_keys()
-        models = [DEFAULT_MODEL, *GEMINI_FALLBACK_MODELS]
-        results = []
-        for slot, key in enumerate(keys, 1):
-            client = genai.Client(api_key=key)
-            for model_name in models:
-                try:
-                    client.models.generate_content(
-                        model=model_name,
-                        contents="Say OK",
-                        config=types.GenerateContentConfig(max_output_tokens=50),
-                    )
-                    results.append({"key_slot": slot, "model": model_name, "ok": True})
-                except Exception as error:
-                    status = getattr(error, "code", None) or getattr(error, "status_code", None)
-                    message = str(error)
-                    for secret in keys:
-                        message = message.replace(secret, "***")
-                    results.append({
-                        "key_slot": slot, "model": model_name, "ok": False,
-                        "status": status, "error": message[:600],
-                    })
-        return {"default_model": DEFAULT_MODEL, "key_count": len(keys), "results": results}
-
-    return await asyncio.to_thread(run)
-
 
 @app.get("/api/ops/analytics")
 async def get_analytics():
