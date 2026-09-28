@@ -15,6 +15,7 @@ import base64
 import binascii
 import tempfile
 import uuid
+import threading
 
 from fastapi import FastAPI, HTTPException, Query, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
@@ -48,9 +49,8 @@ PORT = int(
 
 # ============================================================
 # MULTI-PROVIDER AI CONFIG
-# Gemini uses Google's SDK. DeepSeek and Kimi (Moonshot) both
-# expose OpenAI-compatible chat completion APIs, so they share
-# one client implementation (see generate_openai_compatible_response).
+# Gemini uses Google's SDK with primary/backup project keys. DeepSeek and Kimi
+# (Moonshot) expose OpenAI-compatible APIs and share one client.
 # ============================================================
 
 PROVIDER_CONFIGS = {
@@ -393,21 +393,77 @@ def record_request(
         ] += 1
 
 
+_gemini_key_lock = threading.Lock()
+_gemini_active_key_index = 0
+
+
+def get_gemini_api_keys() -> list[str]:
+    """Read Gemini project keys from server environment variables only."""
+    candidates = [os.getenv("GEMINI_API_KEY", "")]
+    candidates.extend(os.getenv(f"GEMINI_API_KEY_{index}", "") for index in range(2, 5))
+    # Optional list format for hosts that make grouped secrets easier to manage.
+    candidates.extend(re.split(r"[,;\s]+", os.getenv("GEMINI_API_KEYS", "").strip()))
+    keys = []
+    for candidate in candidates:
+        key = candidate.strip()
+        if key and key not in keys:
+            keys.append(key)
+    return keys
+
+
+def is_gemini_key_or_capacity_error(error: Exception) -> bool:
+    """Only fail over for credentials, quota/rate, and transient service errors."""
+    status = getattr(error, "code", None) or getattr(error, "status_code", None)
+    response = getattr(error, "response", None)
+    status = status or getattr(response, "status_code", None)
+    try:
+        if int(status) in {401, 403, 408, 429, 500, 502, 503, 504}:
+            return True
+    except (TypeError, ValueError):
+        pass
+    detail = str(error).lower()
+    return any(marker in detail for marker in (
+        "api_key_invalid", "api key not valid", "invalid api key",
+        "permission_denied", "resource_exhausted", "quota_exceeded",
+        "rate_limit_exceeded", "too many requests", "429", "503 service unavailable",
+    ))
+
+
+def run_with_gemini_failover(operation):
+    """Run one Gemini request, advancing to a configured project key on eligible errors."""
+    global _gemini_active_key_index
+    keys = get_gemini_api_keys()
+    if not keys:
+        raise RuntimeError("No Gemini keys are configured. Set GEMINI_API_KEY on the server.")
+    with _gemini_key_lock:
+        start_index = _gemini_active_key_index % len(keys)
+    last_error = None
+    for offset in range(len(keys)):
+        index = (start_index + offset) % len(keys)
+        try:
+            client = genai.Client(api_key=keys[index])
+            result = operation(client)
+            with _gemini_key_lock:
+                _gemini_active_key_index = index
+            if offset:
+                logger.info("Gemini request recovered using configured backup key slot %s", index + 1)
+            return result
+        except Exception as error:
+            last_error = error
+            if offset == len(keys) - 1 or not is_gemini_key_or_capacity_error(error):
+                raise
+            logger.warning("Gemini key slot %s failed with a retryable key/quota/service error; trying the next configured project key", index + 1)
+    raise last_error or RuntimeError("No Gemini key could complete the request.")
+
+
 def get_gemini_client():
-
-    api_key = os.getenv(
-        "GEMINI_API_KEY"
-    )
-
-    if not api_key:
-
-        raise RuntimeError(
-            "GEMINI_API_KEY is not configured."
-        )
-
-    return genai.Client(
-        api_key=api_key
-    )
+    """Return the currently preferred client for operations that need a long-lived job."""
+    keys = get_gemini_api_keys()
+    if not keys:
+        raise RuntimeError("No Gemini keys are configured. Set GEMINI_API_KEY on the server.")
+    with _gemini_key_lock:
+        index = _gemini_active_key_index % len(keys)
+    return genai.Client(api_key=keys[index])
 
 
 SYSTEM_INSTRUCTION = """
@@ -460,9 +516,6 @@ def generate_ai_response(
     max_tokens: int = 1500,
     images: Optional[list[dict[str, str]]] = None
 ):
-
-    client = get_gemini_client()
-
     contents: Any = prompt
     if images:
         parts = [types.Part.from_text(text=prompt)]
@@ -476,42 +529,25 @@ def generate_ai_response(
                 raise ValueError("An attached image is invalid.") from error
             if len(image_bytes) > 5 * 1024 * 1024:
                 raise ValueError("Each image must be 5 MB or smaller.")
-            parts.append(types.Part.from_bytes(
-                data=image_bytes,
-                mime_type=mime_type
-            ))
+            parts.append(types.Part.from_bytes(data=image_bytes, mime_type=mime_type))
         contents = [types.Content(role="user", parts=parts)]
 
-    response = client.models.generate_content(
-
-        model=DEFAULT_MODEL,
-
-        contents=contents,
-
-        config=types.GenerateContentConfig(
-
-            system_instruction=
-                SYSTEM_INSTRUCTION,
-
-            temperature=0.2,
-
-            max_output_tokens=max_tokens
+    def generate(client):
+        response = client.models.generate_content(
+            model=DEFAULT_MODEL,
+            contents=contents,
+            config=types.GenerateContentConfig(
+                system_instruction=SYSTEM_INSTRUCTION,
+                temperature=0.2,
+                max_output_tokens=max_tokens,
+            ),
         )
-    )
+        text = getattr(response, "text", None)
+        if not text:
+            raise RuntimeError("AI returned an empty response.")
+        return text.strip()
 
-    text = getattr(
-        response,
-        "text",
-        None
-    )
-
-    if not text:
-
-        raise RuntimeError(
-            "AI returned an empty response."
-        )
-
-    return text.strip()
+    return run_with_gemini_failover(generate)
 
 
 def generate_openai_compatible_response(
@@ -702,7 +738,7 @@ async def ask_ai(
 def provider_status():
 
     status = {
-        "gemini": bool(os.getenv("GEMINI_API_KEY"))
+        "gemini": bool(get_gemini_api_keys())
     }
 
     for key, config in PROVIDER_CONFIGS.items():
@@ -738,11 +774,7 @@ async def health():
         "version": APP_VERSION,
         "model": DEFAULT_MODEL,
         "gemini_configured":
-            bool(
-                os.getenv(
-                    "GEMINI_API_KEY"
-                )
-            ),
+            bool(get_gemini_api_keys()),
         "providers": provider_status()
     }
 
@@ -821,11 +853,7 @@ async def status():
         "database":
             os.path.exists(DB_PATH),
         "gemini_configured":
-            bool(
-                os.getenv(
-                    "GEMINI_API_KEY"
-                )
-            ),
+            bool(get_gemini_api_keys()),
         "providers": provider_status()
     }
 
@@ -2646,20 +2674,21 @@ Do not provide destructive system instructions.
 # ============================================================
 
 def generate_image_data(prompt: str) -> dict[str, str]:
-    client = get_gemini_client()
     model = os.getenv("GEMINI_IMAGE_MODEL", "gemini-3.1-flash-image")
-    interaction = client.interactions.create(
-        model=model,
-        input=prompt,
-        response_format=[{"type": "image", "mime_type": "image/png", "aspect_ratio": "1:1"}],
-    )
-    image = getattr(interaction, "output_image", None)
-    image_data = getattr(image, "data", None) if image else None
-    if not image_data:
-        raise RuntimeError("Gemini did not return an image. Check model access and API quota.")
-    if isinstance(image_data, bytes):
-        image_data = base64.b64encode(image_data).decode("ascii")
-    return {"status": "complete", "data": image_data, "mime_type": getattr(image, "mime_type", None) or "image/png"}
+    def generate(client):
+        interaction = client.interactions.create(
+            model=model,
+            input=prompt,
+            response_format=[{"type": "image", "mime_type": "image/png", "aspect_ratio": "1:1"}],
+        )
+        image = getattr(interaction, "output_image", None)
+        image_data = getattr(image, "data", None) if image else None
+        if not image_data:
+            raise RuntimeError("Gemini did not return an image. Check model access and API quota.")
+        if isinstance(image_data, bytes):
+            image_data = base64.b64encode(image_data).decode("ascii")
+        return {"status": "complete", "data": image_data, "mime_type": getattr(image, "mime_type", None) or "image/png"}
+    return run_with_gemini_failover(generate)
 
 
 def run_video_generation(job_id: str, prompt: str) -> None:
@@ -2668,9 +2697,8 @@ def run_video_generation(job_id: str, prompt: str) -> None:
         return
     job["status"] = "running"
     try:
-        client = get_gemini_client()
         model = os.getenv("GEMINI_VIDEO_MODEL", "veo-3.1-generate-preview")
-        operation = client.models.generate_videos(model=model, prompt=prompt)
+        client, operation = run_with_gemini_failover(lambda candidate: (candidate, candidate.models.generate_videos(model=model, prompt=prompt)))
         deadline = time.monotonic() + 900
         while not operation.done:
             if time.monotonic() >= deadline:
@@ -2694,7 +2722,7 @@ def run_video_generation(job_id: str, prompt: str) -> None:
 
 @app.post("/api/media/image")
 async def create_image(request: MediaGenerationRequest):
-    if not os.getenv("GEMINI_API_KEY"):
+    if not get_gemini_api_keys():
         raise HTTPException(status_code=503, detail={"message": "Image generation needs GEMINI_API_KEY configured on the server."})
     try:
         return await asyncio.to_thread(generate_image_data, request.prompt)
@@ -2705,7 +2733,7 @@ async def create_image(request: MediaGenerationRequest):
 
 @app.post("/api/media/video")
 async def create_video(request: MediaGenerationRequest, background_tasks: BackgroundTasks):
-    if not os.getenv("GEMINI_API_KEY"):
+    if not get_gemini_api_keys():
         raise HTTPException(status_code=503, detail={"message": "Video generation needs GEMINI_API_KEY configured on the server."})
     # Keep only a small number of recent results in memory on this server instance.
     expired = [key for key, value in media_generation_jobs.items() if value.get("finished_at", 0) and time.time() - value["finished_at"] > 3600]
