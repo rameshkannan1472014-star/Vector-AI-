@@ -810,6 +810,7 @@ async def health():
         "service": APP_TITLE,
         "version": APP_VERSION,
         "model": DEFAULT_MODEL,
+        "image_model": os.getenv("GEMINI_IMAGE_MODEL", "gemini-3.1-flash-image"),
         "gemini_configured":
             bool(get_gemini_api_keys()),
         "providers": provider_status()
@@ -2751,18 +2752,36 @@ Do not provide destructive system instructions.
 def generate_image_data(prompt: str) -> dict[str, str]:
     model = os.getenv("GEMINI_IMAGE_MODEL", "gemini-3.1-flash-image")
     def generate(client):
-        interaction = client.interactions.create(
+        # Use the documented Generate Content image path. It returns image bytes
+        # in candidate parts and works with the standard Gemini SDK client.
+        response = client.models.generate_content(
             model=model,
-            input=prompt,
-            response_format={"type": "image", "mime_type": "image/png", "aspect_ratio": "1:1"},
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_modalities=["TEXT", "IMAGE"],
+            ),
         )
-        image = getattr(interaction, "output_image", None)
-        image_data = getattr(image, "data", None) if image else None
-        if not image_data:
-            raise RuntimeError("Gemini did not return an image. Check model access and API quota.")
-        if isinstance(image_data, bytes):
-            image_data = base64.b64encode(image_data).decode("ascii")
-        return {"status": "complete", "data": image_data, "mime_type": getattr(image, "mime_type", None) or "image/png"}
+        parts = list(getattr(response, "parts", None) or [])
+        if not parts:
+            for candidate in getattr(response, "candidates", None) or []:
+                parts.extend(getattr(getattr(candidate, "content", None), "parts", None) or [])
+        for part in parts:
+            image = getattr(part, "inline_data", None)
+            image_data = getattr(image, "data", None) if image else None
+            if image_data:
+                if isinstance(image_data, bytes):
+                    image_data = base64.b64encode(image_data).decode("ascii")
+                return {
+                    "status": "complete",
+                    "data": image_data,
+                    "mime_type": getattr(image, "mime_type", None) or "image/png",
+                }
+        text = getattr(response, "text", None)
+        detail = f" Gemini replied: {text[:300]}" if text else ""
+        raise RuntimeError(
+            "Gemini completed the request but returned no image. Confirm that "
+            f"GEMINI_IMAGE_MODEL={model} supports image generation and that this API project has access.{detail}"
+        )
     return run_with_gemini_failover(generate)
 
 
