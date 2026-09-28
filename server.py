@@ -1136,7 +1136,7 @@ If the user asks for a diagram, provide a simple diagram when useful.
         if status_code in {503, 504}:
             public_message = "Gemini is temporarily busy. Please try again in a minute."
         elif status_code == 429:
-            public_message = "The configured Gemini projects have reached their current quota. Please try again later."
+            public_message = "Gemini quota/limit error: " + str(error)[:400]
         else:
             public_message = str(error)[:1000]
         raise HTTPException(
@@ -2428,7 +2428,7 @@ Do not claim that code was executed.
         if status_code in {503, 504}:
             public_message = "Gemini is temporarily busy. Please try the project chat again in a minute."
         elif status_code == 429:
-            public_message = "The configured Gemini projects have reached their current quota. Please try again later."
+            public_message = "Gemini quota/limit error: " + str(error)[:400]
         else:
             public_message = str(error)[:1000]
         raise HTTPException(
@@ -2961,6 +2961,46 @@ async def get_video_generation(job_id: str):
 # ============================================================
 # 📊 ANALYTICS
 # ============================================================
+
+_last_diag = 0.0
+
+
+@app.get("/api/diagnose")
+async def diagnose():
+    """Tests every Gemini key x model with a tiny request and shows the exact error.
+    Remove this endpoint once everything works."""
+    global _last_diag
+    if time.monotonic() - _last_diag < 30:
+        raise HTTPException(status_code=429, detail={"message": "Wait 30 seconds between diagnose runs."})
+    _last_diag = time.monotonic()
+
+    def run():
+        keys = get_gemini_api_keys()
+        models = [DEFAULT_MODEL, *GEMINI_FALLBACK_MODELS]
+        results = []
+        for slot, key in enumerate(keys, 1):
+            client = genai.Client(api_key=key)
+            for model_name in models:
+                try:
+                    client.models.generate_content(
+                        model=model_name,
+                        contents="Say OK",
+                        config=types.GenerateContentConfig(max_output_tokens=50),
+                    )
+                    results.append({"key_slot": slot, "model": model_name, "ok": True})
+                except Exception as error:
+                    status = getattr(error, "code", None) or getattr(error, "status_code", None)
+                    message = str(error)
+                    for secret in keys:
+                        message = message.replace(secret, "***")
+                    results.append({
+                        "key_slot": slot, "model": model_name, "ok": False,
+                        "status": status, "error": message[:600],
+                    })
+        return {"default_model": DEFAULT_MODEL, "key_count": len(keys), "results": results}
+
+    return await asyncio.to_thread(run)
+
 
 @app.get("/api/ops/analytics")
 async def get_analytics():
