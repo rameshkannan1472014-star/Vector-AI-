@@ -446,6 +446,7 @@ def run_with_gemini_failover(operation):
         raise RuntimeError("No Gemini keys are configured. Set GEMINI_API_KEY on the server.")
     with _gemini_key_lock:
         start_index = _gemini_active_key_index % len(keys)
+    logger.info("Starting Gemini request with %s distinct configured key(s).", len(keys))
     last_error = None
     for offset in range(len(keys)):
         index = (start_index + offset) % len(keys)
@@ -459,9 +460,20 @@ def run_with_gemini_failover(operation):
             return result
         except Exception as error:
             last_error = error
-            if offset == len(keys) - 1 or not is_gemini_key_or_capacity_error(error):
+            retryable = is_gemini_key_or_capacity_error(error)
+            status = getattr(error, "code", None) or getattr(error, "status_code", None)
+            response = getattr(error, "response", None)
+            status = status or getattr(response, "status_code", None) or "unknown"
+            logger.warning(
+                "Gemini key slot %s/%s failed (status=%s, retryable=%s).",
+                offset + 1,
+                len(keys),
+                status,
+                retryable,
+            )
+            if offset == len(keys) - 1 or not retryable:
                 raise
-            logger.warning("Gemini key slot %s failed with a retryable key/quota/service error; trying the next configured project key", index + 1)
+            logger.info("Trying the next configured Gemini key slot.")
     raise last_error or RuntimeError("No Gemini key could complete the request.")
 
 
@@ -775,7 +787,8 @@ async def ask_ai(
 def provider_status():
 
     status = {
-        "gemini": bool(get_gemini_api_keys())
+        "gemini": bool(get_gemini_api_keys()),
+        "gemini_key_count": len(get_gemini_api_keys()),
     }
 
     for key, config in PROVIDER_CONFIGS.items():
@@ -813,6 +826,8 @@ async def health():
         "image_model": os.getenv("GEMINI_IMAGE_MODEL", "gemini-3.1-flash-image"),
         "gemini_configured":
             bool(get_gemini_api_keys()),
+        "gemini_key_count":
+            len(get_gemini_api_keys()),
         "providers": provider_status()
     }
 
@@ -929,6 +944,7 @@ async def list_providers():
 
     return {
         "status": "success",
+        "gemini_key_count": len(get_gemini_api_keys()),
         "providers": providers
     }
 # ============================================================
