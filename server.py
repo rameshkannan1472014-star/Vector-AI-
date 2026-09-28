@@ -38,10 +38,18 @@ APP_VERSION = "3.0.0"
 
 FEEDBACK_RECIPIENT_DEFAULT = "ramesh.kannan14.7.2014@gmail.com"
 
-DEFAULT_MODEL = os.getenv(
-    "GEMINI_MODEL",
-    "gemini-2.5-flash"
-)
+_configured_gemini_model = os.getenv("GEMINI_MODEL", "").strip()
+# Gemini has retired gemini-2.5-flash for new users. Treat an old Render
+# environment override the same as the default so deployments recover without
+# requiring a code change beyond uploading this server.py.
+if _configured_gemini_model.removeprefix("models/").lower() == "gemini-2.5-flash":
+    logging.warning(
+        "GEMINI_MODEL=%s is retired for this account; using gemini-3.8-flash",
+        _configured_gemini_model,
+    )
+    _configured_gemini_model = ""
+
+DEFAULT_MODEL = _configured_gemini_model or "gemini-3.8-flash"
 
 PORT = int(
     os.getenv("PORT", "8000")
