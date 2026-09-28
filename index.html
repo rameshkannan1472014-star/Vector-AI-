@@ -5451,6 +5451,13 @@ function getApiText(data) {
         data.detail;
 
     if (candidate !== undefined && candidate !== null) {
+        if (typeof candidate === "object") {
+            if (typeof candidate.message === "string") return candidate.message;
+            if (typeof candidate.detail === "string") return candidate.detail;
+            if (candidate.detail && typeof candidate.detail.message === "string") {
+                return candidate.detail.message;
+            }
+        }
         return typeof candidate === "string"
             ? candidate
             : safeStringify(candidate);
@@ -9413,6 +9420,137 @@ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",
 <script>
 async function openMediaStudio(){const modal=featureModal("Create a photo or video",'<label for="mediaPrompt" style="display:block;font-weight:650;margin-bottom:8px">Describe what Engineer AI should create</label><textarea id="mediaPrompt" rows="4" maxlength="3000" placeholder="Example: A clean technical illustration of a small solar-powered water pump system, labeled components, blue-and-white style."></textarea><p id="mediaStatus" role="status">Choose Photo or Video. Generation needs a configured Gemini API key and may use paid API quota.</p><div id="mediaResult"></div>',[{label:"Close",action:closeFeatureModal},{label:"Create photo",className:"primary",action:()=>generateMedia("image")},{label:"Create video",className:"primary",action:()=>generateMedia("video")}]);const input=modal.querySelector("#mediaPrompt");input.style.cssText="width:100%;box-sizing:border-box;padding:12px;border:1px solid #cbd5e1;border-radius:10px;font:inherit;resize:vertical";input.focus();}
 async function generateMedia(kind){const prompt=$("mediaPrompt")?.value.trim(),status=$("mediaStatus"),host=$("mediaResult");if(!prompt){toast("Describe the photo or video first.");return;}if(status)status.textContent=kind==="image"?"Creating your photo…":"Starting video generation… this may take a few minutes.";if(host)host.innerHTML="";document.querySelectorAll("#featureModalBackdrop .feature-modal-actions button").forEach(b=>b.disabled=true);try{let data=await apiRequest("/api/media/"+kind,{method:"POST",body:JSON.stringify({prompt})});if(kind==="video"&&data.job_id){let attempts=0;while(attempts++<180){await new Promise(r=>setTimeout(r,5000));data=await apiRequest("/api/media/video/"+encodeURIComponent(data.job_id));if(data.status==="complete")break;if(data.status==="failed")throw new Error(data.message||"Video generation failed.");if(status)status.textContent="Creating video… "+(attempts*5)+" seconds elapsed.";}if(data.status!=="complete")throw new Error("Video is still processing. Keep this window open and try again shortly.");}if(!data.data)throw new Error("The generation service returned no media.");const raw=atob(data.data),bytes=new Uint8Array(raw.length);for(let i=0;i<raw.length;i++)bytes[i]=raw.charCodeAt(i);const mime=data.mime_type||(kind==="image"?"image/png":"video/mp4"),url=URL.createObjectURL(new Blob([bytes],{type:mime})),ext=kind==="image"?(mime.includes("jpeg")?"jpg":"png"):"mp4";if(kind==="image"){host.innerHTML='<img alt="AI-generated image" style="display:block;width:100%;max-height:55vh;object-fit:contain;border-radius:10px;margin:10px 0"><a download="engineer-ai-generated.'+ext+'">Download photo</a>';host.querySelector("img").src=url;host.querySelector("a").href=url;}else{host.innerHTML='<video controls playsinline style="display:block;width:100%;max-height:55vh;border-radius:10px;margin:10px 0"></video><a download="engineer-ai-generated.mp4">Download video</a>';host.querySelector("video").src=url;host.querySelector("a").href=url;}if(status)status.textContent="Your "+kind+" is ready. Download it below.";toast((kind==="image"?"Photo":"Video")+" created.");}catch(error){if(status)status.textContent="Could not create media: "+error.message;toast("Media generation failed.");}finally{document.querySelectorAll("#featureModalBackdrop .feature-modal-actions button").forEach(b=>b.disabled=false);}}
+</script>
+<style>
+/* Final responsive fixes: scrollable navigation, readable code actions and bounded mobile cards. */
+#chatSidebar,#chatNavRail,#chatToolsRail,#projectChatToolsRail,#bottomNav.workspace-global-nav{
+  overscroll-behavior:contain!important;touch-action:pan-y!important;-webkit-overflow-scrolling:touch!important;scrollbar-gutter:stable
+}
+#chatSidebar{overflow-y:auto!important;overflow-x:hidden!important;min-height:0!important}
+#chatNavRail,#chatToolsRail,#projectChatToolsRail,#bottomNav.workspace-global-nav{overflow-y:auto!important;overflow-x:hidden!important}
+#chatMessages .chat-bubble pre{padding-top:48px!important;box-sizing:border-box!important}
+#chatMessages .copy-code-block{z-index:2!important;min-height:32px!important;padding:6px 10px!important;background:#243451!important;border-color:#7889a8!important;color:#fff!important;box-shadow:0 2px 8px #0004}
+.chat-generated-media{display:block;width:min(100%,720px);max-height:65vh;object-fit:contain;margin:12px 0;border-radius:14px;background:#0b1020}
+.chat-generated-download{display:inline-flex;align-items:center;min-height:38px;margin:3px 0 8px;padding:7px 12px;border-radius:9px;background:#245de8;color:#fff;text-decoration:none;font-weight:650}
+.chat-generated-note{font-size:12px;color:#667085}
+@media(max-width:760px){
+  #chatSidebar{height:100dvh!important;max-height:100dvh!important;padding-bottom:calc(22px + env(safe-area-inset-bottom))!important;overscroll-behavior-y:contain!important;touch-action:pan-y!important}
+  #chatSidebar .workspace-profile{margin-top:12px!important}
+  #chatNavRail{display:none}
+  #chatToolsRail{touch-action:pan-y!important;overscroll-behavior:contain!important}
+  #projectChatView.active{box-sizing:border-box!important;width:100vw!important;max-width:100vw!important;min-width:0!important;padding:58px 68px 14px 12px!important;overflow-x:hidden!important}
+  #projectChatView.active>*:not(#projectChatToolsRail){min-width:0!important;max-width:100%!important;box-sizing:border-box!important}
+  #projectChatView .hero,#projectChatView #projectChatMessages,#projectChatView .feature-composer{width:100%!important;max-width:100%!important;min-width:0!important}
+  #projectChatToolsRail{touch-action:pan-y!important;overflow-y:auto!important}
+  .grid,.stats,.feature-grid,.feature-form{grid-template-columns:repeat(2,minmax(0,1fr))!important;min-width:0!important;max-width:100%!important}
+  .grid>* ,.stats>* ,.feature-card,.card,.list-row{min-width:0!important;max-width:100%!important;overflow-wrap:anywhere}
+  .view,.feature-view{box-sizing:border-box!important;max-width:100vw!important;overflow-x:hidden!important}
+  .chat-generated-media{max-height:48vh}
+}
+</style>
+<script>
+/* Use current Gemini image API response shape, make media available directly in chat,
+   route learning through the main conversation, and keep uploads useful for source review. */
+let engineerChatTutorMode=localStorage.getItem("engineer_ai_chat_mode")==="learn";
+let engineerChatFileContext=[];
+let engineerChatFileContextId="";
+function engineerRestoreChatFileContext(){if(engineerChatFileContextId===currentConversationId)return;engineerChatFileContextId=currentConversationId;engineerChatFileContext=[];try{const saved=JSON.parse(localStorage.getItem("engineer_ai_current_file_context")||"{}");if(saved.chatId===currentConversationId&&Array.isArray(saved.files))engineerChatFileContext=saved.files;}catch{}}
+function engineerSaveChatFileContext(files){engineerRestoreChatFileContext();for(const file of files){if(!file.text)continue;const existing=engineerChatFileContext.findIndex(item=>item.name===file.name);if(existing>=0)engineerChatFileContext.splice(existing,1);engineerChatFileContext.push({name:file.name,text:file.text});}let remaining=650000;engineerChatFileContext=engineerChatFileContext.slice(-4).map(file=>{const text=file.text.slice(0,remaining);remaining-=text.length;return{name:file.name,text};}).filter(file=>file.text);try{localStorage.setItem("engineer_ai_current_file_context",JSON.stringify({chatId:currentConversationId,files:engineerChatFileContext}));}catch{}}
+const engineerPreviousNewChat=window.startNewChat;
+window.startNewChat=function(){engineerChatFileContext=[];engineerChatFileContextId="";const result=engineerPreviousNewChat?.();engineerRestoreChatFileContext();return result;};
+const engineerPreviousProfileSave=window.saveProfileCustomization;
+window.saveProfileCustomization=function(showToast=true){const result=engineerPreviousProfileSave?.(showToast);let profile={};try{profile=JSON.parse(localStorage.getItem("engineer_ai_profile")||"{}");}catch{}const name=profile.name||"Engineer";const sidebarName=$("chatSidebarProfile");if(sidebarName)sidebarName.textContent=name;const globalUser=document.querySelector(".workspace-global-user");if(globalUser)globalUser.innerHTML=`<i class="fa-solid fa-circle-user"></i> ${escapeHtml(name)}<small>Developer</small>`;const about=$("aboutView")?.querySelector(".feature-card");const developer=about?.querySelector("[data-developer-name]");if(developer)developer.textContent=name;return result;};
+const engineerImageIntent=/(?:generate|create|make|draw|paint|design|render|produce|illustrate)\b.{0,120}\b(?:image|photo|picture|illustration|wallpaper|logo|poster|artwork|graphic)\b|\b(?:image|photo|picture|illustration|wallpaper|logo|poster|artwork|graphic)\b.{0,100}\b(?:of|for|showing|with)\b.{3,}/i;
+const engineerVideoIntent=/(?:generate|create|make|render|produce)\b.{0,120}\b(?:video|animation|clip|film)\b|\b(?:video|animation|clip)\b.{0,100}\b(?:of|about|showing)\b.{3,}/i;
+function engineerRenderGeneratedMedia(data,kind,prompt){
+  const mime=data.mime_type||(kind==="image"?"image/png":"video/mp4");
+  const binary=atob(data.data),bytes=new Uint8Array(binary.length);
+  for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
+  const url=URL.createObjectURL(new Blob([bytes],{type:mime}));
+  const recordText=`${kind==="image"?"Created image":"Created video"}: ${prompt.slice(0,240)}`;
+  window.addChatMessage("assistant",recordText);
+  chatHistory.push({role:"assistant",content:recordText});saveChatHistory();
+  const row=$("chatMessages")?.lastElementChild,bubble=row?.querySelector(".chat-bubble");if(!bubble)return;
+  const media=document.createElement(kind==="image"?"img":"video");media.className="chat-generated-media";media.setAttribute("aria-label",kind==="image"?"AI-generated image":"AI-generated video");
+  if(kind==="image"){media.alt="AI-generated image";media.src=url;}else{media.controls=true;media.playsInline=true;media.src=url;}
+  const download=document.createElement("a");download.className="chat-generated-download";download.href=url;download.download=kind==="image"?(mime.includes("jpeg")?"engineer-ai-image.jpg":"engineer-ai-image.png"):"engineer-ai-video.mp4";download.textContent=kind==="image"?"Download image":"Download video";
+  bubble.append(media,download);$("chatMessages").scrollTop=$("chatMessages").scrollHeight;
+}
+async function engineerCreateMediaInChat(kind,prompt){
+  let data=await apiRequest("/api/media/"+kind,{method:"POST",body:JSON.stringify({prompt})});
+  if(kind==="video"&&data.job_id){let attempt=0;while(attempt++<180){await new Promise(resolve=>setTimeout(resolve,5000));data=await apiRequest("/api/media/video/"+encodeURIComponent(data.job_id));if(data.status==="complete")break;if(data.status==="failed")throw new Error(data.message||"Video generation failed.");setChatActivity(`Creating video… ${attempt*5} seconds elapsed.`,true);}if(data.status!=="complete")throw new Error("Video is still processing. Try again shortly.");}
+  if(!data.data)throw new Error("The generation service returned no media.");engineerRenderGeneratedMedia(data,kind,prompt);
+}
+const engineerEarlierChatSender=window.sendChat;
+window.sendChat=async function(){
+  const input=$("chatInput"),button=$("chatSend");if(!input)return;const message=input.value.trim();
+  if(!message&&!pendingChatAttachments.length){toast("Type a message or attach a file.");return;}
+  const attachments=pendingChatAttachments.splice(0),fullMessage=message+(attachments.length?"\n\nAttached: "+attachments.map(file=>file.name).join(", "):"");
+  const history=chatHistory.slice(-20).map(item=>({role:item.role,content:String(item.content||"").slice(0,3500)}));
+  window.addChatMessage("user",fullMessage);chatHistory.push({role:"user",content:fullMessage});input.value="";renderPendingAttachments();saveChatHistory();refreshChatTitle();if(button)button.disabled=true;
+  if($("chatLoading"))show("chatLoading");setChatActivity(attachments.length?"Reading the complete attached source and files…":"Reading your message and conversation…",true);
+  try{
+    const imageRequest=engineerImageIntent.test(message)&&!attachments.some(file=>file.mime_type?.startsWith("image/"));
+    const videoRequest=engineerVideoIntent.test(message)&&!attachments.some(file=>file.mime_type?.startsWith("image/"));
+    if(imageRequest||videoRequest){const kind=videoRequest?"video":"image";setChatActivity(kind==="image"?"Creating your image…":"Starting video generation…",true);await engineerCreateMediaInChat(kind,message);}
+    else{
+      engineerRestoreChatFileContext();engineerSaveChatFileContext(attachments.filter(file=>file.text));
+      const attachmentText=engineerChatFileContext.map(file=>`\n\n--- Uploaded file: ${file.name} ---\n${file.text}`).join("");
+      const tutoring=engineerChatTutorMode?"\n\nTEACHING MODE: Tutor the learner conversationally about any topic they choose. Explain in clear steps, give examples, check understanding gently, and welcome follow-up questions.":"";
+      const prompt=(message||"Please inspect and explain the attached file(s).")+attachmentText+tutoring;
+      const data=await apiRequest("/api/chat",{method:"POST",body:JSON.stringify({prompt,provider:getSelectedProvider(),history,memory:readUserMemory(),workspace_context:getSharedWorkspaceContext(),images:attachments.filter(file=>file.data&&file.mime_type.startsWith("image/")).map(file=>({data:file.data,mime_type:file.mime_type}))})});
+      const answer=getApiText(data);window.addChatMessage("assistant",answer);chatHistory.push({role:"assistant",content:answer});saveChatHistory();
+      if(liveVoiceEnabled&&window.speechSynthesis){liveVoiceSpeaking=true;try{liveVoiceRecognition?.stop();}catch{}const utterance=new SpeechSynthesisUtterance(String(answer));utterance.onend=()=>{liveVoiceSpeaking=false;if(liveVoiceEnabled)try{liveVoiceRecognition?.start();}catch{}};window.speechSynthesis.speak(utterance);}
+    }
+  }catch(error){const message=error.message||"Request failed.";window.addChatMessage("assistant",message);chatHistory.push({role:"assistant",content:message});saveChatHistory();toast("AI request failed.");}
+  finally{if(button)button.disabled=false;if($("chatLoading"))hide("chatLoading");setChatActivity("Ask Engineer AI about your work, files, projects, or anything else.",false);refreshChatTitle();}
+};
+async function engineerHandleChatFiles(fileList){
+  const MAX_FILE_BYTES=15*1024*1024,MAX_TEXT_CHARS=650000;engineerRestoreChatFileContext();let textBudget=MAX_TEXT_CHARS-engineerChatFileContext.reduce((sum,file)=>sum+(file.text?.length||0),0)-pendingChatAttachments.reduce((sum,file)=>sum+(file.text?.length||0),0);
+  for(const file of Array.from(fileList||[])){
+    if(pendingChatAttachments.length>=4){toast("Attach up to four files per message.");break;}
+    if(file.type.startsWith("image/")){
+      if(file.size>5*1024*1024){toast(`${file.name} is over the 5 MB image limit.`);continue;}
+      if(!["image/jpeg","image/png","image/webp","image/gif"].includes(file.type)){toast(`${file.name} uses an unsupported image format.`);continue;}
+      const value=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(file);});pendingChatAttachments.push({name:file.name,mime_type:file.type,data:String(value).split(",")[1]});continue;
+    }
+    if(file.size>MAX_FILE_BYTES){toast(`${file.name} is over the 15 MB source-file limit.`);continue;}
+    try{const text=await file.text();if(text.includes("\u0000")){toast(`${file.name} looks like a binary file. Attach source text, code, or an image instead.`);continue;}const clipped=text.slice(0,Math.max(0,textBudget));pendingChatAttachments.push({name:file.name,mime_type:file.type||"text/plain",text:clipped});textBudget-=clipped.length;if(clipped.length<text.length)toast(`${file.name}: included the first ${clipped.length.toLocaleString()} characters (the per-message text limit is 650,000).`);}
+    catch{toast(`Could not read ${file.name}.`);}
+  }
+  renderPendingAttachments();
+}
+window.handleChatFiles=engineerHandleChatFiles;
+function engineerOpenLearnInMainChat(){engineerChatTutorMode=true;localStorage.setItem("engineer_ai_chat_mode","learn");window.navigateTo("chat");const title=$("chatCurrentHeading");if(title)title.textContent="Learn with Engineer AI";const subtitle=document.querySelector("#chatConversationBar .subtitle");if(subtitle)subtitle.textContent="Ask about any topic · Learning mode";const input=$("chatInput");if(input)input.placeholder="What would you like to learn about?";setChatActivity("Learning mode is on. Ask about any topic and keep the conversation going.",false);input?.focus();}
+function engineerOpenRegularChat(){engineerChatTutorMode=false;localStorage.setItem("engineer_ai_chat_mode","chat");const title=$("chatCurrentHeading");if(title)title.textContent=chatHistory.find(item=>item.role==="user")?.content?.slice(0,70)||"New conversation";const subtitle=document.querySelector("#chatConversationBar .subtitle");if(subtitle)subtitle.textContent="Engineer AI · Gemini";const input=$("chatInput");if(input)input.placeholder="Message Engineer AI…";}
+document.addEventListener("click",event=>{
+  const learnButton=event.target.closest('#bottomNav [data-view="learn"],#chatNavRail [data-workspace-view="learn"],#chatToolsRail [data-workspace-view="learn"],#projectChatToolsRail [data-workspace-view="learn"],#chatSidebar .workspace-mobile-tools [data-workspace-view="learn"],#workspaceGlobalNav [data-view="learn"]');
+  const chatButton=event.target.closest('#bottomNav [data-view="chat"],#chatNavRail [data-workspace-view="chat"],#chatToolsRail [data-workspace-view="chat"],#projectChatToolsRail [data-workspace-view="chat"]');
+  if(learnButton){event.preventDefault();event.stopImmediatePropagation();engineerOpenLearnInMainChat();}
+  else if(chatButton){engineerOpenRegularChat();}
+},true);
+function engineerRemoveAISettings(){const provider=$("aiProviderSelect");const form=provider?.closest(".form");const title=[...document.querySelectorAll("#settingsView .section-title h2")].find(node=>node.textContent.trim().toLowerCase()==="ai settings");if(form)form.remove();title?.closest(".section-title")?.remove();}
+async function rotateLiveCamera(video){
+  if(!activeCameraStream||!video){toast("Start camera or Live mode before switching cameras.");return;}
+  const oldStream=activeCameraStream,oldVideo=oldStream.getVideoTracks()[0];let nextTrack=null;
+  try{
+    const devices=(await navigator.mediaDevices.enumerateDevices()).filter(device=>device.kind==="videoinput");
+    if(devices.length>1){const current=oldVideo?.getSettings?.().deviceId;const index=devices.findIndex(device=>device.deviceId===current);const next=devices[(index+1+devices.length)%devices.length];const replacement=await navigator.mediaDevices.getUserMedia({video:{deviceId:{exact:next.deviceId},width:{ideal:640},height:{ideal:480}},audio:false});nextTrack=replacement.getVideoTracks()[0];}
+    else{const replacement=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:liveCameraFacingMode==="user"?"environment":"user"},width:{ideal:640},height:{ideal:480}},audio:false});nextTrack=replacement.getVideoTracks()[0];}
+    if(!nextTrack)throw new Error("No second camera was available on this device.");
+    const nextFacing=nextTrack.getSettings?.().facingMode;liveCameraFacingMode=nextFacing|| (liveCameraFacingMode==="user"?"environment":"user");
+    const combined=new MediaStream([...oldStream.getAudioTracks(),nextTrack]);activeCameraStream=combined;video.srcObject=combined;video.style.transform=liveCameraFacingMode==="user"?"scaleX(-1)":"none";await video.play().catch(()=>{});oldVideo?.stop();toast("Camera switched.");
+  }catch(error){nextTrack?.stop();toast(error.message||"Could not switch camera. Check camera permissions.");}
+}
+function engineerInstallFixes(){
+  engineerRemoveAISettings();
+  const fileInput=$("chatFileInput");if(fileInput){fileInput.accept="image/*,.txt,.md,.csv,.json,.yaml,.yml,.xml,.html,.htm,.css,.js,.jsx,.ts,.tsx,.py,.java,.c,.h,.cpp,.hpp,.cs,.go,.rs,.php,.rb,.sh,.sql,.log,.toml,.ini,.ipynb";fileInput.multiple=true;}
+  const more=$("chatSidebar")?.querySelector(".workspace-mobile-tools");if(more&&!more.querySelector('[data-workspace-view="learn"]'))more.appendChild(workspaceNavButton("fa-graduation-cap","Learn Center","learn"));
+  const about=$("aboutView")?.querySelector(".feature-card");if(about){const label=[...about.querySelectorAll("p")].find(node=>node.textContent.trim().startsWith("Developer:"));if(label){const strong=label.querySelector("b");if(strong)strong.dataset.developerName="1";}}
+  if(engineerChatTutorMode&&document.body.dataset.currentView==="chat"){const title=$("chatCurrentHeading");if(title)title.textContent="Learn with Engineer AI";const subtitle=document.querySelector("#chatConversationBar .subtitle");if(subtitle)subtitle.textContent="Ask about any topic · Learning mode";if($("chatInput"))$("chatInput").placeholder="What would you like to learn about?";}
+  const sidebar=$("chatSidebar");if(sidebar){sidebar.style.overflowY="auto";sidebar.style.touchAction="pan-y";}
+}
+if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",engineerInstallFixes,{once:true});else engineerInstallFixes();
 </script>
 </body>
 </html>
