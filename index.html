@@ -9655,12 +9655,18 @@ html[data-theme="dark"] #chatView.active #chatMain>.composer #chatInput{color:#e
   html[data-theme="dark"] #chatView.active>.composer #chatInput{color:#edf2fa!important}
 }
 @media(max-width:760px){
+  /* Fallback when the legacy composer has not yet been moved into #chatMain. */
+  #chatView.active>.composer{position:fixed!important;left:10px!important;right:66px!important;bottom:calc(8px + env(safe-area-inset-bottom))!important;top:auto!important;transform:none!important;display:flex!important;visibility:visible!important;opacity:1!important;width:auto!important;max-width:none!important;min-height:60px!important;margin:0!important;padding:7px!important;box-sizing:border-box!important;z-index:1400!important;background:#fff!important;border:1px solid #d8deea!important;border-radius:16px!important;box-shadow:0 8px 24px rgba(20,35,58,.18)!important}
+  #chatView.active>.composer #chatInput{display:block!important;visibility:visible!important;opacity:1!important;flex:1 1 auto!important;min-width:0!important;height:42px!important;color:#25334a!important}
+  html[data-theme="dark"] #chatView.active>.composer{background:#151e2e!important;border-color:#3b465c!important}
+  html[data-theme="dark"] #chatView.active>.composer #chatInput{color:#edf2fa!important}
   #chatView.active #chatAppLayout{display:block!important;height:calc(100dvh - 64px)!important;min-height:0!important;overflow:hidden!important}
   #chatView.active #chatMain{display:flex!important;flex-direction:column!important;height:calc(100dvh - 64px)!important;min-height:0!important;padding:0 64px 8px 10px!important;box-sizing:border-box!important;overflow:hidden!important}
   #chatView.active #chatMain>.composer{position:sticky!important;left:auto!important;right:auto!important;bottom:0!important;width:100%!important;max-width:none!important;min-height:60px!important;margin:auto 0 0!important;padding:7px!important;flex:0 0 auto!important;flex-wrap:nowrap!important;transform:none!important}
   #chatView.active #chatMain>.composer #chatInput{height:42px!important;font-size:15px!important}
   #chatView.active #chatMain>#chatMessages{flex:1 1 auto!important;min-height:0!important;padding-bottom:12px!important;overflow-y:auto!important}
 }
+#chatView #chatSidebar{background-color:#edf0f5!important;opacity:1!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;isolation:isolate!important}
 #bottomNav.workspace-global-nav{background-color:#edf0f5!important;opacity:1!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;isolation:isolate!important}
 html[data-theme="dark"] #bottomNav.workspace-global-nav{background-color:#20293a!important;opacity:1!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
 </style>
