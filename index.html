@@ -9573,8 +9573,13 @@ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",
 #projectChatMessages pre,#learnChatMessages pre,#chatMessages pre,#codeAiResult pre,#debugResult pre,#reviewResult pre{position:relative!important;max-width:100%!important;overflow:auto!important;padding:42px 14px 14px!important;box-sizing:border-box!important;background:#111827!important;color:#f3f4f6!important;border:1px solid #374151!important;border-radius:10px!important;}
 #projectChatMessages pre code,#learnChatMessages pre code,#chatMessages pre code,#codeAiResult pre code,#debugResult pre code,#reviewResult pre code{color:#f3f4f6!important;background:transparent!important;}
 .copy-code-block{position:absolute!important;top:6px!important;right:7px!important;z-index:5!important;min-height:32px!important;padding:5px 10px!important;background:#243451!important;border:1px solid #7183a1!important;color:#fff!important;border-radius:8px!important;font-size:12px!important;cursor:pointer!important;}
-.result{color:#f3f4f6!important;}
-.result pre,.result code,#codeView .result *{color:#f3f4f6!important;}
+.result{color:#24344d!important;}
+.result pre,.result pre code{color:#f3f4f6!important;}
+#codeView .result,#terminalOutput{color:#e8eef8!important;}
+/* The fourth .loading span contains the status sentence, not a fourth dot. */
+.loading span:nth-child(n+4){display:inline!important;width:auto!important;height:auto!important;min-width:0!important;border-radius:0!important;background:transparent!important;animation:none!important;opacity:1!important;white-space:normal!important;}
+#chatLoading{width:min(100%,900px)!important;max-width:900px!important;min-height:0!important;box-sizing:border-box!important;margin:6px auto!important;padding:8px 12px!important;border:0!important;border-radius:10px!important;background:transparent!important;color:#66758b!important;box-shadow:none!important;line-height:1.4!important;}
+html[data-theme="dark"] .result{color:#e5e7eb!important;}
 .feature-message-copy{align-self:flex-start;margin:4px 2px 0;padding:5px 9px;border:1px solid #d5dce8;border-radius:8px;background:#fff;color:#334155;cursor:pointer;}
 #codeView #copyCodeButton{display:inline-flex!important;align-items:center!important;justify-content:center!important;gap:7px!important;min-height:40px!important;padding:8px 13px!important;background:#243451!important;border:1px solid #7183a1!important;color:#fff!important;border-radius:9px!important;visibility:visible!important;opacity:1!important;}
 #chatMain,#chatSidebar,#chatNavRail,#chatToolsRail,#learnView,#projectChatView{backdrop-filter:none!important;}
