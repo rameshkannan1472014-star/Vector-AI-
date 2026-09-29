@@ -9639,5 +9639,20 @@ html[data-theme="dark"] #chatNavRail,html[data-theme="dark"] #chatToolsRail{back
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",watchAIResultBlocks,{once:true});else watchAIResultBlocks();
 })();
 </script>
+<style id="main-chat-composer-visibility-fix">
+/* The main chat input must remain visible while only the transcript scrolls. */
+#chatView.active #chatMain{display:flex!important;flex-direction:column!important;min-width:0!important;min-height:0!important;overflow:hidden!important}
+#chatView.active #chatMain>#chatMessages{display:flex!important;flex:1 1 auto!important;min-height:0!important;overflow-y:auto!important;overscroll-behavior:contain!important}
+#chatView.active #chatMain>.composer{position:sticky!important;inset-block-end:0!important;display:flex!important;visibility:visible!important;opacity:1!important;flex:0 0 auto!important;align-items:center!important;min-height:64px!important;width:min(100%,900px)!important;max-width:900px!important;margin:8px auto 0!important;padding:8px 10px!important;box-sizing:border-box!important;z-index:115!important;background:#fff!important;border:1px solid #d8deea!important;border-radius:16px!important;box-shadow:0 8px 24px rgba(20,35,58,.12)!important}
+#chatView.active #chatMain>.composer #chatInput{display:block!important;visibility:visible!important;opacity:1!important;flex:1 1 auto!important;min-width:0!important;width:auto!important;height:42px!important;color:#25334a!important;background:transparent!important}
+html[data-theme="dark"] #chatView.active #chatMain>.composer{background:#151e2e!important;border-color:#3b465c!important}
+html[data-theme="dark"] #chatView.active #chatMain>.composer #chatInput{color:#edf2fa!important}
+@media(max-width:760px){
+  #chatView.active #chatMain{height:calc(100dvh - 64px)!important;min-height:0!important;padding:0 64px 82px 10px!important;box-sizing:border-box!important}
+  #chatView.active #chatMain>.composer{position:fixed!important;left:10px!important;right:66px!important;bottom:calc(8px + env(safe-area-inset-bottom))!important;width:auto!important;max-width:none!important;min-height:60px!important;margin:0!important;padding:7px!important;flex-wrap:nowrap!important}
+  #chatView.active #chatMain>.composer #chatInput{height:42px!important;font-size:15px!important}
+  #chatView.active #chatMain>#chatMessages{padding-bottom:12px!important}
+}
+</style>
 </body>
 </html>
