@@ -89,13 +89,18 @@ MAX_CHAT_PROMPT_CHARS = 750000
 MAX_CODE_CHARS = 30000
 
 # Quota-saving knobs (all overridable from Render environment variables)
-HISTORY_MESSAGES = int(os.getenv("HISTORY_MESSAGES", "24"))
-HISTORY_CHARS = int(os.getenv("HISTORY_CHARS", "2000"))
+HISTORY_MESSAGES = int(os.getenv("HISTORY_MESSAGES", "10"))
+HISTORY_CHARS = int(os.getenv("HISTORY_CHARS", "1200"))
 ENABLE_LIVE_SEARCH = os.getenv("ENABLE_LIVE_SEARCH", "true").strip().lower() != "false"
 GEMINI_FALLBACK_MODELS = [
     m.strip() for m in os.getenv("GEMINI_FALLBACK_MODELS", "").split(",") if m.strip()
 ]
 RATE_LIMIT_PER_MIN = int(os.getenv("RATE_LIMIT_PER_MIN", "20"))
+# Speed: Groq answers in a few seconds, so it is tried first for normal chat when
+# GROQ_API_KEY is set. Set PRIMARY_CHAT_PROVIDER=gemini to go back to Gemini-first.
+PRIMARY_CHAT_PROVIDER = os.getenv("PRIMARY_CHAT_PROVIDER", "groq").strip().lower()
+# Veo video needs a billing-enabled Gemini project. Set ENABLE_VIDEO=false to switch it off cleanly.
+ENABLE_VIDEO = os.getenv("ENABLE_VIDEO", "true").strip().lower() != "false"
 
 
 # ============================================================
@@ -736,6 +741,18 @@ CODING_REQUEST_PATTERN = re.compile(
 )
 
 
+LIVE_SEARCH_PATTERN = re.compile(
+    r"\b(latest|news|as of now)\b|"
+    r"\bwho\s+(?:is\s+)?(?:the\s+)?(?:chief minister|cm|prime minister|president|governor)\b|"
+    r"\b(?:chief minister|cm)\s+of\s+(?:tamil\s*nadu|india|[a-z ]+)\b",
+    re.IGNORECASE,
+)
+
+
+def looks_like_live_search(prompt: str) -> bool:
+    return bool(LIVE_SEARCH_PATTERN.search(prompt or ""))
+
+
 def is_coding_request(prompt: str) -> bool:
     return bool(CODING_REQUEST_PATTERN.search(prompt or ""))
 
@@ -748,8 +765,13 @@ def generate_groq_coding_response(prompt: str, max_tokens: int = 1500) -> str:
     client = OpenAICompatibleClient(
         api_key=api_key,
         base_url="https://api.groq.com/openai/v1",
+        timeout=45,
+        max_retries=0,
     )
     model = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b").strip()
+    extra = {}
+    if "gpt-oss" in model:
+        extra["extra_body"] = {"reasoning_effort": os.getenv("GROQ_REASONING_EFFORT", "low")}
     response = client.chat.completions.create(
         model=model,
         messages=[
@@ -757,6 +779,7 @@ def generate_groq_coding_response(prompt: str, max_tokens: int = 1500) -> str:
             {"role": "user", "content": prompt},
         ],
         max_completion_tokens=max_tokens,
+        **extra,
     )
     answer = response.choices[0].message.content
     if not answer:
@@ -858,6 +881,25 @@ async def ask_ai(
 
     if provider == "gemini":
 
+        groq_tried = False
+        # Fast path: Groq first for ordinary chat. Live-search questions and image
+        # questions still go to Gemini, because Groq has neither.
+        if (
+            PRIMARY_CHAT_PROVIDER == "groq"
+            and not images
+            and os.getenv("GROQ_API_KEY", "").strip()
+            and not (ENABLE_LIVE_SEARCH and looks_like_live_search(prompt))
+        ):
+            groq_tried = True
+            try:
+                return await asyncio.to_thread(
+                    generate_groq_coding_response,
+                    prompt,
+                    max_tokens,
+                )
+            except Exception:
+                logger.exception("Groq fast path failed; falling back to Gemini")
+
         try:
             return await asyncio.to_thread(
                 generate_ai_response,
@@ -881,7 +923,7 @@ async def ask_ai(
             if not gemini_unavailable:
                 raise
             groq_key = os.getenv("GROQ_API_KEY", "").strip()
-            if groq_key and is_coding_request(prompt):
+            if groq_key and not groq_tried and is_coding_request(prompt):
                 logger.warning("Gemini unavailable for a coding request; switching to Groq.")
                 try:
                     return await asyncio.to_thread(
@@ -933,6 +975,11 @@ def provider_status():
 
     status["groq_coding_fallback"] = bool(os.getenv("GROQ_API_KEY", "").strip())
     status["cloudflare_image_fallback"] = cloudflare_image_configured()
+    status["feedback_email"] = feedback_email_configured()
+    status["chat_primary"] = (
+        "groq" if (PRIMARY_CHAT_PROVIDER == "groq" and os.getenv("GROQ_API_KEY", "").strip()) else "gemini"
+    )
+    status["video_enabled"] = ENABLE_VIDEO and bool(get_gemini_api_keys())
 
     return status
 
@@ -986,9 +1033,7 @@ async def submit_feedback(request: FeedbackRequest):
     connection.close()
 
     delivery = "saved"
-    mail_host = os.getenv("SMTP_HOST", "smtp.gmail.com").strip()
-    mail_to = os.getenv("FEEDBACK_TO_EMAIL", FEEDBACK_RECIPIENT_DEFAULT).strip()
-    if mail_host and mail_to and os.getenv("SMTP_PASSWORD", "").strip():
+    if feedback_email_configured():
         try:
             await asyncio.to_thread(send_feedback_email, request, feedback_id, created_at)
             delivery = "emailed"
@@ -996,32 +1041,79 @@ async def submit_feedback(request: FeedbackRequest):
             logger.exception("Feedback email delivery failed; feedback remains saved")
             delivery = "saved_email_failed"
 
+    if delivery == "emailed":
+        message = "Thanks. Your feedback was sent."
+    elif delivery == "saved_email_failed":
+        message = "Thanks. Your feedback was saved, but the email could not be delivered right now."
+    else:
+        message = "Thanks. Your feedback was saved."
+
     return {
         "status": "success",
         "feedback_id": feedback_id,
         "delivery": delivery,
-        "message": (
-            "Thanks. Your feedback was sent by email."
-            if delivery == "emailed"
-            else "Thanks. Your feedback was saved. To send email, configure SMTP_PASSWORD on the server; override SMTP_HOST, SMTP_PORT, or SMTP_USERNAME if your mail provider requires different settings."
-        ),
+        "message": message,
     }
 
 
-def send_feedback_email(request: FeedbackRequest, feedback_id: int, created_at: str) -> None:
-    host = os.environ["SMTP_HOST"]
-    port = int(os.getenv("SMTP_PORT", "587"))
-    username = os.getenv("SMTP_USERNAME", FEEDBACK_RECIPIENT_DEFAULT)
-    password = os.getenv("SMTP_PASSWORD", "")
-    sender = os.getenv("SMTP_FROM_EMAIL", username or os.getenv("FEEDBACK_TO_EMAIL", FEEDBACK_RECIPIENT_DEFAULT))
-    message = EmailMessage()
-    message["Subject"] = f"Engineer AI feedback #{feedback_id}: {request.category}"
-    message["From"] = sender
-    message["To"] = os.getenv("FEEDBACK_TO_EMAIL", FEEDBACK_RECIPIENT_DEFAULT)
-    message.set_content(
+def feedback_recipient() -> str:
+    return os.getenv("FEEDBACK_TO_EMAIL", FEEDBACK_RECIPIENT_DEFAULT).strip()
+
+
+def feedback_email_configured() -> bool:
+    if not feedback_recipient():
+        return False
+    if os.getenv("RESEND_API_KEY", "").strip():
+        return True
+    # Plain SMTP only works on hosts that allow outbound SMTP (not Render free web services).
+    return bool(os.getenv("SMTP_HOST", "smtp.gmail.com").strip() and os.getenv("SMTP_PASSWORD", "").strip())
+
+
+def _feedback_text(request: FeedbackRequest, created_at: str) -> str:
+    return (
         f"Category: {request.category}\nRating: {request.rating}/5\n"
         f"Received: {created_at}\n\n{request.message}"
     )
+
+
+def send_feedback_via_resend(request: FeedbackRequest, feedback_id: int, created_at: str) -> None:
+    """Send over HTTPS (port 443), which Render's free tier does not block."""
+    api_key = os.environ["RESEND_API_KEY"].strip()
+    payload = {
+        "from": os.getenv("RESEND_FROM", "Engineer AI <onboarding@resend.dev>").strip(),
+        "to": [feedback_recipient()],
+        "subject": f"Engineer AI feedback #{feedback_id}: {request.category} ({request.rating}/5)",
+        "text": _feedback_text(request, created_at),
+    }
+    http_request = urllib.request.Request(
+        "https://api.resend.com/emails",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+            "User-Agent": "engineer-ai/3.0",
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(http_request, timeout=20) as response:
+            response.read()
+    except urllib.error.HTTPError as error:
+        body = error.read().decode("utf-8", errors="replace")[:300]
+        raise RuntimeError(f"Resend rejected the email (HTTP {error.code}): {body}") from error
+
+
+def send_feedback_via_smtp(request: FeedbackRequest, feedback_id: int, created_at: str) -> None:
+    host = os.getenv("SMTP_HOST", "smtp.gmail.com").strip()
+    port = int(os.getenv("SMTP_PORT", "587"))
+    username = os.getenv("SMTP_USERNAME", FEEDBACK_RECIPIENT_DEFAULT)
+    password = os.getenv("SMTP_PASSWORD", "")
+    sender = os.getenv("SMTP_FROM_EMAIL", username or feedback_recipient())
+    message = EmailMessage()
+    message["Subject"] = f"Engineer AI feedback #{feedback_id}: {request.category}"
+    message["From"] = sender
+    message["To"] = feedback_recipient()
+    message.set_content(_feedback_text(request, created_at))
     if port == 465:
         with smtplib.SMTP_SSL(host, port, timeout=20) as client:
             if username:
@@ -1033,6 +1125,13 @@ def send_feedback_email(request: FeedbackRequest, feedback_id: int, created_at: 
             if username:
                 client.login(username, password)
             client.send_message(message)
+
+
+def send_feedback_email(request: FeedbackRequest, feedback_id: int, created_at: str) -> None:
+    if os.getenv("RESEND_API_KEY", "").strip():
+        send_feedback_via_resend(request, feedback_id, created_at)
+    else:
+        send_feedback_via_smtp(request, feedback_id, created_at)
 
 
 @app.get("/api/status")
@@ -2929,8 +3028,7 @@ def generate_cloudflare_image(prompt: str) -> dict[str, str]:
     prompt = (prompt or "").strip()
     if not prompt:
         raise ValueError("Describe the image you want to create.")
-    if len(prompt) > 2048:
-        raise ValueError("Cloudflare image prompts must be 2048 characters or shorter.")
+    prompt = prompt[:2048]
 
     endpoint = (
         "https://api.cloudflare.com/client/v4/accounts/"
@@ -2955,7 +3053,7 @@ def generate_cloudflare_image(prompt: str) -> dict[str, str]:
         method="POST",
     )
     try:
-        with urllib.request.urlopen(request, timeout=180) as response:
+        with urllib.request.urlopen(request, timeout=60) as response:
             result = json.loads(response.read().decode("utf-8"))
     except urllib.error.HTTPError as error:
         # Surface the provider's message without ever echoing request headers or credentials.
@@ -3056,7 +3154,7 @@ def run_video_generation(job_id: str, prompt: str) -> None:
         if str(status) in {"503", "504"}:
             message = "Gemini video generation is temporarily busy. Please try again in a minute."
         elif str(status) == "429":
-            message = "The configured Gemini projects have reached their video-generation quota. Please try again later."
+            message = "Video generation quota is used up, or this Gemini project has no Veo access. Veo needs a billing-enabled Gemini project."
         elif str(status) in {"401", "403"}:
             message = "Gemini rejected video generation. Check that the configured project has Veo access and any required billing enabled."
         elif str(status) in {"400", "404"}:
@@ -3073,34 +3171,24 @@ async def create_image(request: MediaGenerationRequest):
     if not gemini_keys and not cloudflare_ready:
         raise HTTPException(
             status_code=503,
-            detail={"message": "Configure Gemini keys or CLOUDFLARE_ACCOUNT_ID plus CLOUDFLARE_API_TOKEN on the server for image generation."},
+            detail={"message": "Configure CLOUDFLARE_ACCOUNT_ID plus CLOUDFLARE_API_TOKEN (or Gemini keys) on the server for image generation."},
         )
 
-    if not gemini_keys and cloudflare_ready:
-        logger.info("Gemini keys are absent; generating image with Cloudflare Workers AI.")
+    cloudflare_error = ""
+    if cloudflare_ready:
         try:
             return await asyncio.to_thread(generate_cloudflare_image, request.prompt)
         except Exception as error:
             logger.exception("Cloudflare image generation failed")
-            raise HTTPException(status_code=502, detail={"message": str(error)[:500]})
+            cloudflare_error = str(error)[:400]
+            if not gemini_keys:
+                raise HTTPException(status_code=502, detail={"message": cloudflare_error})
+            logger.warning("Cloudflare image failed; trying Gemini.")
 
     try:
         return await asyncio.to_thread(generate_image_data, request.prompt)
     except Exception as error:
-        logger.exception("Image generation failed")
-        # The image model can reject valid requests for reasons beyond quota
-        # (for example model access or API compatibility). Try the configured
-        # Cloudflare image model whenever Gemini image generation fails.
-        if cloudflare_ready:
-            logger.warning("Gemini image generation failed; switching to Cloudflare Workers AI.")
-            try:
-                return await asyncio.to_thread(generate_cloudflare_image, request.prompt)
-            except Exception as cloudflare_error:
-                logger.exception("Cloudflare image fallback failed")
-                raise HTTPException(
-                    status_code=502,
-                    detail={"message": f"Gemini and Cloudflare image generation both failed. Cloudflare error: {str(cloudflare_error)[:400]}"},
-                )
+        logger.exception("Gemini image generation failed")
         status = getattr(error, "code", None) or getattr(error, "status_code", None)
         response_obj = getattr(error, "response", None)
         status = status or getattr(response_obj, "status_code", None)
@@ -3111,14 +3199,18 @@ async def create_image(request: MediaGenerationRequest):
         if status in {503, 504}:
             message = "Gemini image generation is temporarily busy. Please try again in a minute."
         elif status == 429:
-            message = "The configured Gemini projects have reached their image-generation quota. Please try again later."
+            message = "Gemini image generation quota is used up (image generation usually needs a billing-enabled project)."
         else:
-            message = str(error)[:1000]
+            message = str(error)[:600]
+        if cloudflare_error:
+            message = f"Cloudflare failed: {cloudflare_error} | Gemini failed: {message}"
         raise HTTPException(status_code=status if status in {429, 503, 504} else 502, detail={"message": message})
 
 
 @app.post("/api/media/video")
 async def create_video(request: MediaGenerationRequest, background_tasks: BackgroundTasks):
+    if not ENABLE_VIDEO:
+        raise HTTPException(status_code=503, detail={"message": "Video creation is coming soon. Photo creation is available now."})
     if not get_gemini_api_keys():
         raise HTTPException(status_code=503, detail={"message": "Video generation needs GEMINI_API_KEY configured on the server."})
     # Keep only a small number of recent results in memory on this server instance.

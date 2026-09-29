@@ -1,29 +1,27 @@
-Engineer AI provider setup for Render
+Engineer AI - Render setup (updated)
 
-Upload index.html, server.py, and requirements.txt to the same GitHub service directory. Render installs dependencies with: pip install -r requirements.txt
+Upload index.html, server.py and requirements.txt (unchanged) to GitHub. Set these in Render > Environment, then redeploy.
 
-Set these credentials in Render Environment, never in index.html or GitHub:
+FEEDBACK EMAIL (works on Render free tier, uses HTTPS not SMTP)
+1. Make a free account at resend.com using the SAME Gmail address that should receive feedback.
+2. Create an API key and set:  RESEND_API_KEY = re_...
+3. Optional: FEEDBACK_TO_EMAIL = your email (overrides the address in server.py)
+Note: Render free blocks SMTP ports (25/465/587). Do not rely on SMTP_PASSWORD there.
 
-Gemini (chat and video; configure up to four distinct project keys if you have them):
-GEMINI_API_KEY
-GEMINI_API_KEY_2
-GEMINI_API_KEY_3
-GEMINI_API_KEY_4
+SPEED
+GROQ_API_KEY               -> now used FIRST for normal chat (fast). Gemini is the backup.
+PRIMARY_CHAT_PROVIDER      -> optional; "groq" (default) or "gemini"
+GROQ_REASONING_EFFORT      -> optional; low (default) / medium / high
+HISTORY_MESSAGES / HISTORY_CHARS -> now default 10 / 1200 (was 24 / 2000)
+Keep-alive: create a free UptimeRobot monitor for https://YOUR-APP.onrender.com/api/health every 5-10 minutes so the free service does not fall asleep.
 
-Groq (automatic fallback for coding prompts when Gemini fails):
-GROQ_API_KEY
-GROQ_MODEL (optional; defaults to openai/gpt-oss-120b)
+PHOTOS
+CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_API_TOKEN (Workers AI permission) -> now tried FIRST. Gemini is the backup.
 
-Cloudflare Workers AI (automatic image fallback after any Gemini image-generation failure):
-CLOUDFLARE_ACCOUNT_ID
-CLOUDFLARE_API_TOKEN (token must have Workers AI inference permission)
-CLOUDFLARE_IMAGE_MODEL (optional; defaults to @cf/black-forest-labs/flux-1-schnell)
-CLOUDFLARE_IMAGE_STEPS (optional; defaults to 4, maximum 8)
+VIDEO
+Needs a billing-enabled Gemini project (Veo). If you do not have one, set ENABLE_VIDEO = false and the app shows "coming soon" instead of an error.
 
-Photos: Gemini is tried first, then Cloudflare. If no Gemini keys are present, image requests go directly to Cloudflare. The chat image-creation request uses the same endpoint.
-
-Videos: video generation requires Gemini access and quota. The default model is veo-3.1-fast-generate-preview. If GEMINI_VIDEO_MODEL is already set in Render, update it to that model or remove the override to use the default. Groq and Cloudflare image generation do not provide video fallback.
-
-If you use a Cloudflare Global API Key instead of an API Token, configure CLOUDFLARE_API_KEY, CLOUDFLARE_EMAIL, and CLOUDFLARE_ACCOUNT_ID.
-
-Each provider has independent access, quota, rate limits, and billing. Failover does not remove provider limits. After editing Render variables, redeploy the service and check /api/health for provider configuration status. Never share screenshots that reveal API keys; rotate any key that was exposed.
+CHECK
+Open /api/health after redeploying. Under "providers" you should see:
+groq_coding_fallback: true, cloudflare_image_fallback: true, feedback_email: true, chat_primary: "groq".
+Never share screenshots that show API keys; rotate any key that was exposed.
