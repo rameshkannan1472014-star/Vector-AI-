@@ -9592,6 +9592,18 @@ html[data-theme="dark"] #projectChatView .feature-composer,html[data-theme="dark
 html[data-theme="dark"] #chatSidebar{background:#131a28!important;}
 html[data-theme="dark"] #chatNavRail,html[data-theme="dark"] #chatToolsRail{background:#1b2434!important;}
 @media(max-width:760px){#projectChatView .hero h1{writing-mode:horizontal-tb!important;word-break:normal!important;overflow-wrap:anywhere!important}#projectChatView #projectChatMessages,#learnView #learnChatMessages{width:100%!important;padding:9px!important}#projectChatView .chat-message,#learnView .chat-message{max-width:94%!important}}
+/* Keep every item in the chat sidebar on its own readable row. */
+#chatSidebar{min-width:0!important;overscroll-behavior:contain!important;touch-action:pan-y!important;scrollbar-gutter:stable!important}
+#sidebarProjects,#sidebarChats{display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:4px!important;width:100%!important;min-width:0!important}
+#chatSidebar .workspace-chat-item{display:flex!important;flex-direction:row!important;align-items:center!important;justify-content:flex-start!important;flex-wrap:nowrap!important;position:relative!important;box-sizing:border-box!important;width:100%!important;min-width:0!important;max-width:100%!important;min-height:42px!important;overflow:hidden!important;writing-mode:horizontal-tb!important}
+#chatSidebar .workspace-chat-item>i{flex:0 0 18px!important;width:18px!important;margin:0!important}
+#chatSidebar .workspace-chat-item>span{display:block!important;flex:1 1 auto!important;min-width:0!important;max-width:100%!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;writing-mode:horizontal-tb!important}
+#chatSidebar .workspace-chat-item>small,#chatSidebar .workspace-chat-item>.workspace-chat-delete{flex:0 0 auto!important}
+#chatSidebar .workspace-mobile-tools{display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:3px!important;width:100%!important;min-width:0!important;margin:0!important;padding:0!important}
+#chatSidebar .workspace-mobile-tools .workspace-nav-button{display:flex!important;flex-direction:row!important;align-items:center!important;justify-content:flex-start!important;flex-wrap:nowrap!important;width:100%!important;min-width:0!important;min-height:42px!important;gap:10px!important;padding:8px 10px!important;overflow:hidden!important;text-align:left!important;white-space:nowrap!important;writing-mode:horizontal-tb!important}
+#chatSidebar .workspace-mobile-tools .workspace-nav-button i{display:inline-flex!important;flex:0 0 18px!important;align-items:center!important;justify-content:center!important;width:18px!important}
+#chatSidebar .workspace-mobile-tools .workspace-nav-button span{display:block!important;flex:1 1 auto!important;min-width:0!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important}
+@media(max-width:760px){#chatSidebar{display:flex!important;flex-direction:column!important;overflow-x:hidden!important;overflow-y:auto!important;padding-bottom:24px!important}#chatSidebar .workspace-mobile-tools{grid-template-columns:none!important;grid-auto-flow:row!important}#chatSidebar .workspace-section-title{flex:0 0 auto!important}#sidebarChats,#sidebarProjects{flex:0 0 auto!important}}
 </style>
 <script>
 /* Give project and Learn chats the same copy actions as the main assistant chat. */
@@ -9617,7 +9629,14 @@ html[data-theme="dark"] #chatNavRail,html[data-theme="dark"] #chatToolsRail{back
     const button=document.createElement("button");button.id="copyCodeButton";button.type="button";button.className="secondary";button.innerHTML='<i class="fa-regular fa-copy"></i> Copy code';
     button.onclick=()=>copyTextToClipboard(editor.value||"").then(()=>toast("Code copied.")).catch(()=>toast("Clipboard permission is unavailable."));actions.appendChild(button);
   }
+  /* Add a consistent copy-code action to AI code blocks in chats and tool results. */
+  function ensureCopyButtons(root=document){
+    const blocks=[];if(root.matches?.("pre"))blocks.push(root);root.querySelectorAll?.("pre").forEach(pre=>blocks.push(pre));
+    blocks.forEach(pre=>{if(pre.closest(".chat-message.user")||pre.querySelector(".copy-code-block"))return;const code=pre.querySelector("code");if(!code)return;pre.style.position="relative";const button=document.createElement("button");button.type="button";button.className="copy-code-block";button.innerHTML='<i class="fa-regular fa-copy"></i> Copy code';button.setAttribute("aria-label","Copy code");button.addEventListener("click",()=>copyTextToClipboard(code.innerText||code.textContent||"").then(()=>toast("Code copied.")).catch(()=>toast("Clipboard permission is unavailable.")));pre.appendChild(button);});
+  }
+  function watchAIResultBlocks(){ensureCopyButtons();const observer=new MutationObserver(records=>records.forEach(record=>record.addedNodes.forEach(node=>{if(node.nodeType===1)ensureCopyButtons(node);})));observer.observe(document.body,{childList:true,subtree:true});}
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",ensureCodeCopyButton,{once:true});else ensureCodeCopyButton();
+  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",watchAIResultBlocks,{once:true});else watchAIResultBlocks();
 })();
 </script>
 </body>

@@ -2958,7 +2958,21 @@ def generate_cloudflare_image(prompt: str) -> dict[str, str]:
         with urllib.request.urlopen(request, timeout=180) as response:
             result = json.loads(response.read().decode("utf-8"))
     except urllib.error.HTTPError as error:
-        raise RuntimeError(f"Cloudflare image request failed (HTTP {error.code}).") from error
+        # Surface the provider's message without ever echoing request headers or credentials.
+        try:
+            body = json.loads(error.read().decode("utf-8", errors="replace"))
+            errors = body.get("errors") or []
+            detail = "; ".join(
+                str(item.get("message", "")) for item in errors
+                if isinstance(item, dict) and item.get("message")
+            )
+        except Exception:
+            detail = ""
+        if error.code in {401, 403}:
+            detail = detail or "Check CLOUDFLARE_API_TOKEN permissions for Workers AI inference and the account ID."
+        elif error.code == 429:
+            detail = detail or "Cloudflare Workers AI rate limit or account quota was reached."
+        raise RuntimeError(f"Cloudflare image request failed (HTTP {error.code}). {detail}".strip()) from error
     except urllib.error.URLError as error:
         raise RuntimeError("Could not connect to Cloudflare Workers AI.") from error
 
@@ -3035,12 +3049,20 @@ def run_video_generation(job_id: str, prompt: str) -> None:
     except Exception as error:
         logger.exception("Video generation failed")
         status = getattr(error, "code", None) or getattr(error, "status_code", None)
+        error_text = str(error)
+        if not status:
+            match = re.search(r"(?:HTTP|status(?:_code)?)[^0-9]{0,12}(4\d\d|5\d\d)", error_text, re.IGNORECASE)
+            status = match.group(1) if match else None
         if str(status) in {"503", "504"}:
             message = "Gemini video generation is temporarily busy. Please try again in a minute."
         elif str(status) == "429":
             message = "The configured Gemini projects have reached their video-generation quota. Please try again later."
+        elif str(status) in {"401", "403"}:
+            message = "Gemini rejected video generation. Check that the configured project has Veo access and any required billing enabled."
+        elif str(status) in {"400", "404"}:
+            message = "The configured video model was rejected. Set GEMINI_VIDEO_MODEL to veo-3.1-fast-generate-preview or remove the override, then redeploy."
         else:
-            message = str(error)[:500]
+            message = error_text[:500]
         job.update({"status": "failed", "message": message, "finished_at": time.time()})
 
 
