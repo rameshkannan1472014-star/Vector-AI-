@@ -9654,5 +9654,23 @@ html[data-theme="dark"] #chatView.active #chatMain>.composer #chatInput{color:#e
   #chatView.active #chatMain>#chatMessages{padding-bottom:12px!important}
 }
 </style>
+<script id="keep-main-chat-typing-box-mounted">
+/* Repair the composer placement after the workspace rearranges the legacy chat DOM. */
+(function(){
+  function keepComposerMounted(){
+    const view=document.getElementById("chatView"),main=document.getElementById("chatMain");
+    if(!view||!main)return;
+    let input=document.getElementById("chatInput"),composer=input?.closest(".composer");
+    if(!composer&&input){composer=document.createElement("div");composer.className="composer";input.parentElement?.insertBefore(composer,input);composer.appendChild(input);}
+    if(!input){composer=main.querySelector(":scope > .composer");if(!composer){composer=document.createElement("div");composer.className="composer";}input=document.createElement("input");input.id="chatInput";input.type="text";input.placeholder="Message Engineer AI…";input.autocomplete="off";input.addEventListener("keydown",event=>{if(event.key==="Enter"&&!event.shiftKey){event.preventDefault();window.sendChat?.();}});const send=document.createElement("button");send.id="chatSend";send.className="send";send.type="button";send.setAttribute("aria-label","Send message");send.innerHTML='<i class="fa-solid fa-arrow-up"></i>';send.addEventListener("click",()=>window.sendChat?.());composer.append(input,send);}
+    if(composer.parentElement!==main)main.appendChild(composer);
+    composer.style.setProperty("display","flex","important");composer.style.setProperty("visibility","visible","important");
+    input.style.setProperty("display","block","important");input.style.setProperty("visibility","visible","important");
+    const sendButton=composer.querySelector("#chatSend");if(sendButton)sendButton.style.setProperty("display","inline-flex","important");
+  }
+  function start(){keepComposerMounted();const view=document.getElementById("chatView");if(view)new MutationObserver(keepComposerMounted).observe(view,{childList:true,subtree:true});}
+  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",start,{once:true});else start();
+})();
+</script>
 </body>
 </html>
