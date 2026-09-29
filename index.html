@@ -9743,6 +9743,10 @@ html[data-theme="dark"] #chatMessages .chat-message.user .chat-bubble{background
 #chatView.active>.header{max-width:none!important;margin:0!important}
 /* Hide the "How can I help?" placeholder once real messages exist */
 #chatMessages:has(.chat-message) .chat-empty-state{display:none!important}
+/* Rail hidden -> use the full width (no reserved gap on the right) */
+#chatView.active.right-tools-collapsed #chatMain{padding-right:10px!important}
+@media(min-width:761px){#chatView.active.right-tools-collapsed #chatMain{padding-right:28px!important}}
+@media(max-width:760px){#chatView.active.right-tools-collapsed #chatMain>.composer,#chatView.active.right-tools-collapsed #chatMain>#chatMessages{width:100%!important;max-width:none!important}}
 </style>
 </body>
 </html>
