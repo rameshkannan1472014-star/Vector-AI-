@@ -99,8 +99,6 @@ RATE_LIMIT_PER_MIN = int(os.getenv("RATE_LIMIT_PER_MIN", "20"))
 # Speed: Groq answers in a few seconds, so it is tried first for normal chat when
 # GROQ_API_KEY is set. Set PRIMARY_CHAT_PROVIDER=gemini to go back to Gemini-first.
 PRIMARY_CHAT_PROVIDER = os.getenv("PRIMARY_CHAT_PROVIDER", "groq").strip().lower()
-# Veo video needs a billing-enabled Gemini project. Set ENABLE_VIDEO=false to switch it off cleanly.
-ENABLE_VIDEO = os.getenv("ENABLE_VIDEO", "true").strip().lower() != "false"
 
 
 # ============================================================
@@ -979,7 +977,6 @@ def provider_status():
     status["chat_primary"] = (
         "groq" if (PRIMARY_CHAT_PROVIDER == "groq" and os.getenv("GROQ_API_KEY", "").strip()) else "gemini"
     )
-    status["video_enabled"] = ENABLE_VIDEO and bool(get_gemini_api_keys())
 
     return status
 
@@ -1010,7 +1007,7 @@ async def health():
         "service": APP_TITLE,
         "version": APP_VERSION,
         "model": DEFAULT_MODEL,
-        "image_model": os.getenv("GEMINI_IMAGE_MODEL", "gemini-3.1-flash-image"),
+        "image_model": os.getenv("CLOUDFLARE_IMAGE_MODEL", "@cf/black-forest-labs/flux-1-schnell"),
         "gemini_configured":
             bool(get_gemini_api_keys()),
         "gemini_key_count":
@@ -2998,9 +2995,8 @@ Do not provide destructive system instructions.
 
 
 # ============================================================
-# 🎨 AI IMAGE AND VIDEO CREATION
-# Gemini is primary for images, with Cloudflare Workers AI as image fallback.
-# Video generation remains on Gemini.
+# 🎨 AI IMAGE CREATION
+# Images are created only with Cloudflare Workers AI. Video creation was removed.
 # ============================================================
 
 def cloudflare_image_configured() -> bool:
@@ -3084,153 +3080,18 @@ def generate_cloudflare_image(prompt: str) -> dict[str, str]:
         "provider": "cloudflare",
     }
 
-def generate_image_data(prompt: str) -> dict[str, str]:
-    model = os.getenv("GEMINI_IMAGE_MODEL", "gemini-3.1-flash-image")
-    def generate(client):
-        # Use the documented Generate Content image path. It returns image bytes
-        # in candidate parts and works with the standard Gemini SDK client.
-        response = client.models.generate_content(
-            model=model,
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                response_modalities=["TEXT", "IMAGE"],
-            ),
-        )
-        parts = list(getattr(response, "parts", None) or [])
-        if not parts:
-            for candidate in getattr(response, "candidates", None) or []:
-                parts.extend(getattr(getattr(candidate, "content", None), "parts", None) or [])
-        for part in parts:
-            image = getattr(part, "inline_data", None)
-            image_data = getattr(image, "data", None) if image else None
-            if image_data:
-                if isinstance(image_data, bytes):
-                    image_data = base64.b64encode(image_data).decode("ascii")
-                return {
-                    "status": "complete",
-                    "data": image_data,
-                    "mime_type": getattr(image, "mime_type", None) or "image/png",
-                }
-        text = getattr(response, "text", None)
-        detail = f" Gemini replied: {text[:300]}" if text else ""
-        raise RuntimeError(
-            "Gemini completed the request but returned no image. Confirm that "
-            f"GEMINI_IMAGE_MODEL={model} supports image generation and that this API project has access.{detail}"
-        )
-    return run_with_gemini_failover(generate)
-
-
-def run_video_generation(job_id: str, prompt: str) -> None:
-    job = media_generation_jobs.get(job_id)
-    if not job:
-        return
-    job["status"] = "running"
-    try:
-        model = os.getenv("GEMINI_VIDEO_MODEL", "veo-3.1-fast-generate-preview")
-        client, operation = run_with_gemini_failover(lambda candidate: (candidate, candidate.models.generate_videos(model=model, prompt=prompt)))
-        deadline = time.monotonic() + 900
-        while not operation.done:
-            if time.monotonic() >= deadline:
-                raise TimeoutError("Video generation took longer than 15 minutes.")
-            time.sleep(5)
-            operation = client.operations.get(operation)
-        videos = getattr(getattr(operation, "response", None), "generated_videos", None) or []
-        if not videos:
-            raise RuntimeError("Gemini finished without returning a video.")
-        generated_video = videos[0]
-        with tempfile.TemporaryDirectory(prefix="engineer-ai-media-") as temp_dir:
-            destination = os.path.join(temp_dir, "generated.mp4")
-            client.files.download(file=generated_video.video, destination=destination)
-            with open(destination, "rb") as media_file:
-                encoded = base64.b64encode(media_file.read()).decode("ascii")
-        job.update({"status": "complete", "data": encoded, "mime_type": "video/mp4", "finished_at": time.time()})
-    except Exception as error:
-        logger.exception("Video generation failed")
-        status = getattr(error, "code", None) or getattr(error, "status_code", None)
-        error_text = str(error)
-        if not status:
-            match = re.search(r"(?:HTTP|status(?:_code)?)[^0-9]{0,12}(4\d\d|5\d\d)", error_text, re.IGNORECASE)
-            status = match.group(1) if match else None
-        if str(status) in {"503", "504"}:
-            message = "Gemini video generation is temporarily busy. Please try again in a minute."
-        elif str(status) == "429":
-            message = "Video generation quota is used up, or this Gemini project has no Veo access. Veo needs a billing-enabled Gemini project."
-        elif str(status) in {"401", "403"}:
-            message = "Gemini rejected video generation. Check that the configured project has Veo access and any required billing enabled."
-        elif str(status) in {"400", "404"}:
-            message = "The configured video model was rejected. Set GEMINI_VIDEO_MODEL to veo-3.1-fast-generate-preview or remove the override, then redeploy."
-        else:
-            message = error_text[:500]
-        job.update({"status": "failed", "message": message, "finished_at": time.time()})
-
-
 @app.post("/api/media/image")
 async def create_image(request: MediaGenerationRequest):
-    gemini_keys = get_gemini_api_keys()
-    cloudflare_ready = cloudflare_image_configured()
-    if not gemini_keys and not cloudflare_ready:
+    if not cloudflare_image_configured():
         raise HTTPException(
             status_code=503,
-            detail={"message": "Configure CLOUDFLARE_ACCOUNT_ID plus CLOUDFLARE_API_TOKEN (or Gemini keys) on the server for image generation."},
+            detail={"message": "Image creation needs CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN set on the server."},
         )
-
-    cloudflare_error = ""
-    if cloudflare_ready:
-        try:
-            return await asyncio.to_thread(generate_cloudflare_image, request.prompt)
-        except Exception as error:
-            logger.exception("Cloudflare image generation failed")
-            cloudflare_error = str(error)[:400]
-            if not gemini_keys:
-                raise HTTPException(status_code=502, detail={"message": cloudflare_error})
-            logger.warning("Cloudflare image failed; trying Gemini.")
-
     try:
-        return await asyncio.to_thread(generate_image_data, request.prompt)
+        return await asyncio.to_thread(generate_cloudflare_image, request.prompt)
     except Exception as error:
-        logger.exception("Gemini image generation failed")
-        status = getattr(error, "code", None) or getattr(error, "status_code", None)
-        response_obj = getattr(error, "response", None)
-        status = status or getattr(response_obj, "status_code", None)
-        try:
-            status = int(status)
-        except (TypeError, ValueError):
-            status = None
-        if status in {503, 504}:
-            message = "Gemini image generation is temporarily busy. Please try again in a minute."
-        elif status == 429:
-            message = "Gemini image generation quota is used up (image generation usually needs a billing-enabled project)."
-        else:
-            message = str(error)[:600]
-        if cloudflare_error:
-            message = f"Cloudflare failed: {cloudflare_error} | Gemini failed: {message}"
-        raise HTTPException(status_code=status if status in {429, 503, 504} else 502, detail={"message": message})
-
-
-@app.post("/api/media/video")
-async def create_video(request: MediaGenerationRequest, background_tasks: BackgroundTasks):
-    if not ENABLE_VIDEO:
-        raise HTTPException(status_code=503, detail={"message": "Video creation is coming soon. Photo creation is available now."})
-    if not get_gemini_api_keys():
-        raise HTTPException(status_code=503, detail={"message": "Video generation needs GEMINI_API_KEY configured on the server."})
-    # Keep only a small number of recent results in memory on this server instance.
-    expired = [key for key, value in media_generation_jobs.items() if value.get("finished_at", 0) and time.time() - value["finished_at"] > 3600]
-    for key in expired:
-        media_generation_jobs.pop(key, None)
-    if len(media_generation_jobs) >= 8:
-        raise HTTPException(status_code=429, detail={"message": "The video generation queue is full. Try again later."})
-    job_id = uuid.uuid4().hex
-    media_generation_jobs[job_id] = {"status": "queued", "created_at": time.time()}
-    background_tasks.add_task(run_video_generation, job_id, request.prompt)
-    return {"status": "queued", "job_id": job_id}
-
-
-@app.get("/api/media/video/{job_id}")
-async def get_video_generation(job_id: str):
-    job = media_generation_jobs.get(job_id)
-    if not job:
-        raise HTTPException(status_code=404, detail={"message": "Video job not found; generation results are temporary."})
-    return {key: value for key, value in job.items() if key not in {"created_at", "finished_at"}}
+        logger.exception("Cloudflare image generation failed")
+        raise HTTPException(status_code=502, detail={"message": str(error)[:400]})
 
 
 # ============================================================
@@ -3307,7 +3168,6 @@ async def api_information():
             "/api/project/ask",
             "/api/terminal/execute",
             "/api/media/image",
-            "/api/media/video",
             "/api/ops/analytics"
         ]
     }

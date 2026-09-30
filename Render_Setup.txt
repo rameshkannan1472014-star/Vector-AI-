@@ -1,6 +1,6 @@
 Engineer AI - Render setup (updated)
 
-Upload index.html, server.py and requirements.txt (unchanged) to GitHub. Set these in Render > Environment, then redeploy.
+Upload the new index.html and server.py (requirements.txt is unchanged) to GitHub. Set these in Render > Environment, then redeploy.
 
 FEEDBACK EMAIL (works on Render free tier, uses HTTPS not SMTP)
 1. Make a free account at resend.com using the SAME Gmail address that should receive feedback.
@@ -15,11 +15,11 @@ GROQ_REASONING_EFFORT      -> optional; low (default) / medium / high
 HISTORY_MESSAGES / HISTORY_CHARS -> now default 10 / 1200 (was 24 / 2000)
 Keep-alive: create a free UptimeRobot monitor for https://YOUR-APP.onrender.com/api/health every 5-10 minutes so the free service does not fall asleep.
 
-PHOTOS
-CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_API_TOKEN (Workers AI permission) -> now tried FIRST. Gemini is the backup.
+PHOTOS (Cloudflare only)
+CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_API_TOKEN (Workers AI permission). Gemini is no longer used for images.
 
 VIDEO
-Needs a billing-enabled Gemini project (Veo). If you do not have one, set ENABLE_VIDEO = false and the app shows "coming soon" instead of an error.
+Removed. ENABLE_VIDEO and the Veo code are gone, so no Gemini billing is needed.
 
 CHECK
 Open /api/health after redeploying. Under "providers" you should see:
