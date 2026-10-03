@@ -2,7 +2,7 @@
 
 > An AI engineering assistant for coding, debugging, and technical problem-solving.
 
-🌐 **[🚀 Try Engineer AI]https://vector-ai-izgf.onrender.com/#chat
+🌐 **[🚀 Try Engineer AI]https://vector-ai-izgf.onrender.com
 
 # Engineer AI
 
