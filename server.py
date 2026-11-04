@@ -3216,6 +3216,16 @@ async def pwa_service_worker():
     return FileResponse("sw.js", media_type="application/javascript", headers={"Cache-Control": "no-cache"})
 
 
+@app.get("/static/vector-ai-2.css")
+async def vector_ai_workspace_css():
+    return FileResponse("static/vector-ai-2.css", media_type="text/css", headers={"Cache-Control": "no-cache"})
+
+
+@app.get("/static/vector-ai-2.js")
+async def vector_ai_workspace_js():
+    return FileResponse("static/vector-ai-2.js", media_type="application/javascript", headers={"Cache-Control": "no-cache"})
+
+
 # ============================================================
 # 🚀 SERVER START
 # ============================================================
