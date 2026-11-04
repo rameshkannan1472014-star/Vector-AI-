@@ -1,28 +1,33 @@
-/* Vector AI 2.0 — Grok-inspired focused coding workspace.
-   Keeps the existing chat history sidebar; removes both utility rails. */
-:root{--va-bg:#080a0f;--va-panel:#0d1119;--va-panel-2:#111722;--va-line:#222a38;--va-text:#edf1f7;--va-muted:#8b96a8;--va-accent:#6d8cff}
-html[data-theme="dark"] body.workspace-shell-ready #chatView.active{background:var(--va-bg)!important;color:var(--va-text)!important}
-#chatView.active #chatAppLayout{display:grid!important;grid-template-columns:280px minmax(0,1fr)!important;grid-template-rows:minmax(0,1fr)!important;gap:0!important;width:100%!important;max-width:none!important;height:calc(100dvh - 64px)!important;min-height:0!important;overflow:hidden!important}
-#chatView.active #chatNavRail,#chatView.active #chatToolsRail,#chatView.active #rightRailToggle{display:none!important}
-#chatView.active #chatSidebar{grid-column:1!important;grid-row:1!important;display:flex!important;flex-direction:column!important;min-width:0!important;width:100%!important;max-height:100%!important;overflow-y:auto!important;padding:14px 12px!important;background:#0d1119!important;border-right:1px solid #222a38!important;color:#edf1f7!important}
-#chatView.active #chatMain{grid-column:2!important;grid-row:1!important;display:flex!important;flex-direction:column!important;min-width:0!important;min-height:0!important;height:100%!important;max-height:100%!important;overflow:hidden!important;padding:0 clamp(12px,3vw,36px) 14px!important;background:#080a0f!important;color:#edf1f7!important}
-#chatView.active #chatMain>#chatMessages{flex:1 1 0!important;min-height:0!important;width:100%!important;max-width:920px!important;margin:0 auto!important;padding:18px 0!important;overflow-y:auto!important;gap:18px!important}
-#chatView.active #chatMain>.composer{position:relative!important;inset:auto!important;transform:none!important;flex:0 0 auto!important;width:min(100%,920px)!important;max-width:920px!important;margin:10px auto 0!important;background:#111722!important;border:1px solid #2a3343!important;border-radius:18px!important;box-shadow:0 10px 36px #0005!important}
-#chatView.active #chatInput{color:#edf1f7!important}
-#chatView.active #chatInput::placeholder{color:#7f8a9d!important}
-#chatView.active .chat-message.assistant .chat-bubble{color:#e9edf5!important}
-#chatView.active #chatSidebar button,#chatView.active #chatSidebar .secondary{max-width:100%}
-#vaAccountSettings{display:grid;gap:6px;margin-top:auto;padding-top:14px;border-top:1px solid #222a38}
-#vaAccountSettings button{display:flex;align-items:center;gap:10px;width:100%;min-height:40px;padding:0 11px;border:1px solid transparent;border-radius:10px;background:transparent;color:#c7cfdd;text-align:left;font-size:13px;cursor:pointer}
-#vaAccountSettings button:hover{background:#182131;border-color:#2a3547;color:#fff}
-#vaAccountSettings .va-account-caption{padding:4px 10px;color:#7f8a9d;font-size:11px}
-@media(max-width:760px){
- #chatView.active #chatAppLayout{grid-template-columns:minmax(0,1fr)!important;height:calc(100dvh - 58px)!important}
- #chatView.active #chatSidebar{display:none!important}
- #chatView.active.va-chat-sidebar-open #chatSidebar{position:fixed!important;z-index:1200!important;inset:58px auto 0 0!important;display:flex!important;width:min(86vw,320px)!important;box-shadow:18px 0 48px #0009!important}
- #chatView.active #chatMain{grid-column:1!important;grid-row:1!important;padding:0 10px 10px!important}
- #chatView.active #chatMain>.composer{width:100%!important;margin:8px 0 0!important}
- #chatView.active #chatMain>#chatMessages{padding:12px 2px!important}
- #vaSidebarToggle{display:grid!important}
-}
-#vaSidebarToggle{display:none;place-items:center;width:38px;height:38px;border:1px solid #2a3343;border-radius:11px;background:#111722;color:#e8edf6}
+/* Vector AI 2.0 — Grok-inspired dark chat workspace.
+   CSS is loaded again at the end of the page to override legacy inline patches. */
+:root{--va-bg:#0b0b0d;--va-panel:#101014;--va-panel-2:#1a1a20;--va-line:#2b2b31;--va-text:#f4f4f5;--va-muted:#a1a1aa;--va-accent:#8b8bff}
+#chatView.active #chatAppLayout{display:grid!important;grid-template-columns:264px minmax(0,1fr)!important;grid-template-rows:minmax(0,1fr)!important;gap:0!important;width:100%!important;max-width:none!important;height:calc(100dvh - 64px)!important;min-height:0!important;overflow:hidden!important;background:#0b0b0d!important}
+#chatView.active #chatNavRail,#chatView.active #chatToolsRail,#chatView.active #rightRailToggle,#chatView.active .workspace-mobile-tools{display:none!important}
+#chatView.active #chatSidebar{grid-column:1!important;grid-row:1!important;display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:8px!important;width:100%!important;min-width:0!important;height:100%!important;max-height:100%!important;overflow-y:auto!important;overflow-x:hidden!important;padding:18px 12px 12px!important;background:#101014!important;border-right:1px solid #242429!important;color:#ececf1!important}
+#chatView.active #chatSidebar .workspace-brand{display:flex!important;align-items:center!important;min-height:38px!important;padding:0 10px!important;color:#f4f4f5!important;font-size:19px!important;font-weight:750!important;letter-spacing:-.6px!important}
+#chatView.active #chatSidebar #newChatButton{display:flex!important;align-items:center!important;justify-content:flex-start!important;gap:10px!important;width:100%!important;min-height:44px!important;padding:0 13px!important;border:1px solid #34343b!important;border-radius:12px!important;background:#242429!important;color:#fafafa!important;font-size:14px!important;font-weight:600!important;text-align:left!important}
+#chatView.active #chatSidebar #newChatButton:hover{background:#303037!important}
+#chatView.active #chatSidebar #chatSidebarSearch{display:block!important;width:100%!important;min-height:40px!important;padding:0 12px!important;border:1px solid #2b2b32!important;border-radius:10px!important;background:#19191f!important;color:#f4f4f5!important;font-size:13px!important;outline:none!important}
+#chatView.active #chatSidebar #chatSidebarSearch::placeholder{color:#8b8b95!important}
+#chatView.active #chatSidebar .workspace-section-title{display:flex!important;align-items:center!important;justify-content:space-between!important;margin-top:9px!important;padding:7px 9px 2px!important;color:#a1a1aa!important;font-size:12px!important;font-weight:650!important;letter-spacing:.02em!important}
+#chatView.active #chatSidebar #sidebarProjects,#chatView.active #chatSidebar #sidebarChats{display:flex!important;flex-direction:column!important;gap:3px!important;width:100%!important;min-width:0!important}
+#chatView.active #chatSidebar .workspace-chat-item{display:flex!important;align-items:center!important;gap:9px!important;width:100%!important;min-height:39px!important;padding:8px 10px!important;border:0!important;border-radius:9px!important;background:transparent!important;color:#d4d4d8!important;font-size:13px!important;text-align:left!important}
+#chatView.active #chatSidebar .workspace-chat-item:hover{background:#24242b!important;color:#fff!important}
+#chatView.active #chatSidebar .workspace-chat-item.active{background:#292930!important;color:#fff!important}
+#chatView.active #chatSidebar .workspace-chat-item span{min-width:0!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important}
+#chatView.active #chatSidebar .workspace-chat-item small{color:#777780!important}
+#chatView.active #chatSidebar .workspace-chat-delete{color:#8b8b95!important}
+#chatView.active #chatSidebar #vaAccountSettings{display:flex!important;flex-direction:column!important;gap:3px!important;margin-top:auto!important;padding-top:12px!important;border-top:1px solid #2b2b31!important}
+#chatView.active #chatSidebar #vaAccountSettings button{display:flex!important;align-items:center!important;gap:10px!important;width:100%!important;min-height:40px!important;padding:0 10px!important;border:0!important;border-radius:9px!important;background:transparent!important;color:#d4d4d8!important;font-size:13px!important;text-align:left!important}
+#chatView.active #chatSidebar #vaAccountSettings button:hover{background:#24242b!important;color:#fff!important}
+#chatView.active #chatSidebar #vaAccountSettings .va-account-caption{display:none!important}
+#chatView.active #chatMain{grid-column:2!important;grid-row:1!important;display:flex!important;flex-direction:column!important;min-width:0!important;min-height:0!important;height:100%!important;max-height:100%!important;overflow:hidden!important;padding:0 clamp(16px,4vw,56px) 18px!important;background:#0b0b0d!important;color:#f4f4f5!important}
+#chatView.active #chatMain>#chatMessages{flex:1 1 0!important;min-height:0!important;width:100%!important;max-width:850px!important;margin:0 auto!important;padding:24px 0!important;overflow-y:auto!important}
+#chatView.active #chatMain>.composer{position:relative!important;inset:auto!important;transform:none!important;flex:0 0 auto!important;width:min(100%,850px)!important;max-width:850px!important;margin:12px auto 0!important;border:1px solid #37373e!important;border-radius:22px!important;background:#1a1a20!important;box-shadow:0 8px 32px #0005!important}
+#chatView.active #chatMain>.composer #chatInput{color:#f4f4f5!important}
+#chatView.active #chatMain>.composer #chatInput::placeholder{color:#8d8d98!important}
+#chatView.active #chatMain #chatConversationBar{border:0!important;background:transparent!important}
+#chatView.active #chatMain #chatConversationBar h2{color:#f4f4f5!important}
+#chatView.active #chatMain .chat-message.assistant .chat-bubble{color:#e4e4e7!important}
+#vaSidebarToggle{display:none!important}
+@media(max-width:760px){#chatView.active #chatAppLayout{display:block!important;grid-template-columns:none!important;height:calc(100dvh - 58px)!important}#chatView.active #chatSidebar{display:none!important}#chatView.active.va-chat-sidebar-open #chatSidebar{position:fixed!important;z-index:1200!important;inset:58px auto 0 0!important;display:flex!important;width:min(86vw,300px)!important;box-shadow:18px 0 48px #000b!important}#chatView.active #chatMain{height:100%!important;padding:0 12px 12px!important}#chatView.active #chatMain>.composer{width:100%!important;margin:8px auto 0!important}#chatView.active #chatMain>#chatMessages{padding:12px 0!important}#vaSidebarToggle{display:grid!important;position:absolute!important;left:10px!important;top:8px!important;z-index:10!important}#chatView.active>.header{padding-left:52px!important}}
