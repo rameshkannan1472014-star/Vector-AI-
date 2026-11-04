@@ -3,7 +3,7 @@
 (function(){
   function loadFinalStyles(){
     if(document.getElementById("vector-ai-grok-final-styles"))return;
-    const link=document.createElement("link");link.id="vector-ai-grok-final-styles";link.rel="stylesheet";link.href="/static/vector-ai-2.css?v=2";
+    const link=document.createElement("link");link.id="vector-ai-grok-final-styles";link.rel="stylesheet";link.href="/static/vector-ai-2.css?v=3";
     document.body.appendChild(link);
   }
   function installSidebar(){
@@ -11,7 +11,7 @@
     const view=document.getElementById("chatView"),sidebar=document.getElementById("chatSidebar");
     if(!view||!sidebar)return;
     const brand=sidebar.querySelector(".workspace-brand");
-    if(brand)brand.textContent="Vector AI";
+    if(brand&&brand.textContent.trim()!=="Vector AI")brand.textContent="Vector AI";
     sidebar.querySelectorAll(".workspace-mobile-tools,.chat-toolbar-actions button:not(#newChatButton),#createMediaButton,.workspace-profile").forEach(node=>node.remove());
     sidebar.querySelectorAll(".workspace-section-title").forEach(node=>{
       const label=(node.textContent||"").trim().toLowerCase();
@@ -36,14 +36,7 @@
       toggle.addEventListener("click",()=>view.classList.toggle("va-chat-sidebar-open"));header.prepend(toggle);
     }
   }
-  function boot(){
-    installSidebar();
-    const view=document.getElementById("chatView");
-    if(view&&!view.dataset.vaSidebarObserver){
-      view.dataset.vaSidebarObserver="1";
-      new MutationObserver(()=>installSidebar()).observe(view,{childList:true,subtree:true});
-    }
-  }
+  function boot(){ installSidebar(); }
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",boot,{once:true});else boot();
   window.addEventListener("load",boot,{once:true});
 })();
