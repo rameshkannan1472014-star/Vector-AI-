@@ -3211,6 +3211,11 @@ async def pwa_app_icon():
     return FileResponse("icons/vector-ai.svg", media_type="image/svg+xml")
 
 
+@app.get("/sw.js")
+async def pwa_service_worker():
+    return FileResponse("sw.js", media_type="application/javascript", headers={"Cache-Control": "no-cache"})
+
+
 # ============================================================
 # 🚀 SERVER START
 # ============================================================
@@ -3224,4 +3229,4 @@ if __name__ == "__main__":
         host="0.0.0.0",
         port=PORT,
         reload=False
-    )\n@app.get("/sw.js")\nasync def pwa_service_worker():\n    return FileResponse("sw.js", media_type="application/javascript", headers={"Cache-Control": "no-cache"})\n
+    )
