@@ -1,0 +1,22 @@
+{
+  "id": "/",
+  "name": "Vector AI",
+  "short_name": "Vector AI",
+  "description": "An AI-powered workspace for coding, debugging, code review, and engineering workflows.",
+  "lang": "en",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#050811",
+  "theme_color": "#050811",
+  "categories": ["productivity", "developer"],
+  "icons": [
+    {
+      "src": "/icons/vector-ai.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
