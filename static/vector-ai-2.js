@@ -1,7 +1,13 @@
 /* Vector AI 2.0 — Grok-inspired chat-only sidebar.
    Sidebar options: New chat, Projects, Chats, Settings and Account. */
 (function(){
+  function loadFinalStyles(){
+    if(document.getElementById("vector-ai-grok-final-styles"))return;
+    const link=document.createElement("link");link.id="vector-ai-grok-final-styles";link.rel="stylesheet";link.href="/static/vector-ai-2.css?v=2";
+    document.body.appendChild(link);
+  }
   function installSidebar(){
+    loadFinalStyles();
     const view=document.getElementById("chatView"),sidebar=document.getElementById("chatSidebar");
     if(!view||!sidebar)return;
     const brand=sidebar.querySelector(".workspace-brand");
