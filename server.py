@@ -3198,6 +3198,20 @@ async def global_exception_handler(
 
 
 # ============================================================
+# 📱 PWA MANIFEST + APP ICON
+# ============================================================
+
+@app.get("/manifest.json")
+async def pwa_manifest():
+    return FileResponse("manifest.json", media_type="application/manifest+json")
+
+
+@app.get("/icons/vector-ai.svg")
+async def pwa_app_icon():
+    return FileResponse("icons/vector-ai.svg", media_type="image/svg+xml")
+
+
+# ============================================================
 # 🚀 SERVER START
 # ============================================================
 
