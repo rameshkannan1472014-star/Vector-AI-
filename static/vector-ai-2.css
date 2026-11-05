@@ -1,32 +1,66 @@
-/* Vector AI 2.0 — Grok-inspired dark chat workspace. */
-:root{--va-bg:#0b0b0d;--va-panel:#101014;--va-panel-2:#1a1a20;--va-line:#2b2b31;--va-text:#f4f4f5;--va-muted:#a1a1aa;--va-accent:#8b8bff}
-#chatView.active #chatAppLayout{display:grid!important;grid-template-columns:264px minmax(0,1fr)!important;grid-template-rows:minmax(0,1fr)!important;gap:0!important;width:100%!important;max-width:none!important;height:calc(100dvh - 64px)!important;min-height:0!important;overflow:hidden!important;background:#0b0b0d!important}
-#chatView.active #chatNavRail,#chatView.active #chatToolsRail,#chatView.active #rightRailToggle,#chatView.active .workspace-mobile-tools{display:none!important}
-#chatView.active #chatSidebar{grid-column:1!important;grid-row:1!important;display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:8px!important;width:100%!important;min-width:0!important;height:100%!important;max-height:100%!important;overflow-y:auto!important;overflow-x:hidden!important;padding:18px 12px 12px!important;background:#101014!important;border-right:1px solid #242429!important;color:#ececf1!important}
-#chatView.active #chatSidebar .workspace-brand{display:flex!important;align-items:center!important;min-height:38px!important;padding:0 10px!important;color:#f4f4f5!important;font-size:19px!important;font-weight:750!important;letter-spacing:-.6px!important}
-#chatView.active #chatSidebar #newChatButton{display:flex!important;align-items:center!important;justify-content:flex-start!important;gap:10px!important;width:100%!important;min-height:44px!important;padding:0 13px!important;border:1px solid #34343b!important;border-radius:12px!important;background:#242429!important;color:#fafafa!important;font-size:14px!important;font-weight:600!important;text-align:left!important}
-#chatView.active #chatSidebar #newChatButton:hover{background:#303037!important}
-#chatView.active #chatSidebar #chatSidebarSearch{display:block!important;width:100%!important;min-height:40px!important;padding:0 12px!important;border:1px solid #2b2b32!important;border-radius:10px!important;background:#19191f!important;color:#f4f4f5!important;font-size:13px!important;outline:none!important}
-#chatView.active #chatSidebar #chatSidebarSearch::placeholder{color:#8b8b95!important}
-#chatView.active #chatSidebar .workspace-section-title{display:flex!important;align-items:center!important;justify-content:space-between!important;margin-top:9px!important;padding:7px 9px 2px!important;color:#a1a1aa!important;font-size:12px!important;font-weight:650!important;letter-spacing:.02em!important}
-#chatView.active #chatSidebar #sidebarProjects,#chatView.active #chatSidebar #sidebarChats{display:flex!important;flex-direction:column!important;gap:3px!important;width:100%!important;min-width:0!important}
-#chatView.active #chatSidebar .workspace-chat-item{display:flex!important;align-items:center!important;gap:9px!important;width:100%!important;min-height:39px!important;padding:8px 10px!important;border:0!important;border-radius:9px!important;background:transparent!important;color:#d4d4d8!important;font-size:13px!important;text-align:left!important}
-#chatView.active #chatSidebar .workspace-chat-item:hover{background:#24242b!important;color:#fff!important}
-#chatView.active #chatSidebar .workspace-chat-item.active{background:#292930!important;color:#fff!important}
-#chatView.active #chatSidebar .workspace-chat-item span{min-width:0!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important}
-#chatView.active #chatSidebar .workspace-chat-item small{color:#777780!important}
-#chatView.active #chatSidebar .workspace-chat-delete{color:#8b8b95!important}
-#chatView.active #chatSidebar #vaAccountSettings{display:flex!important;flex-direction:column!important;gap:3px!important;margin-top:auto!important;padding-top:12px!important;border-top:1px solid #2b2b31!important}
-#chatView.active #chatSidebar #vaAccountSettings button{display:flex!important;align-items:center!important;gap:10px!important;width:100%!important;min-height:40px!important;padding:0 10px!important;border:0!important;border-radius:9px!important;background:transparent!important;color:#d4d4d8!important;font-size:13px!important;text-align:left!important}
-#chatView.active #chatSidebar #vaAccountSettings button:hover{background:#24242b!important;color:#fff!important}
-#chatView.active #chatSidebar #vaAccountSettings .va-account-caption{display:none!important}
-#chatView.active #chatMain{grid-column:2!important;grid-row:1!important;display:flex!important;flex-direction:column!important;min-width:0!important;min-height:0!important;height:100%!important;max-height:100%!important;overflow:hidden!important;padding:0 clamp(16px,4vw,56px) 18px!important;background:#0b0b0d!important;color:#f4f4f5!important}
-#chatView.active #chatMain>#chatMessages{flex:1 1 0!important;min-height:0!important;width:100%!important;max-width:850px!important;margin:0 auto!important;padding:24px 0!important;overflow-y:auto!important}
-#chatView.active #chatMain>.composer{position:relative!important;inset:auto!important;transform:none!important;flex:0 0 auto!important;width:min(100%,850px)!important;max-width:850px!important;margin:12px auto 0!important;border:1px solid #37373e!important;border-radius:22px!important;background:#1a1a20!important;box-shadow:0 8px 32px #0005!important}
-#chatView.active #chatMain>.composer #chatInput{color:#f4f4f5!important}
-#chatView.active #chatMain>.composer #chatInput::placeholder{color:#8d8d98!important}
-#chatView.active #chatMain #chatConversationBar{border:0!important;background:transparent!important}
-#chatView.active #chatMain #chatConversationBar h2{color:#f4f4f5!important}
-#chatView.active #chatMain .chat-message.assistant .chat-bubble{color:#e4e4e7!important}
-#vaSidebarToggle{display:none!important}
-@media(max-width:760px){#chatView.active #chatAppLayout{display:block!important;grid-template-columns:none!important;height:calc(100dvh - 58px)!important}#chatView.active #chatSidebar{display:none!important}#chatView.active.va-chat-sidebar-open #chatSidebar{position:fixed!important;z-index:1200!important;inset:58px auto 0 0!important;display:flex!important;width:min(86vw,300px)!important;box-shadow:18px 0 48px #000b!important}#chatView.active #chatMain{padding:0 12px 12px!important}#chatView.active #chatMain>.composer{width:100%!important;margin:8px auto 0!important}#chatView.active #chatMain>#chatMessages{padding:12px 0!important}#vaSidebarToggle{display:grid!important;position:absolute!important;left:10px!important;top:8px!important;z-index:10!important}#chatView.active>.header{padding-left:52px!important}}
+/* Nexus AI — black, minimal Grok-inspired interface */
+#chatView.active{background:#050608!important;color:#f5f5f7!important;min-height:calc(100dvh - 60px)!important}
+#chatView.active>.header{display:none!important}
+#chatView.active #chatAppLayout{display:grid!important;grid-template-columns:272px minmax(0,1fr)!important;grid-template-rows:minmax(0,1fr)!important;gap:0!important;width:100%!important;max-width:none!important;height:calc(100dvh - 60px)!important;min-height:0!important;overflow:hidden!important;background:#050608!important}
+#chatView.active #chatSidebar{grid-column:1!important;grid-row:1!important;display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:0!important;min-width:0!important;width:100%!important;height:100%!important;max-height:100%!important;overflow-y:auto!important;padding:28px 18px 22px!important;background:linear-gradient(155deg,#090b10,#07090d 72%,#0a1220)!important;border-right:1px solid #22252d!important;color:#f5f5f7!important}
+#chatView.active #chatMain{grid-column:2!important;grid-row:1!important;position:relative!important;display:flex!important;flex-direction:column!important;min-width:0!important;min-height:0!important;height:100%!important;max-height:100%!important;overflow:hidden!important;padding:0 clamp(22px,5vw,72px) 24px!important;background:radial-gradient(ellipse at 105% 55%,#17243a 0%,#090d16 22%,transparent 48%),#030405!important;color:#f5f5f7!important}
+.nexus-brand{display:flex;flex-direction:column;align-items:flex-start;gap:14px;padding:4px 18px 34px;font-size:25px;font-weight:750;letter-spacing:-.7px;color:#f5f5f7}
+.nexus-brand b{color:#168bff}
+.nexus-mark,.nexus-small-mark{position:relative;display:grid;place-items:center;color:#f5f7fb}
+.nexus-mark{width:82px;height:82px;font-size:66px}
+.nexus-mark i,.nexus-small-mark i{filter:drop-shadow(0 0 12px #168bff66)}
+.nexus-orbit{position:absolute;width:102px;height:32px;border:4px solid #168bff;border-right-color:transparent;border-radius:50%;transform:rotate(-30deg);filter:drop-shadow(0 0 7px #168bff)}
+.nexus-sidebar-nav{display:flex;flex-direction:column;gap:10px}
+.nexus-nav-item{display:flex;align-items:center;gap:17px;width:100%;min-height:64px;padding:0 20px;border:0;border-radius:0 32px 32px 0;background:transparent;color:#c6cbd5;text-align:left;font-size:16px;cursor:pointer}
+.nexus-nav-item i{width:26px;text-align:center;font-size:23px;color:#e2e7f1}
+.nexus-nav-item:hover{background:#151922}
+.nexus-nav-item.active{background:#171c25;border-left:5px solid #168bff;color:#fff}
+.nexus-new-chat{display:flex!important;align-items:center!important;gap:12px!important;width:100%!important;min-height:46px!important;margin:0 0 16px!important;padding:0 15px!important;border:1px solid #30343e!important;border-radius:14px!important;background:#171a21!important;color:#f6f7fa!important;font-size:14px!important}
+.nexus-section-label{margin:24px 10px 10px;color:#838b99;font-size:12px;font-weight:700;letter-spacing:.09em;text-transform:uppercase}
+.nexus-search{width:100%;min-height:40px;margin:0 0 8px;padding:0 12px;border:1px solid #292e38;border-radius:10px;background:#10131a;color:#f4f5f7}
+.nexus-list{display:flex;flex-direction:column;gap:4px;max-height:25vh;overflow:auto}
+.nexus-list .workspace-chat-item{display:flex;align-items:center;width:100%;padding:10px 11px;border:0;border-radius:9px;background:transparent;color:#c6cbd5;text-align:left;font-size:13px}
+.nexus-list .workspace-chat-item:hover{background:#171b23}
+.nexus-sidebar-footer{margin-top:auto;padding-top:18px;border-top:1px solid #292d35}
+.nexus-topbar{height:86px;flex:0 0 86px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #171a20}
+.nexus-topbrand{display:flex;align-items:center;gap:16px;color:#f4f5f7;font-size:21px}
+.nexus-small-mark{width:46px;height:46px;font-size:35px}
+.nexus-divider{height:40px;width:1px;background:#454952}
+.nexus-topbrand strong{font-size:20px;font-weight:650}
+.nexus-menu{width:48px;height:48px;border:0;background:transparent;color:#f7f7f8;font-size:28px}
+.nexus-welcome{width:min(100%,850px);margin:52px auto 26px}
+.nexus-welcome h1{margin:0 0 12px;color:#fafafa;font-size:clamp(32px,4vw,54px);font-weight:700;letter-spacing:-1.8px}
+.nexus-wave{font-size:.8em}
+.nexus-welcome p{max-width:740px;margin:0;color:#a5a9b3;font-size:clamp(18px,2.2vw,27px);line-height:1.55}
+.nexus-suggestions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:42px}
+.nexus-suggestion{display:flex;align-items:center;gap:16px;min-height:76px;padding:0 22px;border:1px solid #252932;border-radius:28px;background:linear-gradient(145deg,#14171e,#0d0f14);color:#f3f4f6;font-size:17px;text-align:left;cursor:pointer}
+.nexus-suggestion:hover{border-color:#3b4659;background:#191d26}
+.nexus-suggestion i{font-size:24px;color:#f3f5fa}
+#chatView.active #chatMain>#chatMessages{flex:1 1 0;min-height:0;width:min(100%,850px);margin:0 auto;overflow-y:auto;padding:14px 0 20px}
+#chatView.active #chatMain>.nexus-composer{position:relative!important;inset:auto!important;transform:none!important;flex:0 0 auto!important;width:min(100%,850px)!important;max-width:850px!important;margin:12px auto 4px!important;padding:12px 16px!important;border:1px solid #30343e!important;border-radius:32px!important;background:#11141b!important;box-shadow:0 8px 34px #0008!important}
+#chatView.active #chatMain>.nexus-composer #chatInput{color:#f6f7fa!important;font-size:16px!important}
+#chatView.active #chatMain>.nexus-composer #chatInput::placeholder{color:#7f8591!important}
+#chatView.active #chatMain>.nexus-composer .send{width:48px!important;height:48px!important;border-radius:50%!important;background:#f4f5f7!important;color:#08090b!important}
+#chatView.active #chatStatus{display:none!important}
+.nexus-backdrop{display:none}
+@media(max-width:760px){
+ #chatView.active #chatAppLayout{display:block!important;height:calc(100dvh - 56px)!important}
+ #chatView.active #chatSidebar{position:fixed!important;z-index:1002!important;inset:0 auto 0 0!important;width:min(82vw,300px)!important;max-width:300px!important;transform:translateX(-105%);transition:transform .22s ease!important;box-shadow:20px 0 50px #0009}
+ #chatView.active.nexus-sidebar-open #chatSidebar{transform:translateX(0)!important}
+ #chatView.active.nexus-sidebar-open .nexus-backdrop{display:block;position:fixed;z-index:1001;inset:0;background:#0009}
+ #chatView.active #chatMain{height:100%!important;padding:0 16px 14px!important}
+ .nexus-topbar{height:66px;flex-basis:66px}
+ .nexus-topbrand{gap:10px;font-size:17px}
+ .nexus-small-mark{width:34px;height:34px;font-size:27px}
+ .nexus-topbrand strong{font-size:15px}
+ .nexus-menu{font-size:24px}
+ .nexus-welcome{margin:42px auto 16px}
+ .nexus-welcome h1{font-size:34px}
+ .nexus-welcome p{font-size:18px}
+ .nexus-suggestions{gap:9px;margin-top:28px}
+ .nexus-suggestion{min-height:62px;padding:0 12px;gap:9px;border-radius:20px;font-size:13px}
+ .nexus-suggestion i{font-size:18px}
+ #chatView.active #chatMain>.nexus-composer{margin-top:8px;padding:8px 10px!important}
+ #chatView.active #chatMain>.nexus-composer .send{width:42px!important;height:42px!important}
+}
+@media(max-width:390px){.nexus-suggestions{grid-template-columns:1fr}.nexus-suggestion{min-height:54px}}
