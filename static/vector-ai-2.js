@@ -42,7 +42,7 @@
     const oldConversation=$("chatConversationBar");if(oldConversation)oldConversation.remove();
     if(status)status.remove();
     const header=document.createElement("div");header.className="nexus-topbar";
-    header.innerHTML='<div class="nexus-topbrand"><div class="nexus-small-mark"><i class="fa-solid fa-gear"></i></div><span>Nexus AI</span><span class="nexus-divider"></span><strong>Grok-style workspace</strong></div>';
+    header.innerHTML='<div class="nexus-topbrand"><div class="nexus-small-mark"><i class="fa-solid fa-gear"></i></div><span>Nexus AI</span><span class="nexus-divider"></span><strong>Grok</strong></div>';
     const menu=document.createElement("button");menu.type="button";menu.className="nexus-menu";menu.setAttribute("aria-label","Toggle sidebar");menu.innerHTML='<i class="fa-solid fa-bars"></i>';
     header.appendChild(menu);main.prepend(header);
     menu.addEventListener("click",()=>view.classList.toggle("nexus-sidebar-open"));
@@ -63,6 +63,7 @@
     if(search)search.addEventListener("input",()=>{});
     const active=()=>{nav.querySelectorAll(".nexus-nav-item").forEach(b=>b.classList.toggle("active",b.textContent.trim()==="Chat"&&$("chatView")?.classList.contains("active")));};
     window.addEventListener("hashchange",active);active();
+    if(!location.hash||location.hash==="#home")go("chat");
     const backdrop=document.createElement("div");backdrop.className="nexus-backdrop";backdrop.addEventListener("click",()=>view.classList.remove("nexus-sidebar-open"));view.appendChild(backdrop);
   }
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",setup,{once:true});else setup();
