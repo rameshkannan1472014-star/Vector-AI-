@@ -46,17 +46,8 @@
     const menu=document.createElement("button");menu.type="button";menu.className="nexus-menu";menu.setAttribute("aria-label","Toggle sidebar");menu.innerHTML='<i class="fa-solid fa-bars"></i>';
     header.appendChild(menu);main.prepend(header);
     menu.addEventListener("click",()=>view.classList.toggle("nexus-sidebar-open"));
-    const welcomePanel=document.createElement("section");welcomePanel.className="nexus-welcome";
-    welcomePanel.innerHTML='<h1>Hello! <span class="nexus-wave">👋</span></h1><p>I’m Nexus AI, your personal assistant. How can I help you today?</p><div class="nexus-suggestions"></div>';
-    const suggestions=welcomePanel.querySelector(".nexus-suggestions");
-    [
-      ["fa-solid fa-wand-magic-sparkles","Explain anything","Explain this topic clearly"],
-      ["fa-solid fa-code","Write code","Help me write code"],
-      ["fa-solid fa-bolt","Help with projects","Help me with my project"],
-      ["fa-regular fa-lightbulb","Get ideas","Give me creative ideas"]
-    ].forEach(([icon,label,prompt])=>suggestions.appendChild(makeButton(label,icon,()=>{if(typeof window.useChatPrompt==="function")window.useChatPrompt(prompt);else if($("chatInput")){$("chatInput").value=prompt;$("chatInput").focus();}},"nexus-suggestion")));
     if(welcome)welcome.remove();
-    if(messages){main.appendChild(welcomePanel);main.appendChild(messages);}
+    if(messages)main.appendChild(messages);
     if(loading)main.appendChild(loading);
     if(attachments)main.appendChild(attachments);
     if(composer){composer.classList.add("nexus-composer");main.appendChild(composer);}
