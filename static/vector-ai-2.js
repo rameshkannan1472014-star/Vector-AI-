@@ -76,4 +76,34 @@
   }
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",setup,{once:true});else setup();
   window.addEventListener("load",setup,{once:true});
+
+  // The chat workspace is created lazily by the app's navigation code.
+  // Re-run setup immediately after that DOM is created; load events alone
+  // are too early on some mobile sessions.
+  function hookWorkspaceBuilder(){
+    const builder=window.buildChatWorkspace;
+    if(typeof builder==="function" && !builder.__vectorAiSidebarHooked){
+      const wrapped=function(){
+        const result=builder.apply(this,arguments);
+        setup();
+        return result;
+      };
+      wrapped.__vectorAiSidebarHooked=true;
+      window.buildChatWorkspace=wrapped;
+    }
+  }
+  hookWorkspaceBuilder();
+  // Some app flows create the workspace through installChatToolbar.
+  const installToolbar=window.installChatToolbar;
+  if(typeof installToolbar==="function" && !installToolbar.__vectorAiSidebarHooked){
+    const wrappedInstall=function(){
+      const result=installToolbar.apply(this,arguments);
+      hookWorkspaceBuilder();
+      setup();
+      return result;
+    };
+    wrappedInstall.__vectorAiSidebarHooked=true;
+    window.installChatToolbar=wrappedInstall;
+  }
+
 })();
