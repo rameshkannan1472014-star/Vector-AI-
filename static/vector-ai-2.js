@@ -45,7 +45,22 @@
     header.innerHTML='<div class="nexus-topbrand"><div class="nexus-small-mark"><i class="fa-solid fa-gear"></i></div><span>Nexus AI</span><span class="nexus-divider"></span><strong>Grok</strong></div>';
     const menu=document.createElement("button");menu.type="button";menu.className="nexus-menu";menu.setAttribute("aria-label","Toggle sidebar");menu.innerHTML='<i class="fa-solid fa-bars"></i>';
     header.appendChild(menu);main.prepend(header);
-    menu.addEventListener("click",()=>view.classList.toggle("nexus-sidebar-open"));
+    menu.setAttribute("aria-expanded","false");
+    function setSidebarOpen(open){
+      view.classList.toggle("nexus-sidebar-open",open);
+      menu.setAttribute("aria-expanded",String(open));
+      if(window.matchMedia("(max-width:760px)").matches){
+        sidebar.style.setProperty("position","fixed","important");
+        sidebar.style.setProperty("inset","0 auto 0 0","important");
+        sidebar.style.setProperty("width","min(82vw,300px)","important");
+        sidebar.style.setProperty("height","100dvh","important");
+        sidebar.style.setProperty("z-index","1202","important");
+        sidebar.style.setProperty("transform",open?"translateX(0)":"translateX(-105%)","important");
+        sidebar.style.setProperty("display","flex","important");
+        backdrop.style.display=open?"block":"none";
+      }
+    }
+    menu.addEventListener("click",()=>setSidebarOpen(!view.classList.contains("nexus-sidebar-open")));
     if(welcome)welcome.remove();
     if(messages)main.appendChild(messages);
     if(loading)main.appendChild(loading);
@@ -55,7 +70,9 @@
     const active=()=>{nav.querySelectorAll(".nexus-nav-item").forEach(b=>b.classList.toggle("active",b.textContent.trim()==="Chat"&&$("chatView")?.classList.contains("active")));};
     window.addEventListener("hashchange",active);active();
     if(!location.hash||location.hash==="#home")go("chat");
-    const backdrop=document.createElement("div");backdrop.className="nexus-backdrop";backdrop.addEventListener("click",()=>view.classList.remove("nexus-sidebar-open"));view.appendChild(backdrop);
+    const backdrop=document.createElement("div");backdrop.className="nexus-backdrop";backdrop.addEventListener("click",()=>setSidebarOpen(false));view.appendChild(backdrop);
+    sidebar.querySelectorAll(".nexus-nav-item").forEach(button=>button.addEventListener("click",()=>setSidebarOpen(false)));
+    window.addEventListener("resize",()=>{if(!window.matchMedia("(max-width:760px)").matches){sidebar.style.removeProperty("position");sidebar.style.removeProperty("inset");sidebar.style.removeProperty("width");sidebar.style.removeProperty("height");sidebar.style.removeProperty("z-index");sidebar.style.removeProperty("transform");backdrop.style.display="none";view.classList.remove("nexus-sidebar-open");}});
   }
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",setup,{once:true});else setup();
   window.addEventListener("load",setup,{once:true});
