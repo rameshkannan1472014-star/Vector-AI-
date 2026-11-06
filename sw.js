@@ -1,4 +1,4 @@
-const CACHE_NAME = "vector-ai-shell-v3";
+const CACHE_NAME = "vector-ai-shell-v4";
 const APP_SHELL = ["/"];
 
 self.addEventListener("install", (event) => {
