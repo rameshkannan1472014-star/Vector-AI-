@@ -106,4 +106,49 @@
     window.installChatToolbar=wrappedInstall;
   }
 
+
+  // Delegated mobile sidebar control: survives lazy DOM creation and
+  // replacement of the menu/sidebar nodes by the legacy workspace builder.
+  if(!window.__vectorAiSidebarDelegation){
+    window.__vectorAiSidebarDelegation=true;
+    function setOpen(open){
+      const view=document.getElementById("chatView");
+      const sidebar=document.getElementById("chatSidebar");
+      const menu=document.querySelector(".nexus-menu, #chatMobileMenu");
+      const backdrop=view?.querySelector(".nexus-backdrop")||document.getElementById("chatSidebarBackdrop");
+      if(!view||!sidebar)return;
+      view.classList.toggle("nexus-sidebar-open",open);
+      view.classList.toggle("vector-sidebar-open",open);
+      menu?.setAttribute("aria-expanded",String(open));
+      if(window.innerWidth<=760){
+        Object.assign(sidebar.style,{
+          position:"fixed",top:"0",left:"0",bottom:"0",right:"auto",
+          width:"min(82vw,300px)",height:"100dvh",maxHeight:"100dvh",
+          zIndex:"10002",display:"flex",transform:open?"translateX(0)":"translateX(-105%)"
+        });
+        if(backdrop){
+          Object.assign(backdrop.style,{
+            display:open?"block":"none",position:"fixed",inset:"0",
+            zIndex:"10001",background:"rgba(0,0,0,.62)",pointerEvents:open?"auto":"none"
+          });
+        }
+      }
+    }
+    document.addEventListener("click",function(event){
+      const trigger=event.target.closest(".nexus-menu, #chatMobileMenu");
+      if(trigger){
+        event.preventDefault();event.stopPropagation();
+        const view=document.getElementById("chatView");
+        setOpen(!view?.classList.contains("vector-sidebar-open"));
+        return;
+      }
+      if(event.target.closest(".nexus-backdrop, #chatSidebarBackdrop")){
+        setOpen(false);return;
+      }
+      if(window.innerWidth<=760 && event.target.closest("#chatSidebar a, #chatSidebar button")){
+        setOpen(false);
+      }
+    },true);
+  }
+
 })();
