@@ -64,3 +64,10 @@
  #chatView.active #chatMain>.nexus-composer .send{width:42px!important;height:42px!important}
 }
 @media(max-width:390px){.nexus-suggestions{grid-template-columns:1fr}.nexus-suggestion{min-height:54px}}
+
+/* Sidebar toggle visibility and tap target fix */
+#chatView.active .nexus-topbar{position:relative!important;z-index:1203!important}
+#chatView.active .nexus-menu{display:grid!important;place-items:center!important;flex:0 0 48px!important;width:48px!important;height:48px!important;border:1px solid #343b49!important;border-radius:14px!important;background:#171c27!important;color:#fff!important;font-size:25px!important;opacity:1!important;visibility:visible!important;cursor:pointer!important;touch-action:manipulation!important}
+#chatView.active .nexus-menu i{color:#fff!important;pointer-events:none!important}
+#chatView.active .nexus-backdrop{pointer-events:auto!important}
+@media(max-width:760px){#chatView.active .nexus-topbar{z-index:1203!important}#chatView.active .nexus-menu{position:relative!important;z-index:1204!important}}
