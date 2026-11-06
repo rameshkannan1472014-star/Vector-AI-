@@ -71,3 +71,16 @@
 #chatView.active .nexus-menu i{color:#fff!important;pointer-events:none!important}
 #chatView.active .nexus-backdrop{pointer-events:auto!important}
 @media(max-width:760px){#chatView.active .nexus-topbar{z-index:1203!important}#chatView.active .nexus-menu{position:relative!important;z-index:1204!important}}
+
+/* Reliable mobile sidebar open state, including delegated fallback handler */
+@media(max-width:760px){
+ #chatView.active.vector-sidebar-open #chatSidebar,
+ #chatView.active.nexus-sidebar-open #chatSidebar{
+   display:flex!important;position:fixed!important;top:0!important;left:0!important;
+   bottom:0!important;width:min(82vw,300px)!important;height:100dvh!important;
+   max-height:100dvh!important;z-index:10002!important;transform:translateX(0)!important;
+   visibility:visible!important;opacity:1!important;pointer-events:auto!important;
+ }
+ #chatView.active #chatSidebar{pointer-events:auto!important;transition:transform .22s ease!important}
+ #chatView.active .nexus-backdrop{z-index:10001!important}
+}
