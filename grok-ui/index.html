@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Vector AI</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23fff'/%3E%3Ctext x='16' y='22' font-family='system-ui' font-size='17' font-weight='800' text-anchor='middle' fill='%23000'%3EV%3C/text%3E%3C/svg%3E" />
+<meta name="theme-color" content="#000000" />
+<style>
+  :root{
+    --bg:#000000;
+    --panel:#000000;
+    --raise:#101010;
+    --raise-2:#161616;
+    --border:#222222;
+    --border-soft:#1a1a1a;
+    --text:#f7f7f7;
+    --text-dim:#a6a6a6;
+    --text-faint:#6e6e6e;
+    --accent:#ffffff;
+    --radius:18px;
+    --sidebar:264px;
+    --font:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--font);
+    font-size:15px;
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility;
+    overflow:hidden;
+  }
+  ::selection{background:#3a3a3a;color:#fff}
+
+  /* ---------- shell ---------- */
+  .app{display:flex;height:100dvh;width:100%}
+
+  /* ---------- sidebar ---------- */
+  .sidebar{
+    width:var(--sidebar);
+    flex:0 0 var(--sidebar);
+    background:var(--panel);
+    border-right:1px solid var(--border-soft);
+    display:flex;
+    flex-direction:column;
+    padding:14px 10px 10px;
+    transition:margin-left .22s ease, opacity .18s ease;
+  }
+  .sidebar.hidden{margin-left:calc(-1 * var(--sidebar));opacity:0;pointer-events:none}
+
+  .brand{
+    display:flex;align-items:center;gap:9px;
+    padding:6px 8px 14px;
+    letter-spacing:-.01em;
+  }
+  .brand-mark{
+    width:22px;height:22px;border-radius:6px;
+    background:#fff;color:#000;
+    display:grid;place-items:center;
+    font-size:12px;font-weight:800;
+  }
+  .brand-name{font-size:15px;font-weight:600}
+
+  .new-chat{
+    display:flex;align-items:center;gap:10px;
+    width:100%;padding:9px 10px;
+    background:transparent;border:1px solid var(--border);
+    border-radius:12px;color:var(--text);
+    font-family:inherit;font-size:14px;font-weight:500;
+    cursor:pointer;transition:background .15s,border-color .15s;
+  }
+  .new-chat:hover{background:var(--raise-2);border-color:#2e2e2e}
+  .new-chat svg{width:16px;height:16px;opacity:.85}
+
+  .search{
+    display:flex;align-items:center;gap:8px;
+    margin-top:8px;padding:8px 10px;
+    border-radius:10px;color:var(--text-faint);
+    font-size:13.5px;cursor:text;
+  }
+  .search:hover{background:var(--raise)}
+  .search svg{width:14px;height:14px}
+
+  .threads{flex:1;overflow-y:auto;margin-top:14px;padding-bottom:10px}
+  .threads::-webkit-scrollbar{width:6px}
+  .threads::-webkit-scrollbar-thumb{background:#242424;border-radius:99px}
+  .group-label{
+    font-size:11.5px;font-weight:600;letter-spacing:.04em;
+    text-transform:uppercase;color:var(--text-faint);
+    padding:12px 10px 6px;
+  }
+  .thread{
+    display:block;width:100%;text-align:left;
+    padding:8px 10px;margin-bottom:2px;
+    background:transparent;border:0;border-radius:9px;
+    color:var(--text-dim);font-family:inherit;font-size:13.8px;font-weight:450;
+    cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    transition:background .13s,color .13s;
+  }
+  .thread:hover{background:var(--raise);color:var(--text)}
+  .thread.active{background:var(--raise-2);color:var(--text)}
+
+  .account{
+    display:flex;align-items:center;gap:10px;
+    padding:9px 10px;border-radius:11px;
+    cursor:pointer;transition:background .13s;
+    border-top:1px solid var(--border-soft);
+    margin-top:6px;padding-top:12px;
+  }
+  .account:hover{background:var(--raise)}
+  .avatar{
+    width:26px;height:26px;border-radius:50%;
+    background:linear-gradient(135deg,#4a4a4a,#1e1e1e);
+    display:grid;place-items:center;
+    font-size:11.5px;font-weight:700;color:#e6e6e6;flex:0 0 26px;
+  }
+  .account-meta{min-width:0;flex:1}
+  .account-name{font-size:13.5px;font-weight:550;line-height:1.3}
+  .account-plan{font-size:11.5px;color:var(--text-faint);line-height:1.3}
+
+  /* ---------- main ---------- */
+  .main{flex:1;display:flex;flex-direction:column;min-width:0;position:relative}
+
+  .topbar{
+    display:flex;align-items:center;gap:10px;
+    height:52px;padding:0 14px;
+    flex:0 0 52px;
+  }
+  .icon-btn{
+    width:32px;height:32px;border-radius:9px;
+    display:grid;place-items:center;
+    background:transparent;border:0;color:var(--text-dim);
+    cursor:pointer;transition:background .13s,color .13s;
+  }
+  .icon-btn:hover{background:var(--raise-2);color:var(--text)}
+  .icon-btn svg{width:17px;height:17px}
+
+  .mode-pill{
+    display:flex;align-items:center;gap:6px;
+    padding:5px 11px;border-radius:99px;
+    background:var(--raise);border:1px solid var(--border);
+    font-size:12.5px;font-weight:500;color:var(--text-dim);
+    cursor:pointer;
+  }
+  .mode-pill .dot{width:5px;height:5px;border-radius:50%;background:#4ade80}
+
+  .scroller{flex:1;overflow-y:auto;scroll-behavior:smooth}
+  .scroller::-webkit-scrollbar{width:8px}
+  .scroller::-webkit-scrollbar-thumb{background:#212121;border-radius:99px}
+
+  .width-limiter{max-width:760px;margin:0 auto;padding:0 24px}
+
+  /* ---------- empty state ---------- */
+  .hero{
+    min-height:calc(100% - 20px);
+    display:flex;flex-direction:column;justify-content:center;
+    padding-bottom:12vh;
+  }
+  .hero h1{
+    font-size:34px;font-weight:600;letter-spacing:-.028em;
+    line-height:1.2;color:var(--text);
+  }
+  .hero h1 span{display:block;color:#8f8f8f;font-weight:600}
+  .hero p{margin-top:12px;font-size:14.5px;color:var(--text-faint);max-width:44ch}
+
+  /* ---------- messages ---------- */
+  .thread-wrap{padding:26px 0 20px}
+
+  .msg{margin-bottom:26px;animation:rise .28s ease both}
+  @keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+  .msg.user{display:flex;justify-content:flex-end}
+  .msg.user .bubble{
+    background:var(--raise-2);
+    border:1px solid var(--border-soft);
+    padding:11px 15px;border-radius:16px 16px 4px 16px;
+    max-width:min(600px,86%);
+    font-size:14.6px;white-space:pre-wrap;word-wrap:break-word;
+  }
+
+  .msg.ai .head{
+    display:flex;align-items:center;gap:8px;margin-bottom:9px;
+  }
+  .ai-mark{
+    width:19px;height:19px;border-radius:5px;background:#fff;color:#000;
+    display:grid;place-items:center;font-size:9.5px;font-weight:800;flex:0 0 19px;
+  }
+  .ai-name{font-size:12.5px;font-weight:600;color:var(--text-dim);letter-spacing:.01em}
+  .body{font-size:15px;line-height:1.7;color:#eaeaea;word-wrap:break-word}
+  .body p{margin-bottom:12px}
+  .body p:last-child{margin-bottom:0}
+  .stream{white-space:pre-wrap}
+  .body strong{color:#fff;font-weight:600}
+  .body ul{margin:0 0 12px 18px}
+  .body li{margin-bottom:5px}
+  .body code.inline{
+    font-family:var(--mono);font-size:12.8px;
+    background:#171717;border:1px solid #262626;
+    padding:1.5px 5px;border-radius:5px;color:#e8e8e8;
+  }
+  .body pre{
+    background:#0c0c0c;border:1px solid #202020;border-radius:12px;
+    margin:0 0 14px;overflow:hidden;
+  }
+  .body pre .bar{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:7px 12px;border-bottom:1px solid #1c1c1c;
+    font-size:11.5px;color:var(--text-faint);font-family:var(--mono);
+  }
+  .body pre .copy{
+    background:none;border:0;color:var(--text-faint);
+    font-family:inherit;font-size:11.5px;cursor:pointer;padding:2px 6px;border-radius:5px;
+  }
+  .body pre .copy:hover{color:#fff;background:#1c1c1c}
+  .body pre code{
+    display:block;padding:13px 14px;overflow-x:auto;
+    font-family:var(--mono);font-size:12.8px;line-height:1.65;color:#d6d6d6;
+    scrollbar-width:thin;scrollbar-color:#2a2a2a transparent;
+  }
+  .body pre code::-webkit-scrollbar{height:8px}
+  .body pre code::-webkit-scrollbar-track{background:transparent}
+  .body pre code::-webkit-scrollbar-thumb{background:#262626;border-radius:99px}
+  .body pre code::-webkit-scrollbar-thumb:hover{background:#3a3a3a}
+
+  .caret{
+    display:inline-block;width:7px;height:15px;background:#fff;
+    vertical-align:-2px;margin-left:2px;animation:blink 1s step-end infinite;border-radius:1px;
+  }
+  @keyframes blink{50%{opacity:0}}
+
+  /* ---------- composer ---------- */
+  .composer-zone{
+    flex:0 0 auto;padding:0 24px 20px;
+    background:linear-gradient(to top,var(--bg) 72%,rgba(0,0,0,0));
+  }
+  .suggestions{
+    display:flex;gap:8px;flex-wrap:wrap;
+    margin-bottom:11px;
+  }
+  .chip{
+    padding:7px 13px;border-radius:99px;
+    background:transparent;border:1px solid var(--border);
+    color:var(--text-dim);font-family:inherit;font-size:12.8px;font-weight:450;
+    cursor:pointer;transition:background .14s,color .14s,border-color .14s;
+  }
+  .chip:hover{background:var(--raise-2);color:var(--text);border-color:#303030}
+
+  .composer{
+    background:var(--raise);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    transition:border-color .16s,background .16s;
+    box-shadow:0 1px 0 rgba(255,255,255,.02) inset;
+  }
+  .composer:focus-within{border-color:#3a3a3a;background:#131313}
+
+  .composer textarea{
+    width:100%;background:transparent;border:0;outline:none;resize:none;
+    color:var(--text);font-family:inherit;font-size:15px;line-height:1.55;
+    padding:15px 17px 6px;max-height:220px;min-height:52px;
+  }
+  .composer textarea::placeholder{color:#6b6b6b}
+
+  .composer-row{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:6px 9px 9px 9px;gap:8px;
+  }
+  .row-left{display:flex;align-items:center;gap:2px}
+  .tool{
+    width:31px;height:31px;border-radius:8px;
+    display:grid;place-items:center;background:transparent;border:0;
+    color:var(--text-dim);cursor:pointer;transition:background .13s,color .13s;
+  }
+  .tool:hover{background:#1e1e1e;color:#fff}
+  .tool svg{width:16px;height:16px}
+
+  .model-tag{
+    display:flex;align-items:center;gap:5px;
+    margin-left:4px;padding:5px 9px;border-radius:8px;
+    color:var(--text-dim);font-size:12.5px;font-weight:500;cursor:pointer;
+    background:transparent;border:0;font-family:inherit;
+    transition:background .13s,color .13s;
+  }
+  .model-tag:hover{background:#1e1e1e;color:#fff}
+  .model-tag svg{width:11px;height:11px;opacity:.7}
+
+  .send{
+    width:32px;height:32px;border-radius:50%;
+    display:grid;place-items:center;
+    border:0;cursor:pointer;
+    background:#2a2a2a;color:#6b6b6b;
+    transition:background .16s,color .16s,transform .1s;
+  }
+  .send.ready{background:#fff;color:#000}
+  .send.ready:hover{transform:scale(1.05)}
+  .send svg{width:15px;height:15px}
+  .send:disabled{cursor:default}
+
+  .fineprint{
+    text-align:center;font-size:11.5px;color:#565656;margin-top:10px;
+  }
+
+  /* ---------- responsive ---------- */
+  .mobile-only{display:none}
+  @media (max-width:900px){
+    .sidebar{position:fixed;inset:0 auto 0 0;z-index:30;background:#050505}
+    .sidebar.hidden{margin-left:calc(-1 * var(--sidebar))}
+    .mobile-only{display:grid}
+    .width-limiter{padding:0 16px}
+    .composer-zone{padding:0 14px 16px}
+    .hero h1{font-size:27px}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ================= SIDEBAR ================= -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-mark">V</div>
+      <div class="brand-name">Vector</div>
+    </div>
+
+    <button class="new-chat" onclick="resetChat()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      New chat
+    </button>
+
+    <div class="search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      Search
+    </div>
+
+    <div class="threads" id="threads">
+      <div class="group-label">Today</div>
+      <button class="thread active" data-mode="chat">AI engineering assistant</button>
+      <button class="thread" data-mode="code">Fix the streaming endpoint</button>
+      <div class="group-label">Yesterday</div>
+      <button class="thread" data-mode="review">Review server.py structure</button>
+      <button class="thread" data-mode="diagram">Request lifecycle diagram</button>
+      <div class="group-label">Previous 7 days</div>
+      <button class="thread" data-mode="debug">Render deploy failing</button>
+      <button class="thread" data-mode="image">Dark UI concept</button>
+    </div>
+
+    <div class="account">
+      <div class="avatar">RK</div>
+      <div class="account-meta">
+        <div class="account-name">Ramesh</div>
+        <div class="account-plan">Free</div>
+      </div>
+      <div class="icon-btn" style="width:26px;height:26px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ================= MAIN ================= -->
+  <main class="main">
+
+    <div class="topbar">
+      <button class="icon-btn mobile-only" onclick="toggleSidebar()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+      <button class="icon-btn" onclick="toggleSidebar()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M9 4v16"/></svg>
+      </button>
+      <div class="mode-pill">
+        <span class="dot"></span>
+        <span id="modeLabel">Agent</span>
+      </div>
+      <div style="flex:1"></div>
+      <button class="icon-btn" title="Share">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><path d="M12 16V3"/><path d="m7 8 5-5 5 5"/></svg>
+      </button>
+    </div>
+
+    <div class="scroller" id="scroller">
+      <!-- empty state -->
+      <div class="hero width-limiter" id="hero">
+        <h1>How can I help you<span>today?</span></h1>
+        <p>Ask anything, paste an error, or drop a file. Vector works through code, debugging and engineering problems with you.</p>
+      </div>
+
+      <!-- messages -->
+      <div class="thread-wrap width-limiter" id="messages" style="display:none"></div>
+    </div>
+
+    <!-- composer -->
+    <div class="composer-zone">
+      <div class="width-limiter" style="padding:0">
+        <div class="suggestions" id="suggestions">
+          <button class="chip" onclick="useChip(this)">Explain this error</button>
+          <button class="chip" onclick="useChip(this)">Review my code</button>
+          <button class="chip" onclick="useChip(this)">Draw an architecture diagram</button>
+          <button class="chip" onclick="useChip(this)">Refactor a function</button>
+        </div>
+
+        <div class="composer">
+          <textarea id="input" rows="1" placeholder="Ask Vector anything"></textarea>
+          <div class="composer-row">
+            <div class="row-left">
+              <button class="tool" title="Attach">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+              </button>
+              <button class="tool" title="Attach file">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21 11.5 12.5 20a5.5 5.5 0 0 1-7.8-7.8l8-8a3.7 3.7 0 0 1 5.2 5.2l-8 8a1.9 1.9 0 0 1-2.6-2.6l7.1-7.1"/></svg>
+              </button>
+              <button class="model-tag">
+                Groq
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg>
+              </button>
+            </div>
+            <button class="send" id="send" disabled onclick="send()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="fineprint">Vector can make mistakes. Verify important code.</div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+/* ------------------------------------------------------------------ */
+/* state                                                               */
+/* ------------------------------------------------------------------ */
+const input    = document.getElementById('input');
+const sendBtn  = document.getElementById('send');
+const messages = document.getElementById('messages');
+const hero     = document.getElementById('hero');
+const scroller = document.getElementById('scroller');
+const sidebar  = document.getElementById('sidebar');
+const modeLabel= document.getElementById('modeLabel');
+
+let busy = false;
+let mode = 'chat';
+
+/* ------------------------------------------------------------------ */
+/* composer behaviour                                                  */
+/* ------------------------------------------------------------------ */
+function autogrow(){
+  input.style.height = 'auto';
+  input.style.height = Math.min(input.scrollHeight, 220) + 'px';
+  sendBtn.classList.toggle('ready', input.value.trim().length > 0 && !busy);
+  sendBtn.disabled = !input.value.trim() || busy;
+}
+
+input.addEventListener('input', autogrow);
+input.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); send(); }
+});
+
+function useChip(el){
+  input.value = el.textContent;
+  autogrow();
+  input.focus();
+}
+
+function toggleSidebar(){ sidebar.classList.toggle('hidden'); }
+
+/* start collapsed on small screens so the thread is readable */
+if (window.innerWidth < 900) sidebar.classList.add('hidden');
+
+/* ------------------------------------------------------------------ */
+/* threads                                                             */
+/* ------------------------------------------------------------------ */
+document.querySelectorAll('.thread').forEach(t => {
+  t.addEventListener('click', () => {
+    document.querySelectorAll('.thread').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    mode = t.dataset.mode || 'chat';
+    modeLabel.textContent = labelFor(mode);
+    resetChat();
+    setGreeting(mode);
+    if (window.innerWidth < 900) sidebar.classList.add('hidden');
+  });
+});
+
+function labelFor(m){
+  return {chat:'Agent', code:'Code', debug:'Debug', review:'Review', image:'Image', diagram:'Diagram'}[m] || 'Agent';
+}
+
+function setGreeting(m){
+  const copy = {
+    chat:    ['How can I help you', 'today?'],
+    code:    ['What should we', 'build?'],
+    debug:   ['What is', 'breaking?'],
+    review:  ['What should I', 'review?'],
+    diagram: ['What should we', 'map out?'],
+    image:   ['What should I', 'create?']
+  }[m] || ['How can I help you','today?'];
+  document.getElementById('hero').querySelector('h1').innerHTML = copy[0] + '<span>' + copy[1] + '</span>';
+  const ph = {chat:'Ask Vector anything', code:'Describe what to build', debug:'Paste the error or stack trace',
+              review:'Paste the code to review', diagram:'Describe the system', image:'Describe the image'}[m];
+  input.placeholder = ph || 'Ask Vector anything';
+}
+
+function resetChat(){
+  messages.innerHTML = '';
+  messages.style.display = 'none';
+  hero.style.display = 'flex';
+  input.value = '';
+  autogrow();
+  scroller.scrollTop = 0;
+}
+
+/* ------------------------------------------------------------------ */
+/* rendering                                                           */
+/* ------------------------------------------------------------------ */
+function addUser(text){
+  hero.style.display = 'none';
+  messages.style.display = 'block';
+  const el = document.createElement('div');
+  el.className = 'msg user';
+  el.innerHTML = '<div class="bubble"></div>';
+  el.querySelector('.bubble').textContent = text;
+  messages.appendChild(el);
+  scrollBottom();
+}
+
+function addAI(){
+  const el = document.createElement('div');
+  el.className = 'msg ai';
+  el.innerHTML =
+    '<div class="head"><div class="ai-mark">V</div><div class="ai-name">Vector</div></div>' +
+    '<div class="body"><span class="caret"></span></div>';
+  messages.appendChild(el);
+  scrollBottom();
+  return el.querySelector('.body');
+}
+
+function scrollBottom(){
+  requestAnimationFrame(() => { scroller.scrollTop = scroller.scrollHeight; });
+}
+
+/* minimal markdown:  fenced code, **bold**, `inline`, - lists */
+function render(text){
+  let out = '';
+  const parts = text.split(/```/);
+  parts.forEach((chunk, i) => {
+    if (i % 2 === 1){
+      const nl = chunk.indexOf('\n');
+      const lang = nl > -1 ? chunk.slice(0, nl).trim() : '';
+      const code = nl > -1 ? chunk.slice(nl + 1) : chunk;
+      out += '<pre><div class="bar"><span>' + (lang || 'code') + '</span>' +
+             '<button class="copy" onclick="copyCode(this)">Copy</button></div>' +
+             '<code>' + escapeHtml(code.replace(/\n$/, '')) + '</code></pre>';
+    } else {
+      let t = escapeHtml(chunk);
+      t = t.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+      t = t.replace(/`([^`]+)`/g, '<code class="inline">$1</code>');
+      t.split(/\n{2,}/).forEach(para => {
+        if (!para.trim()) return;
+        if (/^\s*[-*]\s+/m.test(para)){
+          const items = para.split('\n').filter(l => l.trim())
+            .map(l => '<li>' + l.replace(/^\s*[-*]\s+/, '') + '</li>').join('');
+          out += '<ul>' + items + '</ul>';
+        } else {
+          out += '<p>' + para.replace(/\n/g, '<br>') + '</p>';
+        }
+      });
+    }
+  });
+  return out;
+}
+
+function escapeHtml(s){
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function copyCode(btn){
+  const code = btn.closest('pre').querySelector('code').textContent;
+  navigator.clipboard.writeText(code);
+  const old = btn.textContent;
+  btn.textContent = 'Copied';
+  setTimeout(() => btn.textContent = old, 1200);
+}
+
+/* ------------------------------------------------------------------ */
+/* send + stream                                                       */
+/* ------------------------------------------------------------------ */
+async function send(){
+  const text = input.value.trim();
+  if (!text || busy) return;
+
+  busy = true;
+  const chips = document.getElementById('suggestions');
+  if (chips) chips.style.display = 'none';
+
+  input.value = '';
+  autogrow();
+  addUser(text);
+
+  const body = addAI();
+  const full = pickReply(text, mode);
+
+  await new Promise(r => setTimeout(r, 260));
+
+  let i = 0;
+  const chunk = Math.max(2, Math.round(full.length / 190));
+
+  const tick = () => {
+    i = Math.min(full.length, i + chunk);
+    body.innerHTML = '<span class="stream"></span><span class="caret"></span>';
+    body.querySelector('.stream').textContent = full.slice(0, i);
+    scrollBottom();
+
+    if (i < full.length){
+      setTimeout(tick, 12);
+    } else {
+      body.innerHTML = render(full);
+      scrollBottom();
+      busy = false;
+      autogrow();
+      input.focus();
+    }
+  };
+  tick();
+}
+
+/* ------------------------------------------------------------------ */
+/* demo replies — swap this block for your /api/chat stream            */
+/* ------------------------------------------------------------------ */
+const REPLIES = {
+  chat:
+`Happy to help with that.
+
+Here is how I would approach it:
+
+- **Start from the failure**, not the feature. Reproduce it once, in the smallest possible surface.
+- **Change one thing at a time.** Batched edits make the cause impossible to isolate.
+- **Write the check first.** Even a single assertion turns guesswork into a yes or no.
+
+Tell me what you are working on and I will go deeper.`,
+
+  code:
+`Here is a clean implementation:
+
+\`\`\`python
+from fastapi import APIRouter
+from fastapi.responses import StreamingResponse
+
+router = APIRouter()
+
+@router.post("/api/chat")
+async def chat(payload: ChatRequest):
+    async def stream():
+        async for token in provider.stream(payload.messages):
+            yield f"data: {token}\\n\\n"
+        yield "data: [DONE]\\n\\n"
+
+    return StreamingResponse(stream(), media_type="text/event-stream")
+\`\`\`
+
+Three things this gets right:
+
+- The provider is **injected**, so Groq and Gemini share one route.
+- The stream is closed explicitly with \`[DONE]\`, so the client never hangs.
+- No provider SDK is imported at module level, so swapping is a config change.`,
+
+  debug:
+`That trace points at a missing await, not a network problem.
+
+\`\`\`python
+# breaks: returns a coroutine object
+result = provider.complete(messages)
+
+# works
+result = await provider.complete(messages)
+\`\`\`
+
+The giveaway is that the error says \`coroutine\` rather than \`ConnectionError\` — the call never reached the network at all.
+
+Fix that line, then confirm with a single test that asserts you get a string back.`,
+
+  review:
+`I read through it. Here is what I would change, in priority order.
+
+- **Split the module.** 85KB in one file means nothing can be tested in isolation. Routes, providers and prompts belong apart.
+- **Move provider calls behind one interface.** Right now a fallback is a copy-paste.
+- **Config, not constants.** History limits and model names should be settings.
+- **Add one health test.** It catches the failure you actually hit: a missing key at startup.
+
+The logic itself is sound. It is the shape that is costing you.`,
+
+  diagram:
+`Here is the request lifecycle:
+
+\`\`\`text
+client  ──►  /api/chat  ──►  routing.py
+                                │
+                     ┌──────────┴──────────┐
+                     ▼                     ▼
+                  groq.py              gemini.py
+                     │                     │
+                     └──────────┬──────────┘
+                                ▼
+                        streamed tokens  ──►  client
+\`\`\`
+
+Every request enters through one router and one fallback decision. If Groq fails, Gemini is next — never both, never inline.`,
+
+  image:
+`I would describe that one like this:
+
+\`\`\`text
+near-black background, single soft light source
+from the upper left, matte surfaces, no gloss,
+one warm accent used once, generous negative space
+\`\`\`
+
+That gets you depth without noise. Want me to write the full prompt for the image model?`
+};
+
+function pickReply(text, m){
+  if (/\berror\b|traceback|exception|fails?|broken/i.test(text)) return REPLIES.debug;
+  if (/\breview|refactor|clean up\b/i.test(text)) return REPLIES.review;
+  if (/\bdiagram|architecture|flow\b/i.test(text)) return REPLIES.diagram;
+  if (/\bimage|picture|photo|draw\b/i.test(text)) return REPLIES.image;
+  if (/\bbuild|code|function|api|endpoint\b/i.test(text)) return REPLIES.code;
+  return REPLIES[m] || REPLIES.chat;
+}
+</script>
+</body>
+</html>
