@@ -19,7 +19,6 @@ const LS = {
   notes: 'vector.notes.v1'
 };
 
-/* replies stay plain text + emojis, the way Ramesh asked for */
 const STYLE = 'Reply in short, friendly plain text with emojis. ' +
               'Never use markdown: no asterisks, no #, no code blocks, no bullet dashes. ' +
               'Explain it simply, like you are talking to a 12 year old.';
@@ -29,9 +28,9 @@ let mode = 'chat';
 let provider = 'gemini';
 let providerList = [];
 
-let turns = [];          /* messages of the open chat */
-let activeId = null;     /* id of the open chat   */
-let chats = [];          /* every saved chat      */
+let turns = [];
+let activeId = null;
+let chats = [];
 
 let memory = { name: 'Ramesh', age: '12', about: '', preferences: '' };
 let notes = [];
@@ -43,7 +42,7 @@ let me = null;
 let authConfigured = false;
 
 /* ------------------------------------------------------------------ */
-/* small helpers                                                       */
+/* helpers                                                             */
 /* ------------------------------------------------------------------ */
 function toast(msg){
   toastEl.textContent = msg;
@@ -66,7 +65,6 @@ function writeLS(key, value){
   try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) {}
 }
 
-/* plain text only: strip markdown marks, keep line breaks and emojis */
 function plainRender(text){
   let t = String(text == null ? '' : text);
   t = t.replace(/```[a-zA-Z0-9+#-]*\n?/g, '').replace(/```/g, '');
@@ -138,7 +136,7 @@ function cycleMode(){
 }
 
 /* ------------------------------------------------------------------ */
-/* chats on disk                                                       */
+/* chats                                                               */
 /* ------------------------------------------------------------------ */
 function loadState(){
   chats    = readLS(LS.chats, []);
@@ -282,7 +280,7 @@ function toggleSearch(){
 }
 
 /* ------------------------------------------------------------------ */
-/* painting the thread                                                 */
+/* thread painting                                                     */
 /* ------------------------------------------------------------------ */
 function addUser(text){
   const el = document.createElement('div');
@@ -362,3 +360,628 @@ if (providerTag){
     toast('Using ' + next.label);
   });
 }
+
+/* ------------------------------------------------------------------ */
+/* memory                                                              */
+/* ------------------------------------------------------------------ */
+function memoryPayload(){
+  const about = [memory.about].concat(notes).filter(Boolean).join(' | ');
+  const out = {};
+  if (memory.name) out.name = memory.name;
+  if (memory.age) out.age = memory.age;
+  if (about) out.about = about.slice(0, 2000);
+  if (memory.preferences) out.preferences = memory.preferences;
+  return out;
+}
+
+function paintMemoryBadge(){
+  const bits = [];
+  if (memory.name) bits.push(memory.name);
+  $('memCount').textContent = notes.length ? '+' + notes.length : (bits.length ? 'saved' : '');
+}
+
+function openMemory(){
+  closeAcctMenu();
+  $('drawerTitle').textContent = 'Memory';
+  $('drawerBody').innerHTML = memoryTemplate();
+  openDrawer();
+}
+
+function memoryTemplate(){
+  const noteList = notes.length
+    ? notes.map((n, i) =>
+        '<div class="mem-note"><div>' + escapeHtml(n) + '</div>' +
+        '<button onclick="dropNote(' + i + ')" title="Remove">×</button></div>').join('')
+    : '<div class="empty-note" style="padding-left:0">Nothing saved from chats yet.</div>';
+
+  return '' +
+    '<p class="hint" style="margin:0 0 14px">This is what Vector knows about you. It travels with every message.</p>' +
+    '<div class="field"><label>Your name</label><input id="mName" type="text" value="' + escapeAttr(memory.name) + '"></div>' +
+    '<div class="field"><label>Your age</label><input id="mAge" type="text" value="' + escapeAttr(memory.age) + '"></div>' +
+    '<div class="field"><label>About you</label><textarea id="mAbout" placeholder="What should Vector know? e.g. I am building a game.">' + escapeHtml(memory.about) + '</textarea></div>' +
+    '<div class="field"><label>Things you like</label><textarea id="mPrefs" placeholder="e.g. short answers, fun examples">' + escapeHtml(memory.preferences) + '</textarea></div>' +
+    '<button class="btn block" onclick="saveMemory()">Save memory</button>' +
+    '<div style="height:10px"></div>' +
+    '<div style="display:flex;gap:8px">' +
+      '<button class="btn ghost" style="flex:1" onclick="rememberChat()">Remember this chat</button>' +
+      '<button class="btn ghost" onclick="resetMemory()">Reset</button>' +
+    '</div>' +
+    '<div class="hint" style="margin-bottom:8px">Saved from chats</div>' + noteList;
+}
+
+function saveMemory(){
+  memory.name        = ($('mName').value || '').trim();
+  memory.age         = ($('mAge').value || '').trim();
+  memory.about       = ($('mAbout').value || '').trim();
+  memory.preferences = ($('mPrefs').value || '').trim();
+  writeLS(LS.mem, memory);
+  paintMemoryBadge();
+  paintAccount();
+  toast('Memory saved');
+}
+
+function resetMemory(){
+  memory = { name: 'Ramesh', age: '12', about: '', preferences: '' };
+  notes = [];
+  writeLS(LS.mem, memory);
+  writeLS(LS.notes, notes);
+  paintMemoryBadge();
+  paintAccount();
+  openMemory();
+  toast('Memory cleared');
+}
+
+function rememberChat(){
+  if (!turns.length){ toast('Open a chat first'); return; }
+  const said = turns.filter(m => m.role === 'user').slice(-1)[0];
+  const reply = turns.filter(m => m.role === 'assistant').slice(-1)[0];
+  const line = (said ? 'We talked about ' + String(said.content).slice(0, 110) : 'A chat') +
+               (reply ? ' — Vector said ' + String(reply.content).replace(/\s+/g, ' ').slice(0, 90) : '');
+  notes.unshift(line);
+  notes = notes.slice(0, 20);
+  writeLS(LS.notes, notes);
+  paintMemoryBadge();
+  openMemory();
+  toast('Saved to memory');
+}
+
+function dropNote(i){
+  notes.splice(i, 1);
+  writeLS(LS.notes, notes);
+  paintMemoryBadge();
+  openMemory();
+}
+
+/* ------------------------------------------------------------------ */
+/* projects                                                            */
+/* ------------------------------------------------------------------ */
+async function openProjects(){
+  closeAcctMenu();
+  $('drawerTitle').textContent = 'Projects';
+  $('drawerBody').innerHTML = '<div class="empty-note">Loading your projects…</div>';
+  openDrawer();
+  await loadProjects();
+  renderProjects();
+}
+
+async function loadProjects(){
+  try {
+    const res = await fetch('/api/projects');
+    if (!res.ok) throw new Error('bad status');
+    const data = await res.json();
+    if (Array.isArray(data.projects)){
+      projects = data.projects.map(p => ({
+        id: p.id, name: p.name, language: p.language,
+        progress: p.progress, description: p.description || ''
+      }));
+      writeLS(LS.proj, projects);
+    }
+  } catch (e) {}
+  paintProject();
+}
+
+function renderProjects(){
+  const body = $('drawerBody');
+  const list = projects.length
+    ? projects.map(p =>
+        '<button class="proj' + (activeProject && activeProject.id === p.id ? ' active' : '') +
+        '" onclick="selectProject(\'' + p.id + '\')">' +
+        '<b>' + escapeHtml(p.name) + '</b>' +
+        '<small>' + escapeHtml(p.language || 'text') +
+        (p.progress ? ' · ' + p.progress + '%' : '') + '</small></button>').join('')
+    : '<div class="empty-note" style="padding-left:0">No projects yet. Make one below and Vector will work inside it.</div>';
+
+  body.innerHTML = '' +
+    '<div class="hint" style="margin:0 0 12px">Pick a project and Vector keeps its details in mind while you chat.</div>' +
+    list +
+    '<div class="field" style="margin-top:16px"><label>New project</label>' +
+    '<input id="pName" type="text" placeholder="Project name"></div>' +
+    '<div class="field"><textarea id="pDesc" placeholder="What is it about? (optional)"></textarea></div>' +
+    '<button class="btn block" onclick="createProject()">Create project</button>' +
+    (activeProject ? '<div style="height:10px"></div><button class="btn ghost block" onclick="clearProject();renderProjects()">Stop working in a project</button>' : '');
+}
+
+async function createProject(){
+  const name = ($('pName').value || '').trim();
+  const description = ($('pDesc').value || '').trim();
+  if (!name){ toast('Give the project a name'); return; }
+
+  try {
+    const res = await fetch('/api/projects', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: name, language: 'text', description: description, code: '' })
+    });
+    if (!res.ok) throw new Error('failed');
+    await loadProjects();
+    const made = projects.find(p => p.name === name) || projects[0];
+    if (made) activeProject = made;
+    toast('Project created');
+  } catch (e) {
+    const local = { id: uid(), name: name, language: 'text', progress: 0, description: description };
+    projects.unshift(local);
+    writeLS(LS.proj, projects);
+    activeProject = local;
+    toast('Saved on this device');
+  }
+  paintProject();
+  renderProjects();
+}
+
+function selectProject(id){
+  const p = projects.find(x => x.id === id);
+  if (!p) return;
+  activeProject = p;
+  paintProject();
+  renderProjects();
+  toast('Working in ' + p.name);
+}
+
+function clearProject(){
+  activeProject = null;
+  paintProject();
+}
+
+function paintProject(){
+  const bar = $('projectBar');
+  const count = $('projCount');
+  if (count) count.textContent = projects.length ? String(projects.length) : '';
+  if (activeProject){
+    $('projectName').textContent = activeProject.name;
+    bar.classList.add('open');
+  } else {
+    bar.classList.remove('open');
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* attachments                                                         */
+/* ------------------------------------------------------------------ */
+function pickFile(){ $('fileInput').click(); }
+
+function onFiles(e){
+  const files = Array.from(e.target.files || []);
+  files.forEach(file => {
+    if (file.type.indexOf('image/') === 0){
+      const reader = new FileReader();
+      reader.onload = () => {
+        attachments.push({
+          name: file.name, kind: 'image', mime_type: file.type,
+          data: String(reader.result).split(',')[1]
+        });
+        paintAttachments();
+      };
+      reader.readAsDataURL(file);
+    } else if (file.size <= 400000){
+      const reader = new FileReader();
+      reader.onload = () => {
+        attachments.push({ name: file.name, kind: 'text', text: String(reader.result).slice(0, 12000) });
+        paintAttachments();
+      };
+      reader.readAsText(file);
+    } else {
+      toast('That file is too big (400 KB max)');
+    }
+  });
+  e.target.value = '';
+}
+
+function paintAttachments(){
+  const strip = $('attachStrip');
+  strip.innerHTML = attachments.map((a, i) =>
+    '<div class="attach-chip"><span>' + (a.kind === 'image' ? '🖼️ ' : '📄 ') + escapeHtml(a.name) + '</span>' +
+    '<button onclick="removeAttachment(' + i + ')">×</button></div>').join('');
+  strip.classList.toggle('open', attachments.length > 0);
+}
+
+function removeAttachment(i){
+  attachments.splice(i, 1);
+  paintAttachments();
+}
+
+function contextPayload(){
+  const parts = [];
+  if (activeProject){
+    parts.push('Project: ' + activeProject.name +
+      (activeProject.description ? '\n' + activeProject.description : ''));
+  }
+  attachments.forEach(a => {
+    if (a.kind === 'text') parts.push('File ' + a.name + ':\n' + a.text);
+  });
+  return parts.join('\n\n').slice(0, 24000);
+}
+
+/* ------------------------------------------------------------------ */
+/* send                                                                */
+/* ------------------------------------------------------------------ */
+async function send(){
+  const text = input.value.trim();
+  if (!text || busy) return;
+
+  busy = true;
+  input.value = '';
+  autogrow();
+
+  ensureChat(text);
+  const chips = $('suggestions');
+  if (chips) chips.style.display = 'none';
+  hero.style.display = 'none';
+  messagesEl.style.display = 'block';
+
+  turns.push({ role: 'user', content: text });
+  addUser(text);
+  syncChat();
+
+  const history = turns.slice(0, -1).slice(-20).map(m => ({
+    role: m.role,
+    content: String(m.content || '').slice(0, 3500)
+  }));
+
+  const hasImages = attachments.some(a => a.kind === 'image');
+  const body = addAI();
+  body.innerHTML = '<span class="caret"></span>';
+
+  let answer = null;
+  let failed = false;
+
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        prompt: STYLE + '\n\n' + text,
+        provider: hasImages ? 'gemini' : provider,
+        history: history,
+        memory: memoryPayload(),
+        workspace_context: contextPayload(),
+        images: attachments.filter(a => a.kind === 'image')
+          .slice(0, 4)
+          .map(a => ({ mime_type: a.mime_type, data: a.data }))
+      })
+    });
+
+    let data = null;
+    try { data = await res.json(); } catch (e) { data = null; }
+
+    if (!res.ok){
+      const detail = data && data.detail;
+      answer = (detail && detail.message) || (detail && detail.error) ||
+               (typeof detail === 'string' ? detail : '') ||
+               ('The server returned ' + res.status + '.');
+      failed = true;
+    } else {
+      answer = (data && (data.response || data.output || data.message)) || 'I did not get an answer back.';
+    }
+  } catch (e) {
+    answer = 'I could not reach the server just now. Check the connection and try again. 🙏';
+    failed = true;
+  }
+
+  if (!failed){
+    turns.push({ role: 'assistant', content: String(answer) });
+    body.innerHTML = plainRender(answer);
+    syncChat();
+  } else {
+    body.innerHTML = plainRender(answer);
+  }
+
+  attachments = [];
+  paintAttachments();
+
+  busy = false;
+  autogrow();
+  scrollBottom();
+  input.focus();
+}
+
+function shareChat(){
+  if (!turns.length){ toast('Nothing to copy yet'); return; }
+  const text = turns.map(m => (m.role === 'user' ? 'You: ' : 'Vector: ') + m.content).join('\n\n');
+  if (navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text)
+      .then(() => toast('Chat copied — paste it anywhere'))
+      .catch(() => toast('Copying is blocked in this browser'));
+  } else {
+    toast('Copying is not available in this browser');
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* drawer                                                              */
+/* ------------------------------------------------------------------ */
+function openDrawer(){
+  $('drawer').classList.add('open');
+  $('scrim').classList.add('open');
+}
+function closeDrawer(){
+  $('drawer').classList.remove('open');
+  $('scrim').classList.remove('open');
+}
+
+/* ------------------------------------------------------------------ */
+/* account and GitHub                                                  */
+/* ------------------------------------------------------------------ */
+async function loadAuth(){
+  try {
+    const res = await fetch('/api/me');
+    if (res.ok){
+      const data = await res.json();
+      authConfigured = data.auth_configured !== false;
+      me = data.signed_in ? data.user : null;
+    }
+  } catch (e) { authConfigured = false; }
+  paintAccount();
+}
+
+function paintAccount(){
+  const av = $('accountAvatar');
+  const nm = $('accountName');
+  const plan = $('accountPlan');
+
+  av.style.backgroundImage = '';
+
+  if (me){
+    const name = me.name || me.login || 'Signed in';
+    nm.textContent = name;
+    plan.textContent = 'GitHub · @' + (me.login || 'you');
+    av.textContent = String(name).slice(0, 2).toUpperCase();
+    if (me.avatar_url){
+      av.textContent = '';
+      av.style.backgroundImage = 'url(' + me.avatar_url + ')';
+      av.style.backgroundSize = 'cover';
+      av.style.backgroundPosition = 'center';
+    }
+    $('ghBadge').textContent = 'Connected';
+    $('authAction').textContent = 'Sign out';
+    $('gateNote').textContent = 'You are signed in as @' + me.login + '.';
+  } else {
+    nm.textContent = memory.name || 'Ramesh';
+    plan.textContent = 'Signed out';
+    av.textContent = String(memory.name || 'V').slice(0, 1).toUpperCase() || 'V';
+    $('ghBadge').textContent = 'Connect';
+    $('authAction').textContent = 'Sign in with GitHub';
+    $('gateNote').textContent = authConfigured
+      ? 'Signing in keeps your chats, memory and projects together.'
+      : 'GitHub sign-in is not switched on yet. The app owner needs to add GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET on the server.';
+  }
+}
+
+function openGate(){
+  closeAcctMenu();
+  paintAccount();
+  $('gate').classList.add('open');
+}
+function closeGate(){ $('gate').classList.remove('open'); }
+
+function authAction(){
+  if (me) signOut();
+  else window.location.href = '/auth/github';
+}
+
+async function signOut(){
+  try { await fetch('/auth/logout', { method: 'POST' }); } catch (e) {}
+  me = null;
+  paintAccount();
+  toast('Signed out');
+}
+
+function toggleAcctMenu(e){
+  if (e) e.stopPropagation();
+  $('acctMenu').classList.toggle('open');
+}
+function closeAcctMenu(){ $('acctMenu').classList.remove('open'); }
+
+document.addEventListener('click', e => {
+  const menu = $('acctMenu');
+  if (menu.classList.contains('open') && !menu.contains(e.target)) closeAcctMenu();
+});
+
+/* ------------------------------------------------------------------ */
+/* live voice                                                          */
+/* ------------------------------------------------------------------ */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let liveOn = false;
+let recState = 'idle';
+let rec = null;
+
+function openLive(){
+  closeAcctMenu();
+  closeDrawer();
+  liveOn = true;
+  $('liveAnswer').textContent = '';
+  $('live').classList.add('open');
+  $('liveStatus').textContent = SR
+    ? 'Tap the circle and start talking.'
+    : 'This browser has no voice input, so type below and Vector will answer out loud.';
+}
+
+function closeLive(){
+  liveOn = false;
+  $('live').classList.remove('open');
+  stopRec();
+  if ('speechSynthesis' in window){
+    try { speechSynthesis.cancel(); } catch (e) {}
+  }
+}
+
+function setOrb(on){ $('liveOrb').classList.toggle('rec', !!on); }
+
+function liveToggle(){
+  if (recState === 'listening'){
+    stopRec();
+    $('liveStatus').textContent = 'Paused. Tap the circle to talk again.';
+    return;
+  }
+  startRec();
+}
+
+function startRec(){
+  if (!SR){
+    $('liveStatus').textContent = 'Type your question below and Vector will answer out loud.';
+    $('liveText').focus();
+    return;
+  }
+  try { rec = new SR(); }
+  catch (e) { $('liveStatus').textContent = 'I could not start the microphone.'; return; }
+
+  rec.lang = 'en-IN';
+  rec.interimResults = true;
+  rec.continuous = false;
+
+  rec.onstart = () => { recState = 'listening'; setOrb(true); $('liveStatus').textContent = 'Listening…'; };
+
+  rec.onresult = ev => {
+    let said = '';
+    for (let i = 0; i < ev.results.length; i++) said += ev.results[i][0].transcript;
+    $('liveStatus').textContent = said;
+    const last = ev.results[ev.results.length - 1];
+    if (last && last.isFinal){
+      stopRec();
+      liveSend(said);
+    }
+  };
+
+  rec.onerror = ev => {
+    setOrb(false);
+    recState = 'idle';
+    $('liveStatus').textContent = ev.error === 'not-allowed'
+      ? 'Microphone is blocked. Allow it in the browser, or type below.'
+      : 'I did not catch that — tap the circle and try again.';
+  };
+
+  rec.onend = () => { setOrb(false); if (recState === 'listening') recState = 'idle'; };
+
+  try { rec.start(); }
+  catch (e) { $('liveStatus').textContent = 'Tap the circle once more to start listening.'; }
+}
+
+function stopRec(){
+  if (rec){
+    try { rec.onend = null; rec.stop(); } catch (e) {}
+    rec = null;
+  }
+  recState = 'idle';
+  setOrb(false);
+}
+
+async function liveSend(text){
+  const question = String(text || '').trim();
+  if (!question) return;
+
+  $('liveText').value = '';
+  $('liveStatus').textContent = 'Thinking…';
+  $('liveAnswer').textContent = '';
+
+  ensureChat(question);
+  turns.push({ role: 'user', content: question });
+  syncChat();
+
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        prompt: STYLE + '\n\nAnswer this out loud, so keep it to two or three short sentences: ' + question,
+        provider: provider,
+        history: [],
+        memory: memoryPayload(),
+        workspace_context: contextPayload(),
+        images: []
+      })
+    });
+
+    let data = null;
+    try { data = await res.json(); } catch (e) { data = null; }
+
+    if (!res.ok){
+      const detail = data && data.detail;
+      $('liveStatus').textContent = (detail && (detail.message || detail.error)) || 'The server did not answer.';
+      return;
+    }
+
+    const answer = (data && (data.response || data.output || data.message)) || 'No answer came back.';
+    $('liveAnswer').innerHTML = plainRender(answer);
+    $('liveStatus').textContent = 'Tap the circle to talk again.';
+
+    turns.push({ role: 'assistant', content: String(answer) });
+    syncChat();
+    paintThread();
+    speakOut(answer);
+  } catch (e) {
+    $('liveStatus').textContent = 'I could not reach the server just now.';
+  }
+}
+
+function speakOut(text){
+  if (!('speechSynthesis' in window)) return;
+  const clean = String(text)
+    .replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/gu, '')
+    .replace(/[•*#`]/g, '')
+    .slice(0, 700);
+  try {
+    speechSynthesis.cancel();
+    const utter = new SpeechSynthesisUtterance(clean);
+    utter.rate = 1.02;
+    utter.pitch = 1;
+    speechSynthesis.speak(utter);
+  } catch (e) {}
+}
+
+/* ------------------------------------------------------------------ */
+/* keyboard and boot                                                   */
+/* ------------------------------------------------------------------ */
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape'){
+    closeDrawer(); closeGate(); closeLive(); closeAcctMenu();
+  }
+});
+
+function boot(){
+  loadState();
+  paintAttachments();
+  paintProject();
+  setGreeting(mode);
+  autogrow();
+
+  if (window.innerWidth < 900) sidebar.classList.add('hidden');
+
+  loadAuth();
+  loadProviders();
+
+  const params = new URLSearchParams(window.location.search);
+  const auth = params.get('auth');
+  if (auth === 'ok'){
+    toast('Signed in with GitHub 🎉');
+  } else if (auth === 'unconfigured'){
+    toast('GitHub sign-in needs the GitHub keys on the server');
+  } else if (auth === 'error'){
+    toast('GitHub sign-in did not finish — try again');
+  }
+  if (auth){
+    params.delete('auth');
+    const q = params.toString();
+    window.history.replaceState({}, '', window.location.pathname + (q ? '?' + q : ''));
+  }
+}
+
+boot();
