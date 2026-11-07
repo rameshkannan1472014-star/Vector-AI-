@@ -1,154 +1,364 @@
-/* Nexus AI — Grok-inspired chat workspace */
-(function(){
-  const $=id=>document.getElementById(id);
-  const navItems=[
-    {label:"Chat",icon:"fa-regular fa-message",view:"chat"},
-    {label:"Projects",icon:"fa-regular fa-folder",view:"projects"},
-    {label:"Settings",icon:"fa-solid fa-gear",view:"settings"},
-    {label:"About",icon:"fa-regular fa-circle-info",view:"profile"},
-    {label:"Help",icon:"fa-regular fa-circle-question",view:"feedback"}
-  ];
-  function makeButton(label,icon,action,cls=""){
-    const b=document.createElement("button");b.type="button";b.className="nexus-nav-item "+cls;
-    b.innerHTML='<i class="'+icon+'"></i><span>'+label+'</span>';b.addEventListener("click",action);return b;
-  }
-  function go(view){if(typeof window.navigateTo==="function")window.navigateTo(view);}
-  function setup(){
-    const view=$("chatView"),layout=$("chatAppLayout"),sidebar=$("chatSidebar"),main=$("chatMain");
-    if(!view||!layout||!sidebar||!main)return;
-    if(view.dataset.nexusUiReady==="1")return;
-    view.dataset.nexusUiReady="1";
-    const projects=$("sidebarProjects"),chats=$("sidebarChats"),search=$("chatSidebarSearch");
-    const newChat=$("newChatButton"),welcome=$("chatWelcome"),messages=$("chatMessages");
-    const composer=view.querySelector(".composer");
-    const status=$("chatStatus"),loading=$("chatLoading"),attachments=$("chatAttachments");
-    sidebar.replaceChildren();
-    const brand=document.createElement("div");brand.className="nexus-brand";
-    brand.innerHTML='<div class="nexus-mark"><i class="fa-solid fa-gear"></i><span class="nexus-orbit"></span></div><div>Nexus <b>AI</b></div>';
-    sidebar.appendChild(brand);
-    const nav=document.createElement("nav");nav.className="nexus-sidebar-nav";
-    navItems.forEach(item=>nav.appendChild(makeButton(item.label,item.icon,()=>go(item.view),item.view==="chat"?"active":"")));
-    sidebar.appendChild(nav);
-    const projectHead=document.createElement("div");projectHead.className="nexus-section-label";projectHead.textContent="Projects";sidebar.appendChild(projectHead);
-    if(projects){projects.classList.add("nexus-list");sidebar.appendChild(projects);}
-    const chatHead=document.createElement("div");chatHead.className="nexus-section-label";chatHead.textContent="Recent chats";sidebar.appendChild(chatHead);
-    if(search){search.placeholder="Search chats";search.className="nexus-search";sidebar.appendChild(search);}
-    if(chats){chats.classList.add("nexus-list");sidebar.appendChild(chats);}
-    const footer=document.createElement("div");footer.className="nexus-sidebar-footer";
-    footer.appendChild(makeButton("Account","fa-regular fa-user",()=>go("profile")));
-    sidebar.appendChild(footer);
-    if(newChat){newChat.className="nexus-new-chat";newChat.innerHTML='<i class="fa-solid fa-plus"></i><span>New chat</span>';sidebar.insertBefore(newChat,nav);}
-    layout.querySelectorAll("#chatNavRail,#chatToolsRail").forEach(n=>n.remove());
-    const oldConversation=$("chatConversationBar");if(oldConversation)oldConversation.remove();
-    if(status)status.remove();
-    const header=document.createElement("div");header.className="nexus-topbar";
-    header.innerHTML='<div class="nexus-topbrand"><div class="nexus-small-mark"><i class="fa-solid fa-gear"></i></div><span>Nexus AI</span><span class="nexus-divider"></span><strong>Grok</strong></div>';
-    const menu=document.createElement("button");menu.type="button";menu.className="nexus-menu";menu.setAttribute("aria-label","Toggle sidebar");menu.innerHTML='<i class="fa-solid fa-bars"></i>';
-    header.appendChild(menu);main.prepend(header);
-    menu.setAttribute("aria-expanded","false");
-    function setSidebarOpen(open){
-      view.classList.toggle("nexus-sidebar-open",open);
-      menu.setAttribute("aria-expanded",String(open));
-      if(window.matchMedia("(max-width:760px)").matches){
-        sidebar.style.setProperty("position","fixed","important");
-        sidebar.style.setProperty("inset","0 auto 0 0","important");
-        sidebar.style.setProperty("width","min(82vw,300px)","important");
-        sidebar.style.setProperty("height","100dvh","important");
-        sidebar.style.setProperty("z-index","1202","important");
-        sidebar.style.setProperty("transform",open?"translateX(0)":"translateX(-105%)","important");
-        sidebar.style.setProperty("display","flex","important");
-        backdrop.style.display=open?"block":"none";
-      }
-    }
-    menu.addEventListener("click",()=>setSidebarOpen(!view.classList.contains("nexus-sidebar-open")));
-    if(welcome)welcome.remove();
-    if(messages)main.appendChild(messages);
-    if(loading)main.appendChild(loading);
-    if(attachments)main.appendChild(attachments);
-    if(composer){composer.classList.add("nexus-composer");main.appendChild(composer);}
-    if(search)search.addEventListener("input",()=>{});
-    const active=()=>{nav.querySelectorAll(".nexus-nav-item").forEach(b=>b.classList.toggle("active",b.textContent.trim()==="Chat"&&$("chatView")?.classList.contains("active")));};
-    window.addEventListener("hashchange",active);active();
-    if(!location.hash||location.hash==="#home")go("chat");
-    const backdrop=document.createElement("div");backdrop.className="nexus-backdrop";backdrop.addEventListener("click",()=>setSidebarOpen(false));view.appendChild(backdrop);
-    sidebar.querySelectorAll(".nexus-nav-item").forEach(button=>button.addEventListener("click",()=>setSidebarOpen(false)));
-    window.addEventListener("resize",()=>{if(!window.matchMedia("(max-width:760px)").matches){sidebar.style.removeProperty("position");sidebar.style.removeProperty("inset");sidebar.style.removeProperty("width");sidebar.style.removeProperty("height");sidebar.style.removeProperty("z-index");sidebar.style.removeProperty("transform");backdrop.style.display="none";view.classList.remove("nexus-sidebar-open");}});
-  }
-  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",setup,{once:true});else setup();
-  window.addEventListener("load",setup,{once:true});
+/* ================================================================== */
+/* Vector AI front end                                                 */
+/* ================================================================== */
+const $ = id => document.getElementById(id);
 
-  // The chat workspace is created lazily by the app's navigation code.
-  // Re-run setup immediately after that DOM is created; load events alone
-  // are too early on some mobile sessions.
-  function hookWorkspaceBuilder(){
-    const builder=window.buildChatWorkspace;
-    if(typeof builder==="function" && !builder.__vectorAiSidebarHooked){
-      const wrapped=function(){
-        const result=builder.apply(this,arguments);
-        setup();
-        return result;
-      };
-      wrapped.__vectorAiSidebarHooked=true;
-      window.buildChatWorkspace=wrapped;
-    }
+const input     = $('input');
+const sendBtn   = $('send');
+const messagesEl= $('messages');
+const hero      = $('hero');
+const scroller  = $('scroller');
+const sidebar   = $('sidebar');
+const threadsEl = $('threads');
+const toastEl   = $('toast');
+
+const LS = {
+  chats: 'vector.chats.v1',
+  mem:   'vector.memory.v1',
+  proj:  'vector.projects.v1',
+  notes: 'vector.notes.v1'
+};
+
+/* replies stay plain text + emojis, the way Ramesh asked for */
+const STYLE = 'Reply in short, friendly plain text with emojis. ' +
+              'Never use markdown: no asterisks, no #, no code blocks, no bullet dashes. ' +
+              'Explain it simply, like you are talking to a 12 year old.';
+
+let busy = false;
+let mode = 'chat';
+let provider = 'gemini';
+let providerList = [];
+
+let turns = [];          /* messages of the open chat */
+let activeId = null;     /* id of the open chat   */
+let chats = [];          /* every saved chat      */
+
+let memory = { name: 'Ramesh', age: '12', about: '', preferences: '' };
+let notes = [];
+let projects = [];
+let activeProject = null;
+let attachments = [];
+
+let me = null;
+let authConfigured = false;
+
+/* ------------------------------------------------------------------ */
+/* small helpers                                                       */
+/* ------------------------------------------------------------------ */
+function toast(msg){
+  toastEl.textContent = msg;
+  toastEl.classList.add('show');
+  clearTimeout(toastEl._t);
+  toastEl._t = setTimeout(() => toastEl.classList.remove('show'), 2400);
+}
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+function escapeHtml(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function escapeAttr(s){
+  return escapeHtml(s).replace(/"/g,'&quot;');
+}
+function readLS(key, fallback){
+  try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; }
+  catch (e) { return fallback; }
+}
+function writeLS(key, value){
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) {}
+}
+
+/* plain text only: strip markdown marks, keep line breaks and emojis */
+function plainRender(text){
+  let t = String(text == null ? '' : text);
+  t = t.replace(/```[a-zA-Z0-9+#-]*\n?/g, '').replace(/```/g, '');
+  t = t.replace(/\*\*([^*]+)\*\*/g, '$1').replace(/\*([^*\n]+)\*/g, '$1');
+  t = t.replace(/__([^_]+)__/g, '$1');
+  t = t.replace(/`([^`]+)`/g, '$1');
+  t = t.replace(/^#{1,6}\s*/gm, '');
+  t = t.replace(/^\s*[-*+]\s+/gm, '• ');
+  t = t.replace(/\n{3,}/g, '\n\n').trim();
+  return escapeHtml(t).replace(/\n/g, '<br>');
+}
+
+/* ------------------------------------------------------------------ */
+/* composer                                                            */
+/* ------------------------------------------------------------------ */
+function autogrow(){
+  input.style.height = 'auto';
+  input.style.height = Math.min(input.scrollHeight, 220) + 'px';
+  sendBtn.classList.toggle('ready', input.value.trim().length > 0 && !busy);
+  sendBtn.disabled = !input.value.trim() || busy;
+}
+
+input.addEventListener('input', autogrow);
+input.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); send(); }
+});
+
+function useChip(el){
+  input.value = el.textContent;
+  autogrow();
+  input.focus();
+}
+
+function toggleSidebar(){ sidebar.classList.toggle('hidden'); }
+
+/* ------------------------------------------------------------------ */
+/* modes                                                               */
+/* ------------------------------------------------------------------ */
+const MODES = ['chat','code','debug','review','diagram','image'];
+
+function labelFor(m){
+  return { chat:'Agent', code:'Code', debug:'Debug', review:'Review', diagram:'Diagram', image:'Image' }[m] || 'Agent';
+}
+function setGreeting(m){
+  const copy = {
+    chat:    ['How can I help you', 'today?', 'Ask anything, paste an error, or drop a file. Vector works through code, debugging and engineering problems with you.'],
+    code:    ['What should we', 'build?', 'Describe what you want and Vector will help you build it step by step.'],
+    debug:   ['What is', 'breaking?', 'Paste the error or the stack trace and we will work out why it happens.'],
+    review:  ['What should I', 'review?', 'Paste your code and Vector will look for bugs, slow parts and easy wins.'],
+    diagram: ['What should we', 'map out?', 'Describe the system and Vector will sketch how the pieces fit together.'],
+    image:   ['What should I', 'create?', 'Describe a picture and Vector will generate it for you.']
+  }[m] || ['How can I help you','today?','Ask Vector anything.'];
+
+  $('heroTitle').innerHTML = escapeHtml(copy[0]) + '<span>' + escapeHtml(copy[1]) + '</span>';
+  $('heroSub').textContent = copy[2];
+
+  const ph = {
+    chat:'Ask Vector anything', code:'Describe what to build', debug:'Paste the error or stack trace',
+    review:'Paste the code to review', diagram:'Describe the system', image:'Describe the picture'
+  }[m];
+  input.placeholder = ph || 'Ask Vector anything';
+}
+function cycleMode(){
+  const at = MODES.indexOf(mode);
+  mode = MODES[(at + 1) % MODES.length];
+  $('modeLabel').textContent = labelFor(mode);
+  setGreeting(mode);
+  input.focus();
+}
+
+/* ------------------------------------------------------------------ */
+/* chats on disk                                                       */
+/* ------------------------------------------------------------------ */
+function loadState(){
+  chats    = readLS(LS.chats, []);
+  notes    = readLS(LS.notes, []);
+  projects = readLS(LS.proj, []);
+  const saved = readLS(LS.mem, null);
+  if (saved && typeof saved === 'object') memory = Object.assign({}, memory, saved);
+  paintMemoryBadge();
+  renderChats();
+}
+
+function persistChats(){
+  writeLS(LS.chats, chats.slice(0, 60));
+}
+
+function activeChat(){ return chats.find(c => c.id === activeId) || null; }
+
+function ensureChat(firstText){
+  const existing = activeChat();
+  if (existing) return existing;
+  const chat = {
+    id: uid(),
+    title: (firstText || 'New chat').slice(0, 52),
+    messages: [],
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    projectId: activeProject ? activeProject.id : null
+  };
+  chats.unshift(chat);
+  activeId = chat.id;
+  return chat;
+}
+
+function syncChat(){
+  const chat = activeChat();
+  if (!chat) return;
+  chat.messages = turns.slice();
+  chat.updatedAt = Date.now();
+  if (!chat.title || chat.title === 'New chat') {
+    const firstUser = turns.find(t => t.role === 'user');
+    if (firstUser) chat.title = String(firstUser.content).slice(0, 52);
   }
-  hookWorkspaceBuilder();
-  // Some app flows create the workspace through installChatToolbar.
-  const installToolbar=window.installChatToolbar;
-  if(typeof installToolbar==="function" && !installToolbar.__vectorAiSidebarHooked){
-    const wrappedInstall=function(){
-      const result=installToolbar.apply(this,arguments);
-      hookWorkspaceBuilder();
-      setup();
-      return result;
-    };
-    wrappedInstall.__vectorAiSidebarHooked=true;
-    window.installChatToolbar=wrappedInstall;
+  persistChats();
+  renderChats();
+}
+
+function newChat(){
+  activeId = null;
+  turns = [];
+  messagesEl.innerHTML = '';
+  messagesEl.style.display = 'none';
+  hero.style.display = 'flex';
+  const chips = $('suggestions');
+  if (chips) chips.style.display = 'flex';
+  input.value = '';
+  autogrow();
+  scroller.scrollTop = 0;
+  closeDrawer();
+  renderChats();
+}
+
+function goHome(){
+  newChat();
+  if (window.innerWidth < 900) sidebar.classList.add('hidden');
+}
+
+function openChat(id){
+  const chat = chats.find(c => c.id === id);
+  if (!chat) return;
+  activeId = chat.id;
+  turns = (chat.messages || []).slice();
+  if (chat.projectId){
+    const p = projects.find(x => x.id === chat.projectId);
+    if (p) activeProject = p;
+  }
+  paintProject();
+  paintThread();
+  renderChats();
+  closeDrawer();
+  if (window.innerWidth < 900) sidebar.classList.add('hidden');
+}
+
+function groupFor(ts){
+  const now = new Date();
+  const d = new Date(ts || Date.now());
+  const day = 86400000;
+  const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  if (d.getTime() >= startToday) return 'Today';
+  if (d.getTime() >= startToday - day) return 'Yesterday';
+  if (d.getTime() >= startToday - 7 * day) return 'Previous 7 days';
+  return 'Older';
+}
+
+function renderChats(){
+  const q = ($('searchInput').value || '').trim().toLowerCase();
+  const list = chats.filter(c => {
+    if (!q) return true;
+    const hay = (c.title + ' ' + (c.messages || []).map(m => m.content).join(' ')).toLowerCase();
+    return hay.indexOf(q) > -1;
+  });
+
+  threadsEl.innerHTML = '';
+
+  if (!list.length){
+    const note = document.createElement('div');
+    note.className = 'empty-note';
+    note.textContent = q ? 'No chats match that.' : 'Your chats appear here. Tap New chat to start one.';
+    threadsEl.appendChild(note);
+    return;
   }
 
+  const order = ['Today','Yesterday','Previous 7 days','Older'];
+  const groups = {};
+  list.forEach(c => {
+    const key = groupFor(c.updatedAt || c.createdAt);
+    (groups[key] = groups[key] || []).push(c);
+  });
 
-  // Delegated mobile sidebar control: survives lazy DOM creation and
-  // replacement of the menu/sidebar nodes by the legacy workspace builder.
-  if(!window.__vectorAiSidebarDelegation){
-    window.__vectorAiSidebarDelegation=true;
-    function setOpen(open){
-      const view=document.getElementById("chatView");
-      const sidebar=document.getElementById("chatSidebar");
-      const menu=document.querySelector(".nexus-menu, #chatMobileMenu");
-      const backdrop=view?.querySelector(".nexus-backdrop")||document.getElementById("chatSidebarBackdrop");
-      if(!view||!sidebar)return;
-      view.classList.toggle("nexus-sidebar-open",open);
-      view.classList.toggle("vector-sidebar-open",open);
-      menu?.setAttribute("aria-expanded",String(open));
-      if(window.innerWidth<=760){
-        Object.assign(sidebar.style,{
-          position:"fixed",top:"0",left:"0",bottom:"0",right:"auto",
-          width:"min(82vw,300px)",height:"100dvh",maxHeight:"100dvh",
-          zIndex:"10002",display:"flex",transform:open?"translateX(0)":"translateX(-105%)"
-        });
-        if(backdrop){
-          Object.assign(backdrop.style,{
-            display:open?"block":"none",position:"fixed",inset:"0",
-            zIndex:"10001",background:"rgba(0,0,0,.62)",pointerEvents:open?"auto":"none"
-          });
-        }
-      }
-    }
-    document.addEventListener("click",function(event){
-      const trigger=event.target.closest(".nexus-menu, #chatMobileMenu");
-      if(trigger){
-        event.preventDefault();event.stopPropagation();
-        const view=document.getElementById("chatView");
-        setOpen(!view?.classList.contains("vector-sidebar-open"));
-        return;
-      }
-      if(event.target.closest(".nexus-backdrop, #chatSidebarBackdrop")){
-        setOpen(false);return;
-      }
-      if(window.innerWidth<=760 && event.target.closest("#chatSidebar a, #chatSidebar button")){
-        setOpen(false);
-      }
-    },true);
+  order.forEach(name => {
+    if (!groups[name]) return;
+    const label = document.createElement('div');
+    label.className = 'group-label';
+    label.textContent = name;
+    threadsEl.appendChild(label);
+
+    groups[name].forEach(c => {
+      const b = document.createElement('button');
+      b.className = 'thread' + (c.id === activeId ? ' active' : '');
+      b.textContent = c.title || 'New chat';
+      b.onclick = () => openChat(c.id);
+      threadsEl.appendChild(b);
+    });
+  });
+}
+
+function toggleSearch(){
+  const box = $('searchBox');
+  box.classList.toggle('open');
+  if (box.classList.contains('open')) $('searchInput').focus();
+  else { $('searchInput').value = ''; renderChats(); }
+}
+
+/* ------------------------------------------------------------------ */
+/* painting the thread                                                 */
+/* ------------------------------------------------------------------ */
+function addUser(text){
+  const el = document.createElement('div');
+  el.className = 'msg user';
+  el.innerHTML = '<div class="bubble"></div>';
+  el.querySelector('.bubble').textContent = text;
+  messagesEl.appendChild(el);
+  scrollBottom();
+}
+
+function addAI(){
+  const el = document.createElement('div');
+  el.className = 'msg ai';
+  el.innerHTML =
+    '<div class="head"><div class="ai-mark">V</div><div class="ai-name">Vector</div></div>' +
+    '<div class="body"><span class="caret"></span></div>';
+  messagesEl.appendChild(el);
+  scrollBottom();
+  return el.querySelector('.body');
+}
+
+function scrollBottom(){
+  requestAnimationFrame(() => { scroller.scrollTop = scroller.scrollHeight; });
+}
+
+function paintThread(){
+  messagesEl.innerHTML = '';
+  const chips = $('suggestions');
+
+  if (!turns.length){
+    messagesEl.style.display = 'none';
+    hero.style.display = 'flex';
+    if (chips) chips.style.display = 'flex';
+    return;
   }
 
-})();
+  hero.style.display = 'none';
+  messagesEl.style.display = 'block';
+  if (chips) chips.style.display = 'none';
+
+  turns.forEach(m => {
+    if (m.role === 'user') addUser(m.content);
+    else addAI().innerHTML = plainRender(m.content);
+  });
+
+  scroller.scrollTop = scroller.scrollHeight;
+}
+
+/* ------------------------------------------------------------------ */
+/* providers                                                           */
+/* ------------------------------------------------------------------ */
+const providerTag  = $('providerTag');
+const providerName = $('providerName');
+
+async function loadProviders(){
+  try {
+    const res = await fetch('/api/providers');
+    if (!res.ok) return;
+    const data = await res.json();
+    providerList = Array.isArray(data.providers) ? data.providers : [];
+    const usable = providerList.filter(p => p.configured);
+    const pick = usable[0] || providerList[0];
+    if (pick){ provider = pick.id; providerName.textContent = pick.label; }
+  } catch (e) {
+    providerName.textContent = 'Gemini';
+  }
+}
+
+if (providerTag){
+  providerTag.addEventListener('click', () => {
+    const usable = providerList.filter(p => p.configured);
+    if (usable.length < 2){ toast('This is the model your server is using'); return; }
+    const at = usable.findIndex(p => p.id === provider);
+    const next = usable[(at + 1) % usable.length];
+    provider = next.id;
+    providerName.textContent = next.label;
+    toast('Using ' + next.label);
+  });
+}
