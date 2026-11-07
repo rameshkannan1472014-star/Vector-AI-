@@ -6,355 +6,55 @@
 <title>Vector AI</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23fff'/%3E%3Ctext x='16' y='22' font-family='system-ui' font-size='17' font-weight='800' text-anchor='middle' fill='%23000'%3EV%3C/text%3E%3C/svg%3E" />
 <meta name="theme-color" content="#000000" />
-<style>
-  :root{
-    --bg:#000000;
-    --panel:#000000;
-    --raise:#101010;
-    --raise-2:#161616;
-    --border:#222222;
-    --border-soft:#1a1a1a;
-    --text:#f7f7f7;
-    --text-dim:#a6a6a6;
-    --text-faint:#6e6e6e;
-    --accent:#ffffff;
-    --radius:18px;
-    --sidebar:264px;
-    --font:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
-  }
-
-  *{box-sizing:border-box;margin:0;padding:0}
-  html,body{height:100%}
-  body{
-    background:var(--bg);
-    color:var(--text);
-    font-family:var(--font);
-    font-size:15px;
-    line-height:1.6;
-    -webkit-font-smoothing:antialiased;
-    text-rendering:optimizeLegibility;
-    overflow:hidden;
-  }
-  ::selection{background:#3a3a3a;color:#fff}
-
-  /* ---------- shell ---------- */
-  .app{display:flex;height:100dvh;width:100%}
-
-  /* ---------- sidebar ---------- */
-  .sidebar{
-    width:var(--sidebar);
-    flex:0 0 var(--sidebar);
-    background:var(--panel);
-    border-right:1px solid var(--border-soft);
-    display:flex;
-    flex-direction:column;
-    padding:14px 10px 10px;
-    transition:margin-left .22s ease, opacity .18s ease;
-  }
-  .sidebar.hidden{margin-left:calc(-1 * var(--sidebar));opacity:0;pointer-events:none}
-
-  .brand{
-    display:flex;align-items:center;gap:9px;
-    padding:6px 8px 14px;
-    letter-spacing:-.01em;
-  }
-  .brand-mark{
-    width:22px;height:22px;border-radius:6px;
-    background:#fff;color:#000;
-    display:grid;place-items:center;
-    font-size:12px;font-weight:800;
-  }
-  .brand-name{font-size:15px;font-weight:600}
-
-  .new-chat{
-    display:flex;align-items:center;gap:10px;
-    width:100%;padding:9px 10px;
-    background:transparent;border:1px solid var(--border);
-    border-radius:12px;color:var(--text);
-    font-family:inherit;font-size:14px;font-weight:500;
-    cursor:pointer;transition:background .15s,border-color .15s;
-  }
-  .new-chat:hover{background:var(--raise-2);border-color:#2e2e2e}
-  .new-chat svg{width:16px;height:16px;opacity:.85}
-
-  .search{
-    display:flex;align-items:center;gap:8px;
-    margin-top:8px;padding:8px 10px;
-    border-radius:10px;color:var(--text-faint);
-    font-size:13.5px;cursor:text;
-  }
-  .search:hover{background:var(--raise)}
-  .search svg{width:14px;height:14px}
-
-  .threads{flex:1;overflow-y:auto;margin-top:14px;padding-bottom:10px}
-  .threads::-webkit-scrollbar{width:6px}
-  .threads::-webkit-scrollbar-thumb{background:#242424;border-radius:99px}
-  .group-label{
-    font-size:11.5px;font-weight:600;letter-spacing:.04em;
-    text-transform:uppercase;color:var(--text-faint);
-    padding:12px 10px 6px;
-  }
-  .thread{
-    display:block;width:100%;text-align:left;
-    padding:8px 10px;margin-bottom:2px;
-    background:transparent;border:0;border-radius:9px;
-    color:var(--text-dim);font-family:inherit;font-size:13.8px;font-weight:450;
-    cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-    transition:background .13s,color .13s;
-  }
-  .thread:hover{background:var(--raise);color:var(--text)}
-  .thread.active{background:var(--raise-2);color:var(--text)}
-
-  .account{
-    display:flex;align-items:center;gap:10px;
-    padding:9px 10px;border-radius:11px;
-    cursor:pointer;transition:background .13s;
-    border-top:1px solid var(--border-soft);
-    margin-top:6px;padding-top:12px;
-  }
-  .account:hover{background:var(--raise)}
-  .avatar{
-    width:26px;height:26px;border-radius:50%;
-    background:linear-gradient(135deg,#4a4a4a,#1e1e1e);
-    display:grid;place-items:center;
-    font-size:11.5px;font-weight:700;color:#e6e6e6;flex:0 0 26px;
-  }
-  .account-meta{min-width:0;flex:1}
-  .account-name{font-size:13.5px;font-weight:550;line-height:1.3}
-  .account-plan{font-size:11.5px;color:var(--text-faint);line-height:1.3}
-
-  /* ---------- main ---------- */
-  .main{flex:1;display:flex;flex-direction:column;min-width:0;position:relative}
-
-  .topbar{
-    display:flex;align-items:center;gap:10px;
-    height:52px;padding:0 14px;
-    flex:0 0 52px;
-  }
-  .icon-btn{
-    width:32px;height:32px;border-radius:9px;
-    display:grid;place-items:center;
-    background:transparent;border:0;color:var(--text-dim);
-    cursor:pointer;transition:background .13s,color .13s;
-  }
-  .icon-btn:hover{background:var(--raise-2);color:var(--text)}
-  .icon-btn svg{width:17px;height:17px}
-
-  .mode-pill{
-    display:flex;align-items:center;gap:6px;
-    padding:5px 11px;border-radius:99px;
-    background:var(--raise);border:1px solid var(--border);
-    font-size:12.5px;font-weight:500;color:var(--text-dim);
-    cursor:pointer;
-  }
-  .mode-pill .dot{width:5px;height:5px;border-radius:50%;background:#4ade80}
-
-  .scroller{flex:1;overflow-y:auto;scroll-behavior:smooth}
-  .scroller::-webkit-scrollbar{width:8px}
-  .scroller::-webkit-scrollbar-thumb{background:#212121;border-radius:99px}
-
-  .width-limiter{max-width:760px;margin:0 auto;padding:0 24px}
-
-  /* ---------- empty state ---------- */
-  .hero{
-    min-height:calc(100% - 20px);
-    display:flex;flex-direction:column;justify-content:center;
-    padding-bottom:12vh;
-  }
-  .hero h1{
-    font-size:34px;font-weight:600;letter-spacing:-.028em;
-    line-height:1.2;color:var(--text);
-  }
-  .hero h1 span{display:block;color:#8f8f8f;font-weight:600}
-  .hero p{margin-top:12px;font-size:14.5px;color:var(--text-faint);max-width:44ch}
-
-  /* ---------- messages ---------- */
-  .thread-wrap{padding:26px 0 20px}
-
-  .msg{margin-bottom:26px;animation:rise .28s ease both}
-  @keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
-
-  .msg.user{display:flex;justify-content:flex-end}
-  .msg.user .bubble{
-    background:var(--raise-2);
-    border:1px solid var(--border-soft);
-    padding:11px 15px;border-radius:16px 16px 4px 16px;
-    max-width:min(600px,86%);
-    font-size:14.6px;white-space:pre-wrap;word-wrap:break-word;
-  }
-
-  .msg.ai .head{
-    display:flex;align-items:center;gap:8px;margin-bottom:9px;
-  }
-  .ai-mark{
-    width:19px;height:19px;border-radius:5px;background:#fff;color:#000;
-    display:grid;place-items:center;font-size:9.5px;font-weight:800;flex:0 0 19px;
-  }
-  .ai-name{font-size:12.5px;font-weight:600;color:var(--text-dim);letter-spacing:.01em}
-  .body{font-size:15px;line-height:1.7;color:#eaeaea;word-wrap:break-word}
-  .body p{margin-bottom:12px}
-  .body p:last-child{margin-bottom:0}
-  .stream{white-space:pre-wrap}
-  .body strong{color:#fff;font-weight:600}
-  .body ul{margin:0 0 12px 18px}
-  .body li{margin-bottom:5px}
-  .body code.inline{
-    font-family:var(--mono);font-size:12.8px;
-    background:#171717;border:1px solid #262626;
-    padding:1.5px 5px;border-radius:5px;color:#e8e8e8;
-  }
-  .body pre{
-    background:#0c0c0c;border:1px solid #202020;border-radius:12px;
-    margin:0 0 14px;overflow:hidden;
-  }
-  .body pre .bar{
-    display:flex;justify-content:space-between;align-items:center;
-    padding:7px 12px;border-bottom:1px solid #1c1c1c;
-    font-size:11.5px;color:var(--text-faint);font-family:var(--mono);
-  }
-  .body pre .copy{
-    background:none;border:0;color:var(--text-faint);
-    font-family:inherit;font-size:11.5px;cursor:pointer;padding:2px 6px;border-radius:5px;
-  }
-  .body pre .copy:hover{color:#fff;background:#1c1c1c}
-  .body pre code{
-    display:block;padding:13px 14px;overflow-x:auto;
-    font-family:var(--mono);font-size:12.8px;line-height:1.65;color:#d6d6d6;
-    scrollbar-width:thin;scrollbar-color:#2a2a2a transparent;
-  }
-  .body pre code::-webkit-scrollbar{height:8px}
-  .body pre code::-webkit-scrollbar-track{background:transparent}
-  .body pre code::-webkit-scrollbar-thumb{background:#262626;border-radius:99px}
-  .body pre code::-webkit-scrollbar-thumb:hover{background:#3a3a3a}
-
-  .caret{
-    display:inline-block;width:7px;height:15px;background:#fff;
-    vertical-align:-2px;margin-left:2px;animation:blink 1s step-end infinite;border-radius:1px;
-  }
-  @keyframes blink{50%{opacity:0}}
-
-  /* ---------- composer ---------- */
-  .composer-zone{
-    flex:0 0 auto;padding:0 24px 20px;
-    background:linear-gradient(to top,var(--bg) 72%,rgba(0,0,0,0));
-  }
-  .suggestions{
-    display:flex;gap:8px;flex-wrap:wrap;
-    margin-bottom:11px;
-  }
-  .chip{
-    padding:7px 13px;border-radius:99px;
-    background:transparent;border:1px solid var(--border);
-    color:var(--text-dim);font-family:inherit;font-size:12.8px;font-weight:450;
-    cursor:pointer;transition:background .14s,color .14s,border-color .14s;
-  }
-  .chip:hover{background:var(--raise-2);color:var(--text);border-color:#303030}
-
-  .composer{
-    background:var(--raise);
-    border:1px solid var(--border);
-    border-radius:var(--radius);
-    transition:border-color .16s,background .16s;
-    box-shadow:0 1px 0 rgba(255,255,255,.02) inset;
-  }
-  .composer:focus-within{border-color:#3a3a3a;background:#131313}
-
-  .composer textarea{
-    width:100%;background:transparent;border:0;outline:none;resize:none;
-    color:var(--text);font-family:inherit;font-size:15px;line-height:1.55;
-    padding:15px 17px 6px;max-height:220px;min-height:52px;
-  }
-  .composer textarea::placeholder{color:#6b6b6b}
-
-  .composer-row{
-    display:flex;align-items:center;justify-content:space-between;
-    padding:6px 9px 9px 9px;gap:8px;
-  }
-  .row-left{display:flex;align-items:center;gap:2px}
-  .tool{
-    width:31px;height:31px;border-radius:8px;
-    display:grid;place-items:center;background:transparent;border:0;
-    color:var(--text-dim);cursor:pointer;transition:background .13s,color .13s;
-  }
-  .tool:hover{background:#1e1e1e;color:#fff}
-  .tool svg{width:16px;height:16px}
-
-  .model-tag{
-    display:flex;align-items:center;gap:5px;
-    margin-left:4px;padding:5px 9px;border-radius:8px;
-    color:var(--text-dim);font-size:12.5px;font-weight:500;cursor:pointer;
-    background:transparent;border:0;font-family:inherit;
-    transition:background .13s,color .13s;
-  }
-  .model-tag:hover{background:#1e1e1e;color:#fff}
-  .model-tag svg{width:11px;height:11px;opacity:.7}
-
-  .send{
-    width:32px;height:32px;border-radius:50%;
-    display:grid;place-items:center;
-    border:0;cursor:pointer;
-    background:#2a2a2a;color:#6b6b6b;
-    transition:background .16s,color .16s,transform .1s;
-  }
-  .send.ready{background:#fff;color:#000}
-  .send.ready:hover{transform:scale(1.05)}
-  .send svg{width:15px;height:15px}
-  .send:disabled{cursor:default}
-
-  .fineprint{
-    text-align:center;font-size:11.5px;color:#565656;margin-top:10px;
-  }
-
-  /* ---------- responsive ---------- */
-  .mobile-only{display:none}
-  @media (max-width:900px){
-    .sidebar{position:fixed;inset:0 auto 0 0;z-index:30;background:#050505}
-    .sidebar.hidden{margin-left:calc(-1 * var(--sidebar))}
-    .mobile-only{display:grid}
-    .width-limiter{padding:0 16px}
-    .composer-zone{padding:0 14px 16px}
-    .hero h1{font-size:27px}
-  }
-</style>
+<link rel="stylesheet" href="/static/vector-ai-2.css?v=5" />
 </head>
 <body>
 <div class="app">
 
-  <!-- ================= SIDEBAR ================= -->
   <aside class="sidebar" id="sidebar">
-    <div class="brand">
+    <div class="brand" onclick="goHome()" title="Home">
       <div class="brand-mark">V</div>
       <div class="brand-name">Vector</div>
     </div>
 
-    <button class="new-chat" onclick="resetChat()">
+    <button class="new-chat" onclick="newChat()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
       New chat
     </button>
 
-    <div class="search">
+    <div class="search" onclick="toggleSearch()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
       Search
     </div>
-
-    <div class="threads" id="threads">
-      <div class="group-label">Today</div>
-      <button class="thread active" data-mode="chat">AI engineering assistant</button>
-      <button class="thread" data-mode="code">Fix the streaming endpoint</button>
-      <div class="group-label">Yesterday</div>
-      <button class="thread" data-mode="review">Review server.py structure</button>
-      <button class="thread" data-mode="diagram">Request lifecycle diagram</button>
-      <div class="group-label">Previous 7 days</div>
-      <button class="thread" data-mode="debug">Render deploy failing</button>
-      <button class="thread" data-mode="image">Dark UI concept</button>
+    <div class="search-box" id="searchBox">
+      <input id="searchInput" type="text" placeholder="Search your chats" oninput="renderChats()">
     </div>
 
-    <div class="account">
-      <div class="avatar">RK</div>
+    <div style="margin-top:10px">
+      <button class="side-row" onclick="openMemory()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 3a6 6 0 0 0-6 6c0 2.2.9 3.4 1.5 4.6.5 1 .5 2.4-.5 3.4h10c-1-1-1-2.4-.5-3.4C17.1 12.4 18 11.2 18 9a6 6 0 0 0-6-6Z"/><path d="M9.5 20.5h5"/></svg>
+        Memory
+        <span class="badge" id="memCount"></span>
+      </button>
+      <button class="side-row" onclick="openProjects()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 7.5A1.5 1.5 0 0 1 4.5 6h4l2 2.5h7A1.5 1.5 0 0 1 19 10v7.5A1.5 1.5 0 0 1 17.5 19h-13A1.5 1.5 0 0 1 3 17.5Z"/></svg>
+        Projects
+        <span class="badge" id="projCount"></span>
+      </button>
+      <button class="side-row" onclick="openGate()">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.6-1.4-1.4-1.8-1.4-1.8-1.1-.8.1-.8.1-.8 1.2.1 1.9 1.3 1.9 1.3 1.1 1.9 2.9 1.3 3.6 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.6 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .5Z"/></svg>
+        GitHub
+        <span class="badge" id="ghBadge">Connect</span>
+      </button>
+    </div>
+
+    <div class="threads" id="threads"></div>
+
+    <div class="account" onclick="toggleAcctMenu(event)">
+      <div class="avatar" id="accountAvatar">R</div>
       <div class="account-meta">
-        <div class="account-name">Ramesh</div>
-        <div class="account-plan">Free</div>
+        <div class="account-name" id="accountName">Ramesh</div>
+        <div class="account-plan" id="accountPlan">Signed out</div>
       </div>
       <div class="icon-btn" style="width:26px;height:26px">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg>
@@ -362,40 +62,51 @@
     </div>
   </aside>
 
-  <!-- ================= MAIN ================= -->
   <main class="main">
 
     <div class="topbar">
-      <button class="icon-btn mobile-only" onclick="toggleSidebar()">
+      <button class="icon-btn mobile-only" onclick="toggleSidebar()" title="Menu">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
       </button>
-      <button class="icon-btn" onclick="toggleSidebar()">
+      <button class="icon-btn" onclick="toggleSidebar()" title="Sidebar">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M9 4v16"/></svg>
       </button>
-      <div class="mode-pill">
+      <button class="icon-btn" onclick="goHome()" title="Home">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10.5 9-7.5 9 7.5"/><path d="M5.5 9.5V20h13V9.5"/></svg>
+      </button>
+      <button class="mode-pill" id="modePill" onclick="cycleMode()" title="Change mode">
         <span class="dot"></span>
         <span id="modeLabel">Agent</span>
-      </div>
+      </button>
       <div style="flex:1"></div>
-      <button class="icon-btn" title="Share">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><path d="M12 16V3"/><path d="m7 8 5-5 5 5"/></svg>
+      <button class="pill" id="liveBtn" onclick="openLive()" title="Talk to Vector">
+        <span class="wave"></span>Live
+      </button>
+      <button class="pill" onclick="shareChat()" title="Copy this chat">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><path d="M12 16V3"/><path d="m7 8 5-5 5 5"/></svg>
+        Share
       </button>
     </div>
 
     <div class="scroller" id="scroller">
-      <!-- empty state -->
       <div class="hero width-limiter" id="hero">
-        <h1>How can I help you<span>today?</span></h1>
-        <p>Ask anything, paste an error, or drop a file. Vector works through code, debugging and engineering problems with you.</p>
+        <h1 id="heroTitle">How can I help you<span>today?</span></h1>
+        <p id="heroSub">Ask anything, paste an error, or drop a file. Vector works through code, debugging and engineering problems with you.</p>
       </div>
-
-      <!-- messages -->
       <div class="thread-wrap width-limiter" id="messages" style="display:none"></div>
     </div>
 
-    <!-- composer -->
     <div class="composer-zone">
       <div class="width-limiter" style="padding:0">
+
+        <div class="attach-strip" id="attachStrip"></div>
+
+        <div class="project-bar" id="projectBar">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7.5A1.5 1.5 0 0 1 4.5 6h4l2 2.5h7A1.5 1.5 0 0 1 19 10v7.5A1.5 1.5 0 0 1 17.5 19h-13A1.5 1.5 0 0 1 3 17.5Z"/></svg>
+          Working in <b id="projectName"></b>
+          <button onclick="clearProject()">remove</button>
+        </div>
+
         <div class="suggestions" id="suggestions">
           <button class="chip" onclick="useChip(this)">Explain this error</button>
           <button class="chip" onclick="useChip(this)">Review my code</button>
@@ -407,11 +118,14 @@
           <textarea id="input" rows="1" placeholder="Ask Vector anything"></textarea>
           <div class="composer-row">
             <div class="row-left">
-              <button class="tool" title="Attach">
+              <button class="tool" onclick="pickFile()" title="Attach file">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
               </button>
-              <button class="tool" title="Attach file">
+              <button class="tool" onclick="pickFile()" title="Attach file">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21 11.5 12.5 20a5.5 5.5 0 0 1-7.8-7.8l8-8a3.7 3.7 0 0 1 5.2 5.2l-8 8a1.9 1.9 0 0 1-2.6-2.6l7.1-7.1"/></svg>
+              </button>
+              <button class="tool" onclick="openLive()" title="Talk to Vector">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0"/><path d="M12 17.5V21"/></svg>
               </button>
               <button class="model-tag" id="providerTag" title="Change model">
                 <span id="providerName">Gemini</span>
@@ -430,288 +144,59 @@
   </main>
 </div>
 
-<script>
-/* ------------------------------------------------------------------ */
-/* state                                                               */
-/* ------------------------------------------------------------------ */
-const input    = document.getElementById('input');
-const sendBtn  = document.getElementById('send');
-const messages = document.getElementById('messages');
-const hero     = document.getElementById('hero');
-const scroller = document.getElementById('scroller');
-const sidebar  = document.getElementById('sidebar');
-const modeLabel= document.getElementById('modeLabel');
+<input type="file" id="fileInput" multiple hidden onchange="onFiles(event)">
 
-let busy = false;
-let mode = 'chat';
+<div class="scrim" id="scrim" onclick="closeDrawer()"></div>
+<aside class="drawer" id="drawer">
+  <div class="drawer-head">
+    <h2 id="drawerTitle">Memory</h2>
+    <button class="icon-btn" onclick="closeDrawer()" title="Close">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="m6 6 12 12M18 6 6 18"/></svg>
+    </button>
+  </div>
+  <div class="drawer-body" id="drawerBody"></div>
+</aside>
 
-/* ------------------------------------------------------------------ */
-/* composer behaviour                                                  */
-/* ------------------------------------------------------------------ */
-function autogrow(){
-  input.style.height = 'auto';
-  input.style.height = Math.min(input.scrollHeight, 220) + 'px';
-  sendBtn.classList.toggle('ready', input.value.trim().length > 0 && !busy);
-  sendBtn.disabled = !input.value.trim() || busy;
-}
+<div class="gate" id="gate">
+  <div class="gate-card">
+    <div class="gate-mark">V</div>
+    <h2>Sign in to Vector</h2>
+    <p>Sign in with GitHub to keep your chats, memory and projects together.</p>
+    <a class="gh-btn" href="/auth/github">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.6-1.4-1.4-1.8-1.4-1.8-1.1-.8.1-.8.1-.8 1.2.1 1.9 1.3 1.9 1.3 1.1 1.9 2.9 1.3 3.6 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.6 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .5Z"/></svg>
+      Continue with GitHub
+    </a>
+    <div class="hint" id="gateNote"></div>
+    <div class="gate-foot"><a onclick="closeGate()">Keep using Vector without signing in</a></div>
+  </div>
+</div>
 
-input.addEventListener('input', autogrow);
-input.addEventListener('keydown', e => {
-  if (e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); send(); }
-});
+<div class="live" id="live">
+  <button class="icon-btn live-close" onclick="closeLive()" title="Close">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="m6 6 12 12M18 6 6 18"/></svg>
+  </button>
+  <div class="live-orb" id="liveOrb" onclick="liveToggle()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0"/><path d="M12 17.5V21"/></svg>
+  </div>
+  <div class="live-title">Live with Vector</div>
+  <div class="live-status" id="liveStatus">Tap the circle and start talking.</div>
+  <div class="live-answer" id="liveAnswer"></div>
+  <div class="live-input">
+    <input id="liveText" type="text" placeholder="Or type your question" onkeydown="if(event.key==='Enter')liveSend(liveText.value)">
+    <button class="btn" onclick="liveSend(liveText.value)">Send</button>
+  </div>
+</div>
 
-function useChip(el){
-  input.value = el.textContent;
-  autogrow();
-  input.focus();
-}
+<div class="menu" id="acctMenu">
+  <button onclick="closeAcctMenu();openMemory()">Memory</button>
+  <button onclick="closeAcctMenu();openProjects()">Projects</button>
+  <button onclick="closeAcctMenu();openLive()">Live voice</button>
+  <hr>
+  <button id="authAction" onclick="authAction()">Sign in with GitHub</button>
+</div>
 
-function toggleSidebar(){ sidebar.classList.toggle('hidden'); }
+<div class="toast" id="toast"></div>
 
-/* start collapsed on small screens so the thread is readable */
-if (window.innerWidth < 900) sidebar.classList.add('hidden');
-
-/* ------------------------------------------------------------------ */
-/* threads                                                             */
-/* ------------------------------------------------------------------ */
-document.querySelectorAll('.thread').forEach(t => {
-  t.addEventListener('click', () => {
-    document.querySelectorAll('.thread').forEach(x => x.classList.remove('active'));
-    t.classList.add('active');
-    mode = t.dataset.mode || 'chat';
-    modeLabel.textContent = labelFor(mode);
-    resetChat();
-    setGreeting(mode);
-    if (window.innerWidth < 900) sidebar.classList.add('hidden');
-  });
-});
-
-function labelFor(m){
-  return {chat:'Agent', code:'Code', debug:'Debug', review:'Review', image:'Image', diagram:'Diagram'}[m] || 'Agent';
-}
-
-function setGreeting(m){
-  const copy = {
-    chat:    ['How can I help you', 'today?'],
-    code:    ['What should we', 'build?'],
-    debug:   ['What is', 'breaking?'],
-    review:  ['What should I', 'review?'],
-    diagram: ['What should we', 'map out?'],
-    image:   ['What should I', 'create?']
-  }[m] || ['How can I help you','today?'];
-  document.getElementById('hero').querySelector('h1').innerHTML = copy[0] + '<span>' + copy[1] + '</span>';
-  const ph = {chat:'Ask Vector anything', code:'Describe what to build', debug:'Paste the error or stack trace',
-              review:'Paste the code to review', diagram:'Describe the system', image:'Describe the image'}[m];
-  input.placeholder = ph || 'Ask Vector anything';
-}
-
-function resetChat(){
-  turns.length = 0;
-  messages.innerHTML = '';
-  messages.style.display = 'none';
-  hero.style.display = 'flex';
-  const c = document.getElementById('suggestions');
-  if (c) c.style.display = 'flex';
-  input.value = '';
-  autogrow();
-  scroller.scrollTop = 0;
-}
-
-/* ------------------------------------------------------------------ */
-/* rendering                                                           */
-/* ------------------------------------------------------------------ */
-function addUser(text){
-  hero.style.display = 'none';
-  messages.style.display = 'block';
-  const el = document.createElement('div');
-  el.className = 'msg user';
-  el.innerHTML = '<div class="bubble"></div>';
-  el.querySelector('.bubble').textContent = text;
-  messages.appendChild(el);
-  scrollBottom();
-}
-
-function addAI(){
-  const el = document.createElement('div');
-  el.className = 'msg ai';
-  el.innerHTML =
-    '<div class="head"><div class="ai-mark">V</div><div class="ai-name">Vector</div></div>' +
-    '<div class="body"><span class="caret"></span></div>';
-  messages.appendChild(el);
-  scrollBottom();
-  return el.querySelector('.body');
-}
-
-function scrollBottom(){
-  requestAnimationFrame(() => { scroller.scrollTop = scroller.scrollHeight; });
-}
-
-/* minimal markdown:  fenced code, **bold**, `inline`, - lists */
-function render(text){
-  let out = '';
-  const parts = text.split(/```/);
-  parts.forEach((chunk, i) => {
-    if (i % 2 === 1){
-      const nl = chunk.indexOf('\n');
-      const lang = nl > -1 ? chunk.slice(0, nl).trim() : '';
-      const code = nl > -1 ? chunk.slice(nl + 1) : chunk;
-      out += '<pre><div class="bar"><span>' + (lang || 'code') + '</span>' +
-             '<button class="copy" onclick="copyCode(this)">Copy</button></div>' +
-             '<code>' + escapeHtml(code.replace(/\n$/, '')) + '</code></pre>';
-    } else {
-      let t = escapeHtml(chunk);
-      t = t.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-      t = t.replace(/`([^`]+)`/g, '<code class="inline">$1</code>');
-      t.split(/\n{2,}/).forEach(para => {
-        if (!para.trim()) return;
-        if (/^\s*[-*]\s+/m.test(para)){
-          const items = para.split('\n').filter(l => l.trim())
-            .map(l => '<li>' + l.replace(/^\s*[-*]\s+/, '') + '</li>').join('');
-          out += '<ul>' + items + '</ul>';
-        } else {
-          out += '<p>' + para.replace(/\n/g, '<br>') + '</p>';
-        }
-      });
-    }
-  });
-  return out;
-}
-
-function escapeHtml(s){
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-
-function copyCode(btn){
-  const code = btn.closest('pre').querySelector('code').textContent;
-  navigator.clipboard.writeText(code);
-  const old = btn.textContent;
-  btn.textContent = 'Copied';
-  setTimeout(() => btn.textContent = old, 1200);
-}
-
-/* ------------------------------------------------------------------ */
-/* backend                                                             */
-/* ------------------------------------------------------------------ */
-const turns = [];
-let provider = 'gemini';
-let providerList = [];
-
-const providerTag  = document.getElementById('providerTag');
-const providerName = document.getElementById('providerName');
-
-async function loadProviders(){
-  try {
-    const res = await fetch('/api/providers');
-    if (!res.ok) return;
-    const data = await res.json();
-    providerList = Array.isArray(data.providers) ? data.providers : [];
-    const usable = providerList.filter(p => p.configured);
-    const pick = usable[0] || providerList[0];
-    if (pick){
-      provider = pick.id;
-      providerName.textContent = pick.label;
-    }
-  } catch (e) {
-    providerName.textContent = 'Gemini';
-  }
-}
-loadProviders();
-
-if (providerTag){
-  providerTag.addEventListener('click', () => {
-    const usable = providerList.filter(p => p.configured);
-    if (usable.length < 2) return;
-    const at = usable.findIndex(p => p.id === provider);
-    const next = usable[(at + 1) % usable.length];
-    provider = next.id;
-    providerName.textContent = next.label;
-  });
-}
-
-/* ------------------------------------------------------------------ */
-/* send                                                                */
-/* ------------------------------------------------------------------ */
-async function send(){
-  const text = input.value.trim();
-  if (!text || busy) return;
-
-  busy = true;
-  const chips = document.getElementById('suggestions');
-  if (chips) chips.style.display = 'none';
-
-  input.value = '';
-  autogrow();
-  addUser(text);
-
-  const body = addAI();
-  body.innerHTML = '<span class="caret"></span>';
-
-  try {
-    const res = await fetch('/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        prompt: text,
-        provider: provider,
-        history: turns.slice(-20).map(m => ({
-          role: m.role,
-          content: String(m.content || '').slice(0, 3500)
-        })),
-        memory: {},
-        workspace_context: '',
-        images: []
-      })
-    });
-
-    let data = null;
-    try { data = await res.json(); } catch (e) { data = null; }
-
-    if (!res.ok){
-      const detail = data && data.detail;
-      const msg = (detail && detail.message) ||
-                  (detail && detail.error) ||
-                  (typeof detail === 'string' ? detail : '') ||
-                  ('The server returned ' + res.status + '.');
-      reveal(body, msg, false);
-      return;
-    }
-
-    const answer = (data && (data.response || data.output || data.message)) ||
-                   'I did not get an answer back.';
-
-    turns.push({ role: 'user', content: text });
-    turns.push({ role: 'assistant', content: String(answer) });
-
-    reveal(body, String(answer), true);
-
-  } catch (e) {
-    reveal(body, 'I could not reach the server just now. Check the connection and try again.', false);
-  }
-}
-
-/* progressive reveal keeps the streamed feel, then renders markdown */
-function reveal(body, full, asMarkdown){
-  let i = 0;
-  const step = Math.max(2, Math.round(full.length / 160));
-
-  const tick = () => {
-    i = Math.min(full.length, i + step);
-    body.innerHTML = '<span class="stream"></span><span class="caret"></span>';
-    body.querySelector('.stream').textContent = full.slice(0, i);
-    scrollBottom();
-
-    if (i < full.length){
-      setTimeout(tick, 10);
-    } else {
-      body.innerHTML = asMarkdown ? render(full) : '<p>' + escapeHtml(full) + '</p>';
-      scrollBottom();
-      busy = false;
-      autogrow();
-      input.focus();
-    }
-  };
-  tick();
-}
-</script>
+<script src="/static/vector-ai-2.js?v=5"></script>
 </body>
 </html>
