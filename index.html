@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Vector AI</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23fff'/%3E%3Ctext x='16' y='22' font-family='system-ui' font-size='17' font-weight='800' text-anchor='middle' fill='%23000'%3EV%3C/text%3E%3C/svg%3E" />
+<meta name="theme-color" content="#000000" />
+<link rel="stylesheet" href="/static/vector-ai-2.css?v=6" />
+</head>
+<body>
+<div class="app">
+
+  <aside class="sidebar" id="sidebar">
+    <div class="side-head">
+      <div class="brand" onclick="goHome()" title="Home">
+        <div class="brand-mark">V</div>
+        <div class="brand-name">Vector</div>
+      </div>
+      <button class="icon-btn side-close" onclick="closeSidebar()" title="Close menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="m6 6 12 12M18 6 6 18"/></svg>
+      </button>
+    </div>
+
+    <button class="new-chat" onclick="newChat()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      New chat
+    </button>
+
+    <div class="search" onclick="toggleSearch()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      Search
+    </div>
+    <div class="search-box" id="searchBox">
+      <input id="searchInput" type="text" placeholder="Search your chats" oninput="renderChats()">
+    </div>
+
+    <div style="margin-top:10px">
+      <button class="side-row" onclick="openMemory()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 3a6 6 0 0 0-6 6c0 2.2.9 3.4 1.5 4.6.5 1 .5 2.4-.5 3.4h10c-1-1-1-2.4-.5-3.4C17.1 12.4 18 11.2 18 9a6 6 0 0 0-6-6Z"/><path d="M9.5 20.5h5"/></svg>
+        Memory
+        <span class="badge" id="memCount"></span>
+      </button>
+      <button class="side-row" onclick="openProjects()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 7.5A1.5 1.5 0 0 1 4.5 6h4l2 2.5h7A1.5 1.5 0 0 1 19 10v7.5A1.5 1.5 0 0 1 17.5 19h-13A1.5 1.5 0 0 1 3 17.5Z"/></svg>
+        Projects
+        <span class="badge" id="projCount"></span>
+      </button>
+      <button class="side-row" onclick="openGate()">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.6-1.4-1.4-1.8-1.4-1.8-1.1-.8.1-.8.1-.8 1.2.1 1.9 1.3 1.9 1.3 1.1 1.9 2.9 1.3 3.6 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.6 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .5Z"/></svg>
+        GitHub
+        <span class="badge" id="ghBadge">Connect</span>
+      </button>
+    </div>
+
+    <div class="threads" id="threads"></div>
+
+    <div class="account" onclick="toggleAcctMenu(event)">
+      <div class="avatar" id="accountAvatar">R</div>
+      <div class="account-meta">
+        <div class="account-name" id="accountName">Ramesh</div>
+        <div class="account-plan" id="accountPlan">Signed out</div>
+      </div>
+      <div class="icon-btn" style="width:26px;height:26px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg>
+      </div>
+    </div>
+  </aside>
+  <div class="side-scrim" id="sideScrim" onclick="closeSidebar()"></div>
+
+  <main class="main">
+
+    <div class="topbar">
+      <button class="icon-btn mobile-only" onclick="toggleSidebar()" title="Menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+      <button class="icon-btn" onclick="toggleSidebar()" title="Sidebar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M9 4v16"/></svg>
+      </button>
+      <button class="icon-btn" onclick="goHome()" title="Home">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10.5 9-7.5 9 7.5"/><path d="M5.5 9.5V20h13V9.5"/></svg>
+      </button>
+      <button class="mode-pill" id="modePill" onclick="cycleMode()" title="Change mode">
+        <span class="dot"></span>
+        <span id="modeLabel">Agent</span>
+      </button>
+      <div style="flex:1"></div>
+      <button class="pill" id="liveBtn" onclick="openLive()" title="Talk to Vector">
+        <span class="wave"></span>Live
+      </button>
+      <button class="pill" onclick="shareChat()" title="Copy this chat">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><path d="M12 16V3"/><path d="m7 8 5-5 5 5"/></svg>
+        Share
+      </button>
+    </div>
+
+    <div class="scroller" id="scroller">
+      <div class="hero width-limiter" id="hero">
+        <h1 id="heroTitle">How can I help you<span>today?</span></h1>
+        <p id="heroSub">Ask anything, paste an error, or drop a file. Vector works through code, debugging and engineering problems with you.</p>
+      </div>
+      <div class="thread-wrap width-limiter" id="messages" style="display:none"></div>
+    </div>
+
+    <div class="composer-zone">
+      <div class="width-limiter" style="padding:0">
+
+        <div class="attach-strip" id="attachStrip"></div>
+
+        <div class="project-bar" id="projectBar">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7.5A1.5 1.5 0 0 1 4.5 6h4l2 2.5h7A1.5 1.5 0 0 1 19 10v7.5A1.5 1.5 0 0 1 17.5 19h-13A1.5 1.5 0 0 1 3 17.5Z"/></svg>
+          Working in <b id="projectName"></b>
+          <button onclick="clearProject()">remove</button>
+        </div>
+
+        <div class="suggestions" id="suggestions">
+          <button class="chip" onclick="useChip(this)">Explain this error</button>
+          <button class="chip" onclick="useChip(this)">Review my code</button>
+          <button class="chip" onclick="useChip(this)">Draw an architecture diagram</button>
+          <button class="chip" onclick="useChip(this)">Refactor a function</button>
+        </div>
+
+        <div class="composer">
+          <textarea id="input" rows="1" placeholder="Ask Vector anything"></textarea>
+          <div class="composer-row">
+            <div class="row-left">
+              <button class="tool" onclick="pickFile()" title="Attach file">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+              </button>
+              <button class="tool" onclick="pickFile()" title="Attach file">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21 11.5 12.5 20a5.5 5.5 0 0 1-7.8-7.8l8-8a3.7 3.7 0 0 1 5.2 5.2l-8 8a1.9 1.9 0 0 1-2.6-2.6l7.1-7.1"/></svg>
+              </button>
+              <button class="tool" onclick="openLive()" title="Talk to Vector">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0"/><path d="M12 17.5V21"/></svg>
+              </button>
+              <button class="model-tag" id="providerTag" title="Change model">
+                <span id="providerName">Gemini</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg>
+              </button>
+            </div>
+            <button class="send" id="send" disabled onclick="send()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="fineprint">Vector can make mistakes. Verify important code.</div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<input type="file" id="fileInput" multiple hidden onchange="onFiles(event)">
+
+<div class="scrim" id="scrim" onclick="closeDrawer()"></div>
+<aside class="drawer" id="drawer">
+  <div class="drawer-head">
+    <h2 id="drawerTitle">Memory</h2>
+    <button class="icon-btn" onclick="closeDrawer()" title="Close">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="m6 6 12 12M18 6 6 18"/></svg>
+    </button>
+  </div>
+  <div class="drawer-body" id="drawerBody"></div>
+</aside>
+
+<div class="gate" id="gate">
+  <div class="gate-card">
+    <div class="gate-mark">V</div>
+    <div id="gateAsk">
+      <h2>A few quick questions 👋</h2>
+      <p>Answer three things so Vector remembers you. You can change them later in Memory.</p>
+      <div class="gate-field">
+        <label>What should I call you?</label>
+        <input id="gName" type="text" placeholder="Your name" autocomplete="given-name">
+      </div>
+      <div class="gate-field">
+        <label>How old are you?</label>
+        <input id="gAge" type="text" inputmode="numeric" placeholder="Your age">
+      </div>
+      <div class="gate-field">
+        <label>What do you want to build?</label>
+        <input id="gBuild" type="text" placeholder="e.g. a game, a robot, a website">
+      </div>
+      <button class="btn block" onclick="saveGateAnswers()">That is me, continue ✅</button>
+      <div class="gate-foot"><a onclick="skipGateQuestions()">Skip these questions</a></div>
+    </div>
+
+    <div id="gateSignin">
+    <h2 id="gateHello">Sign in to Vector</h2>
+    <p id="gateIntro">Sign in so your chats, memory and projects stay with you.</p>
+    <a class="gh-btn google" id="googleBtn" href="/auth/google" onclick="return startSignIn('google')">
+      <svg viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.6l6.7-6.7C35.6 2.4 30.2 0 24 0 14.6 0 6.5 5.3 2.6 13l7.8 6C12.3 13.1 17.7 9.5 24 9.5Z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.6c-.5 2.8-2.1 5.2-4.5 6.8l7.6 5.9c4.4-4.1 6.8-10.1 6.8-17.2Z"/><path fill="#FBBC05" d="M10.4 28.5c-.5-1.5-.8-3-.8-4.5s.3-3.1.8-4.5l-7.8-6C1 16.6 0 20.2 0 24s1 7.4 2.6 10.5l7.8-6Z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.9l-7.6-5.9c-2.1 1.4-4.9 2.3-8.3 2.3-6.3 0-11.7-3.6-13.6-8.5l-7.8 6C6.5 42.7 14.6 48 24 48Z"/></svg>
+      Continue with Google
+    </a>
+    <div style="height:9px"></div>
+    <a class="gh-btn" id="githubBtn" href="/auth/github" onclick="return startSignIn('github')">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.6-1.4-1.4-1.8-1.4-1.8-1.1-.8.1-.8.1-.8 1.2.1 1.9 1.3 1.9 1.3 1.1 1.9 2.9 1.3 3.6 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.6 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .5Z"/></svg>
+      Continue with GitHub
+    </a>
+    <div class="hint" id="gateNote"></div>
+    </div>
+
+    <div class="gate-foot">
+      <a onclick="openGateAsk()">Change my answers</a>
+      <span class="dot-sep">·</span>
+      <a onclick="closeGate()">Keep using Vector without signing in</a>
+    </div>
+  </div>
+</div>
+
+<div class="live" id="live">
+  <button class="icon-btn live-close" onclick="closeLive()" title="Close">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="m6 6 12 12M18 6 6 18"/></svg>
+  </button>
+  <div class="live-orb" id="liveOrb" onclick="liveToggle()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0"/><path d="M12 17.5V21"/></svg>
+  </div>
+  <div class="live-title">Live with Vector</div>
+  <div class="live-status" id="liveStatus">Tap the circle and start talking.</div>
+  <div class="live-answer" id="liveAnswer"></div>
+  <div class="live-input">
+    <input id="liveText" type="text" placeholder="Or type your question" onkeydown="if(event.key==='Enter')liveSend(liveText.value)">
+    <button class="btn" onclick="liveSend(liveText.value)">Send</button>
+  </div>
+</div>
+
+<div class="menu" id="acctMenu">
+  <button onclick="closeAcctMenu();openMemory()">Memory</button>
+  <button onclick="closeAcctMenu();openProjects()">Projects</button>
+  <button onclick="closeAcctMenu();openLive()">Live voice</button>
+  <hr>
+  <button onclick="closeAcctMenu();openGate()">Sign in with Google</button>
+  <button id="authAction" onclick="authAction()">Sign in</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="/static/vector-ai-2.js?v=6"></script>
+</body>
+</html>
