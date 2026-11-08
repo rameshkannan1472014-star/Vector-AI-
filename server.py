@@ -3228,6 +3228,35 @@ async def vector_ai_2_js():
 
 
 # ============================================================
+# SIGN-IN ROUTES (GitHub + Google)
+# ============================================================
+# Some hosts start this file directly instead of app.py, which used to leave
+# /auth/github and /auth/google unregistered and answered them with a raw
+# {"detail":"Not Found"} page. install() is idempotent, so loading it here and
+# in app.py only ever registers the routes once.
+
+try:
+
+    import github_auth
+
+    github_auth.install(app, APP_TITLE)
+
+    SIGNIN_READY = True
+
+    logging.getLogger("vector.signin").info(
+        "Sign-in routes installed"
+    )
+
+except Exception:
+
+    SIGNIN_READY = False
+
+    logging.getLogger("vector.signin").exception(
+        "Sign-in routes were not installed"
+    )
+
+
+# ============================================================
 # 🚀 SERVER START
 # ============================================================
 

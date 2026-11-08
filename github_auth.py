@@ -1,16 +1,18 @@
-"""Optional GitHub sign-in for Vector AI.
+"""Optional GitHub and Google sign-in for Vector AI.
 
 Kept in its own module so the large server.py does not have to be rewritten.
-app.py imports it, adds nothing else, and is started instead of server.py.
+Both app.py and server.py install it, and install() is idempotent, so it does
+not matter which file your host starts.
 
-Switched on by setting two environment variables on the server:
+Switched on by setting environment variables on the server:
 
     GITHUB_CLIENT_ID      from https://github.com/settings/developers
     GITHUB_CLIENT_SECRET  (same page, Generate a new client secret)
+      callback URL: https://YOUR-APP.onrender.com/auth/github/callback
 
-with the OAuth app Authorization callback URL set to
-
-    https://YOUR-APP.onrender.com/auth/github/callback
+    GOOGLE_CLIENT_ID      from https://console.cloud.google.com/apis/credentials
+    GOOGLE_CLIENT_SECRET
+      callback URL: https://YOUR-APP.onrender.com/auth/google/callback
 
 Optionally set SESSION_SECRET (any long random text) so sign-ins survive a
 restart. Without it, cookies are signed with a key regenerated per process.
@@ -32,19 +34,50 @@ from typing import Optional
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, RedirectResponse
 
-logger = logging.getLogger("vector.github")
+logger = logging.getLogger("vector.signin")
 
 SESSION_COOKIE = "vector_session"
-OAUTH_STATE_COOKIE = "vector_oauth_state"
+STATE_COOKIE = "vector_oauth_state"
 SESSION_MAX_AGE = 60 * 60 * 24 * 30
+
+PROVIDERS = {
+    "github": {
+        "label": "GitHub",
+        "authorize": "https://github.com/login/oauth/authorize",
+        "token": "https://github.com/login/oauth/access_token",
+        "profile": "https://api.github.com/user",
+        "scope": "read:user",
+        "id_env": "GITHUB_CLIENT_ID",
+        "secret_env": "GITHUB_CLIENT_SECRET",
+    },
+    "google": {
+        "label": "Google",
+        "authorize": "https://accounts.google.com/o/oauth2/v2/auth",
+        "token": "https://oauth2.googleapis.com/token",
+        "profile": "https://www.googleapis.com/oauth2/v3/userinfo",
+        "scope": "openid email profile",
+        "id_env": "GOOGLE_CLIENT_ID",
+        "secret_env": "GOOGLE_CLIENT_SECRET",
+    },
+}
 
 
 def install(app: FastAPI, app_title: str = "Vector AI") -> None:
-    client_id = os.getenv("GITHUB_CLIENT_ID", "").strip()
-    client_secret = os.getenv("GITHUB_CLIENT_SECRET", "").strip()
+    # app.py and server.py both call this. Only wire the routes once.
+    if getattr(app.state, "vector_signin_installed", False):
+        return
+    app.state.vector_signin_installed = True
+
+    creds = {}
+    for name, spec in PROVIDERS.items():
+        creds[name] = (
+            os.getenv(spec["id_env"], "").strip(),
+            os.getenv(spec["secret_env"], "").strip(),
+        )
     session_secret = (os.getenv("SESSION_SECRET") or os.getenv("SECRET_KEY") or "").strip()
 
-    def configured() -> bool:
+    def configured(name: str) -> bool:
+        client_id, client_secret = creds.get(name, ("", ""))
         return bool(client_id and client_secret)
 
     def session_key() -> bytes:
@@ -92,7 +125,10 @@ def install(app: FastAPI, app_title: str = "Vector AI") -> None:
         )
         return f"{proto.split(',')[0].strip()}://{host.split(',')[0].strip()}"
 
-    def github_json(url: str, data: Optional[bytes] = None, token: Optional[str] = None) -> dict:
+    def is_secure(request: Request) -> bool:
+        return origin(request).startswith("https://")
+
+    def remote_json(url: str, data: Optional[bytes] = None, token: Optional[str] = None) -> dict:
         headers = {"Accept": "application/json", "User-Agent": "vector-ai"}
         if data is not None:
             headers["Content-Type"] = "application/x-www-form-urlencoded"
@@ -104,17 +140,121 @@ def install(app: FastAPI, app_title: str = "Vector AI") -> None:
         with urllib.request.urlopen(request_object, timeout=20) as response:
             return json.loads(response.read().decode("utf-8"))
 
+    def begin(request: Request, name: str) -> RedirectResponse:
+        spec = PROVIDERS[name]
+        if not configured(name):
+            return RedirectResponse(
+                f"/?auth=unconfigured&provider={name}", status_code=302
+            )
+
+        client_id = creds[name][0]
+        state = secrets.token_urlsafe(24)
+        params = {
+            "client_id": client_id,
+            "redirect_uri": origin(request) + f"/auth/{name}/callback",
+            "scope": spec["scope"],
+            "state": state,
+        }
+        if name == "google":
+            params["response_type"] = "code"
+            params["access_type"] = "online"
+            params["prompt"] = "select_account"
+
+        response = RedirectResponse(
+            spec["authorize"] + "?" + urllib.parse.urlencode(params), status_code=302
+        )
+        response.set_cookie(
+            STATE_COOKIE,
+            name + ":" + state,
+            max_age=600,
+            httponly=True,
+            samesite="lax",
+            secure=is_secure(request),
+        )
+        return response
+
+    def finish(request: Request, name: str, code: str, state: str, error: str) -> RedirectResponse:
+        if error or not code:
+            return RedirectResponse(f"/?auth=error&provider={name}", status_code=302)
+
+        expected = request.cookies.get(STATE_COOKIE, "")
+        if expected.startswith(name + ":"):
+            expected = expected.split(":", 1)[1]
+        else:
+            expected = ""
+        if not expected or not hmac.compare_digest(state or "", expected):
+            return RedirectResponse(f"/?auth=error&provider={name}", status_code=302)
+
+        spec = PROVIDERS[name]
+        client_id, client_secret = creds[name]
+        redirect_uri = origin(request) + f"/auth/{name}/callback"
+
+        try:
+            form = {
+                "client_id": client_id,
+                "client_secret": client_secret,
+                "code": code,
+                "redirect_uri": redirect_uri,
+            }
+            if name == "github":
+                form["state"] = state
+            else:
+                form["grant_type"] = "authorization_code"
+
+            payload = remote_json(
+                spec["token"], data=urllib.parse.urlencode(form).encode("utf-8")
+            )
+            access_token = payload.get("access_token", "")
+            if not access_token:
+                return RedirectResponse(f"/?auth=error&provider={name}", status_code=302)
+            profile = remote_json(spec["profile"], token=access_token)
+        except Exception:
+            logger.exception("%s sign-in failed", spec["label"])
+            return RedirectResponse(f"/?auth=error&provider={name}", status_code=302)
+
+        if name == "github":
+            login = profile.get("login", "")
+            display = profile.get("name") or login
+            avatar = profile.get("avatar_url", "")
+        else:
+            email = profile.get("email", "")
+            login = email.split("@")[0] if email else ""
+            display = profile.get("name") or login or email
+            avatar = profile.get("picture", "")
+
+        session = {
+            "login": login,
+            "name": display,
+            "avatar_url": avatar,
+            "provider": name,
+            "exp": int(time.time()) + SESSION_MAX_AGE,
+        }
+
+        response = RedirectResponse(f"/?auth=ok&provider={name}", status_code=302)
+        response.set_cookie(
+            SESSION_COOKIE,
+            sign(session),
+            max_age=SESSION_MAX_AGE,
+            httponly=True,
+            samesite="lax",
+            secure=is_secure(request),
+        )
+        response.delete_cookie(STATE_COOKIE)
+        return response
+
     @app.get("/api/me")
     async def api_me(request: Request):
         user = current_user(request)
         return {
             "signed_in": bool(user),
-            "auth_configured": configured(),
+            "auth_configured": any(configured(name) for name in PROVIDERS),
+            "providers": {name: configured(name) for name in PROVIDERS},
             "user": (
                 {
                     "login": user.get("login", ""),
                     "name": user.get("name", ""),
                     "avatar_url": user.get("avatar_url", ""),
+                    "provider": user.get("provider", "github"),
                 }
                 if user
                 else None
@@ -123,73 +263,19 @@ def install(app: FastAPI, app_title: str = "Vector AI") -> None:
 
     @app.get("/auth/github")
     async def github_login(request: Request):
-        if not configured():
-            return RedirectResponse("/?auth=unconfigured", status_code=302)
-
-        state = secrets.token_urlsafe(24)
-        query = urllib.parse.urlencode(
-            {
-                "client_id": client_id,
-                "redirect_uri": origin(request) + "/auth/github/callback",
-                "scope": "read:user",
-                "state": state,
-            }
-        )
-        response = RedirectResponse(
-            f"https://github.com/login/oauth/authorize?{query}", status_code=302
-        )
-        response.set_cookie(
-            OAUTH_STATE_COOKIE, state, max_age=600, httponly=True, samesite="lax", secure=True
-        )
-        return response
+        return begin(request, "github")
 
     @app.get("/auth/github/callback")
     def github_callback(request: Request, code: str = "", state: str = "", error: str = ""):
-        if error or not code:
-            return RedirectResponse("/?auth=error", status_code=302)
+        return finish(request, "github", code, state, error)
 
-        expected_state = request.cookies.get(OAUTH_STATE_COOKIE, "")
-        if not expected_state or not hmac.compare_digest(state or "", expected_state):
-            return RedirectResponse("/?auth=error", status_code=302)
+    @app.get("/auth/google")
+    async def google_login(request: Request):
+        return begin(request, "google")
 
-        try:
-            token_payload = github_json(
-                "https://github.com/login/oauth/access_token",
-                data=urllib.parse.urlencode(
-                    {
-                        "client_id": client_id,
-                        "client_secret": client_secret,
-                        "code": code,
-                        "state": state,
-                    }
-                ).encode("utf-8"),
-            )
-            access_token = token_payload.get("access_token", "")
-            if not access_token:
-                return RedirectResponse("/?auth=error", status_code=302)
-            profile = github_json("https://api.github.com/user", token=access_token)
-        except Exception:
-            logger.exception("GitHub sign-in failed")
-            return RedirectResponse("/?auth=error", status_code=302)
-
-        session = {
-            "login": profile.get("login", ""),
-            "name": profile.get("name") or profile.get("login", ""),
-            "avatar_url": profile.get("avatar_url", ""),
-            "exp": int(time.time()) + SESSION_MAX_AGE,
-        }
-
-        response = RedirectResponse("/?auth=ok", status_code=302)
-        response.set_cookie(
-            SESSION_COOKIE,
-            sign(session),
-            max_age=SESSION_MAX_AGE,
-            httponly=True,
-            samesite="lax",
-            secure=True,
-        )
-        response.delete_cookie(OAUTH_STATE_COOKIE)
-        return response
+    @app.get("/auth/google/callback")
+    def google_callback(request: Request, code: str = "", state: str = "", error: str = ""):
+        return finish(request, "google", code, state, error)
 
     @app.post("/auth/logout")
     async def github_logout():

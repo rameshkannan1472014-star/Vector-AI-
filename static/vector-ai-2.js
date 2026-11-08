@@ -39,7 +39,11 @@ let activeProject = null;
 let attachments = [];
 
 let me = null;
+<<<<<<< HEAD
 let authConfigured = false;
+=======
+let authProviders = { github: false, google: false };
+>>>>>>> 7a2f7c7
 
 /* ------------------------------------------------------------------ */
 /* helpers                                                             */
@@ -98,7 +102,14 @@ function useChip(el){
   input.focus();
 }
 
+<<<<<<< HEAD
 function toggleSidebar(){ sidebar.classList.toggle('hidden'); }
+=======
+function toggleSidebar(){
+  sidebar.classList.toggle('hidden');
+  syncSide();
+}
+>>>>>>> 7a2f7c7
 
 /* ------------------------------------------------------------------ */
 /* modes                                                               */
@@ -200,7 +211,11 @@ function newChat(){
 
 function goHome(){
   newChat();
+<<<<<<< HEAD
   if (window.innerWidth < 900) sidebar.classList.add('hidden');
+=======
+  closeSidebarOnMobile();
+>>>>>>> 7a2f7c7
 }
 
 function openChat(id){
@@ -216,7 +231,11 @@ function openChat(id){
   paintThread();
   renderChats();
   closeDrawer();
+<<<<<<< HEAD
   if (window.innerWidth < 900) sidebar.classList.add('hidden');
+=======
+  closeSidebarOnMobile();
+>>>>>>> 7a2f7c7
 }
 
 function groupFor(ts){
@@ -306,6 +325,103 @@ function scrollBottom(){
   requestAnimationFrame(() => { scroller.scrollTop = scroller.scrollHeight; });
 }
 
+<<<<<<< HEAD
+=======
+/* ------------------------------------------------------------------ */
+/* buttons at the end of every reply                                   */
+/* ------------------------------------------------------------------ */
+const FOLLOW_UPS = [
+  'Explain that simpler 🙏',
+  'Give me a short example 💡',
+  'What should I do next? 🚀'
+];
+
+function answerText(index){
+  const found = index >= 0
+    ? turns[index]
+    : turns.slice().reverse().find(m => m.role === 'assistant');
+  return found && found.role === 'assistant' ? String(found.content || '') : '';
+}
+
+function copyAnswer(index){
+  const text = answerText(index);
+  if (!text){ toast('Nothing to copy yet'); return; }
+  if (navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text)
+      .then(() => toast('Answer copied ✅'))
+      .catch(() => toast('Copying is blocked in this browser'));
+  } else {
+    toast('Copying is not available in this browser');
+  }
+}
+
+function saveAnswer(index){
+  const text = answerText(index);
+  if (!text){ toast('Nothing to save yet'); return; }
+  notes.unshift('Vector said: ' + text.replace(/\s+/g, ' ').slice(0, 130));
+  notes = notes.slice(0, 20);
+  writeLS(LS.notes, notes);
+  paintMemoryBadge();
+  toast('Saved to memory ✅');
+}
+
+function sendText(text){
+  input.value = String(text == null ? '' : text);
+  autogrow();
+  send();
+}
+
+function retryAt(index){
+  if (busy){ toast('One moment, still answering…'); return; }
+  let at = index >= 0 ? index - 1 : turns.length - 1;
+  while (at >= 0 && turns[at].role !== 'user') at--;
+  if (at < 0){ toast('Nothing to try again'); return; }
+  const said = String(turns[at].content || '');
+  turns.splice(at, turns.length - at);
+  paintThread();
+  syncChat();
+  sendText(said);
+}
+
+function attachActions(msgEl, index){
+  if (!msgEl) return;
+  const old = msgEl.querySelector('.msg-actions');
+  if (old) old.remove();
+  const oldFollow = msgEl.querySelector('.followups');
+  if (oldFollow) oldFollow.remove();
+
+  const row = document.createElement('div');
+  row.className = 'msg-actions';
+
+  const actions = [
+    { label: '⧉ Copy', run: () => copyAnswer(index) },
+    { label: '↻ Try again', run: () => retryAt(index) },
+    { label: '☆ Save to memory', run: () => saveAnswer(index) }
+  ];
+  actions.forEach(a => {
+    const b = document.createElement('button');
+    b.className = 'act';
+    b.textContent = a.label;
+    b.onclick = a.run;
+    row.appendChild(b);
+  });
+  msgEl.appendChild(row);
+
+  if (index !== turns.length - 1 && index >= 0) return;
+
+  const follow = document.createElement('div');
+  follow.className = 'followups';
+  FOLLOW_UPS.forEach(q => {
+    const b = document.createElement('button');
+    b.className = 'chip';
+    b.textContent = q;
+    b.onclick = () => sendText(q);
+    follow.appendChild(b);
+  });
+  msgEl.appendChild(follow);
+}
+
+>>>>>>> 7a2f7c7
 function paintThread(){
   messagesEl.innerHTML = '';
   const chips = $('suggestions');
@@ -321,9 +437,19 @@ function paintThread(){
   messagesEl.style.display = 'block';
   if (chips) chips.style.display = 'none';
 
+<<<<<<< HEAD
   turns.forEach(m => {
     if (m.role === 'user') addUser(m.content);
     else addAI().innerHTML = plainRender(m.content);
+=======
+  turns.forEach((m, i) => {
+    if (m.role === 'user') addUser(m.content);
+    else {
+      const body = addAI();
+      body.innerHTML = plainRender(m.content);
+      attachActions(body.parentElement, i);
+    }
+>>>>>>> 7a2f7c7
   });
 
   scroller.scrollTop = scroller.scrollHeight;
@@ -685,6 +811,11 @@ async function send(){
     body.innerHTML = plainRender(answer);
   }
 
+<<<<<<< HEAD
+=======
+  attachActions(body.parentElement, failed ? -1 : turns.length - 1);
+
+>>>>>>> 7a2f7c7
   attachments = [];
   paintAttachments();
 
@@ -721,11 +852,19 @@ function closeDrawer(){
 /* ------------------------------------------------------------------ */
 /* account and GitHub                                                  */
 /* ------------------------------------------------------------------ */
+<<<<<<< HEAD
+=======
+function providerLabel(p){ return p === 'google' ? 'Google' : 'GitHub'; }
+
+function providerReady(p){ return !!authProviders[p]; }
+
+>>>>>>> 7a2f7c7
 async function loadAuth(){
   try {
     const res = await fetch('/api/me');
     if (res.ok){
       const data = await res.json();
+<<<<<<< HEAD
       authConfigured = data.auth_configured !== false;
       me = data.signed_in ? data.user : null;
     }
@@ -733,6 +872,30 @@ async function loadAuth(){
   paintAccount();
 }
 
+=======
+      const list = data.providers || {};
+      authProviders = {
+        github: list.github !== undefined ? !!list.github : data.auth_configured !== false,
+        google: !!list.google
+      };
+      me = data.signed_in ? data.user : null;
+    } else {
+      authProviders = { github: false, google: false };
+    }
+  } catch (e) { authProviders = { github: false, google: false }; }
+  paintAccount();
+}
+
+function startSignIn(p){
+  if (providerReady(p)) return true;
+  openGate();
+  showGateStep('signin');
+  paintGateNote(p);
+  toast(providerLabel(p) + ' sign-in needs ' + providerLabel(p) + ' keys on the server');
+  return false;
+}
+
+>>>>>>> 7a2f7c7
 function paintAccount(){
   const av = $('accountAvatar');
   const nm = $('accountName');
@@ -743,7 +906,11 @@ function paintAccount(){
   if (me){
     const name = me.name || me.login || 'Signed in';
     nm.textContent = name;
+<<<<<<< HEAD
     plan.textContent = 'GitHub · @' + (me.login || 'you');
+=======
+    plan.textContent = providerLabel(me.provider) + ' · ' + (me.login ? '@' + me.login : 'you');
+>>>>>>> 7a2f7c7
     av.textContent = String(name).slice(0, 2).toUpperCase();
     if (me.avatar_url){
       av.textContent = '';
@@ -753,29 +920,49 @@ function paintAccount(){
     }
     $('ghBadge').textContent = 'Connected';
     $('authAction').textContent = 'Sign out';
+<<<<<<< HEAD
     $('gateNote').textContent = 'You are signed in as @' + me.login + '.';
+=======
+>>>>>>> 7a2f7c7
   } else {
     nm.textContent = memory.name || 'Ramesh';
     plan.textContent = 'Signed out';
     av.textContent = String(memory.name || 'V').slice(0, 1).toUpperCase() || 'V';
+<<<<<<< HEAD
     $('ghBadge').textContent = 'Connect';
     $('authAction').textContent = 'Sign in with GitHub';
     $('gateNote').textContent = authConfigured
       ? 'Signing in keeps your chats, memory and projects together.'
       : 'GitHub sign-in is not switched on yet. The app owner needs to add GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET on the server.';
   }
+=======
+    $('ghBadge').textContent = (authProviders.github || authProviders.google) ? 'Connect' : 'Set up';
+    $('authAction').textContent = 'Sign in';
+  }
+  paintGateNote();
+>>>>>>> 7a2f7c7
 }
 
 function openGate(){
   closeAcctMenu();
+<<<<<<< HEAD
   paintAccount();
+=======
+  loadGateState();
+  paintAccount();
+  showGateStep(gateAnswers.done ? 'signin' : 'ask');
+>>>>>>> 7a2f7c7
   $('gate').classList.add('open');
 }
 function closeGate(){ $('gate').classList.remove('open'); }
 
 function authAction(){
   if (me) signOut();
+<<<<<<< HEAD
   else window.location.href = '/auth/github';
+=======
+  else openGate();
+>>>>>>> 7a2f7c7
 }
 
 async function signOut(){
@@ -797,6 +984,122 @@ document.addEventListener('click', e => {
 });
 
 /* ------------------------------------------------------------------ */
+<<<<<<< HEAD
+=======
+/* sidebar escape                                                      */
+/* ------------------------------------------------------------------ */
+function syncSide(){
+  const closed = sidebar.classList.contains('hidden');
+  const scrim = $('sideScrim');
+  if (scrim) scrim.classList.toggle('open', !closed && window.innerWidth <= 900);
+  document.body.classList.toggle('side-open', !closed);
+}
+
+function closeSidebar(){
+  sidebar.classList.add('hidden');
+  syncSide();
+}
+
+function closeSidebarOnMobile(){
+  if (window.innerWidth <= 900) closeSidebar();
+}
+
+window.addEventListener('resize', syncSide);
+
+/* ------------------------------------------------------------------ */
+/* sign-in questions and buttons                                       */
+/* ------------------------------------------------------------------ */
+const GATE_LS = 'vector.gate.v1';
+let gateAnswers = { name: '', age: '', build: '', done: false };
+
+function loadGateState(){
+  const saved = readLS(GATE_LS, null);
+  if (saved && typeof saved === 'object') gateAnswers = Object.assign(gateAnswers, saved);
+
+  const nameEl = $('gName');
+  const ageEl = $('gAge');
+  const buildEl = $('gBuild');
+  if (nameEl) nameEl.value = gateAnswers.name || memory.name || '';
+  if (ageEl) ageEl.value = gateAnswers.age || memory.age || '';
+  if (buildEl) buildEl.value = gateAnswers.build || '';
+}
+
+function showGateStep(step){
+  const ask = $('gateAsk');
+  const signin = $('gateSignin');
+  if (!ask || !signin) return;
+  ask.style.display = step === 'ask' ? 'block' : 'none';
+  signin.style.display = step === 'signin' ? 'block' : 'none';
+}
+
+function paintGateNote(provider){
+  const note = $('gateNote');
+  if (!note) return;
+
+  if (me){
+    note.textContent = 'Signed in as ' + (me.name || me.login || 'you') +
+      ' with ' + providerLabel(me.provider) + ' ✅';
+    return;
+  }
+
+  const missing = ['github', 'google'].filter(p => !authProviders[p]);
+  if (!missing.length){
+    note.textContent = 'Both buttons are ready. Pick whichever account you like. 👇';
+    return;
+  }
+  if (provider && !authProviders[provider]){
+    note.textContent = providerLabel(provider) + ' sign-in is not switched on: the app owner still has to add ' +
+      (provider === 'google' ? 'GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET' : 'GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET') +
+      ' on the server. You can still use Vector without signing in.';
+    return;
+  }
+  if (missing.length === 2){
+    note.textContent = 'Sign-in is not switched on yet. The app owner still has to add GitHub or Google keys on the server. You can still use Vector without signing in.';
+    return;
+  }
+  note.textContent = providerLabel(missing[0]) + ' sign-in needs keys on the server, but ' +
+    providerLabel(missing[0] === 'github' ? 'google' : 'github') + ' is ready to use.';
+}
+
+function openGateAsk(){
+  loadGateState();
+  showGateStep('ask');
+}
+
+function saveGateAnswers(){
+  const name = ($('gName').value || '').trim();
+  const age = ($('gAge').value || '').trim();
+  const build = ($('gBuild').value || '').trim();
+
+  if (!name){ toast('Tell me your name first 🙂'); $('gName').focus(); return; }
+
+  memory.name = name;
+  if (age) memory.age = age;
+  if (build) memory.about = build;
+  writeLS(LS.mem, memory);
+
+  gateAnswers = { name: name, age: age, build: build, done: true };
+  writeLS(GATE_LS, gateAnswers);
+
+  notes = notes.filter(n => n.indexOf('Wants to build:') !== 0);
+  if (build) notes.unshift('Wants to build: ' + build);
+  notes = notes.slice(0, 20);
+  writeLS(LS.notes, notes);
+
+  paintMemoryBadge();
+  paintAccount();
+  showGateStep('signin');
+  toast('Thanks ' + name + ' 👋 I will remember that');
+}
+
+function skipGateQuestions(){
+  gateAnswers.done = true;
+  writeLS(GATE_LS, gateAnswers);
+  showGateStep('signin');
+}
+
+/* ------------------------------------------------------------------ */
+>>>>>>> 7a2f7c7
 /* live voice                                                          */
 /* ------------------------------------------------------------------ */
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -952,7 +1255,11 @@ function speakOut(text){
 /* ------------------------------------------------------------------ */
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape'){
+<<<<<<< HEAD
     closeDrawer(); closeGate(); closeLive(); closeAcctMenu();
+=======
+    closeDrawer(); closeGate(); closeLive(); closeAcctMenu(); closeSidebar();
+>>>>>>> 7a2f7c7
   }
 });
 
@@ -963,6 +1270,7 @@ function boot(){
   setGreeting(mode);
   autogrow();
 
+<<<<<<< HEAD
   if (window.innerWidth < 900) sidebar.classList.add('hidden');
 
   loadAuth();
@@ -979,6 +1287,32 @@ function boot(){
   }
   if (auth){
     params.delete('auth');
+=======
+  closeSidebarOnMobile();
+
+  loadAuth();
+  loadProviders();
+  syncSide();
+
+  const params = new URLSearchParams(window.location.search);
+  const auth = params.get('auth');
+  const who = providerLabel(params.get('provider'));
+  if (auth === 'ok'){
+    toast('Signed in with ' + who + ' 🎉');
+  } else if (auth === 'unconfigured'){
+    openGate();
+    showGateStep('signin');
+    paintGateNote(params.get('provider'));
+    toast(who + ' sign-in needs ' + who + ' keys on the server');
+  } else if (auth === 'error'){
+    openGate();
+    showGateStep('signin');
+    toast(who + ' sign-in did not finish — try again');
+  }
+  if (auth){
+    params.delete('auth');
+    params.delete('provider');
+>>>>>>> 7a2f7c7
     const q = params.toString();
     window.history.replaceState({}, '', window.location.pathname + (q ? '?' + q : ''));
   }

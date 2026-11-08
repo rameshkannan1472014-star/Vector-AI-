@@ -259,8 +259,38 @@ body{
 
 /* ---------- responsive ---------- */
 .mobile-only{display:none}
+<<<<<<< HEAD
 @media (max-width:900px){
   .sidebar{position:fixed;inset:0 auto 0 0;z-index:30;background:#050505}
+=======
+
+/* ---------- sidebar escape, reply buttons, sign-in questions ---------- */
+.side-head{display:flex;align-items:center;gap:6px}
+.side-head .brand{flex:1;min-width:0}
+.side-close{display:none}
+.side-scrim{position:fixed;inset:0;background:rgba(0,0,0,.55);opacity:0;pointer-events:none;transition:opacity .2s;z-index:29}
+.side-scrim.open{opacity:1;pointer-events:auto}
+
+.msg-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.act{padding:5px 10px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text-faint);font-family:inherit;font-size:12px;font-weight:500;cursor:pointer;transition:background .13s,color .13s,border-color .13s}
+.act:hover{background:var(--raise-2);color:var(--text);border-color:#303030}
+.followups{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+
+.gate-card{text-align:left}
+.gate-card h2{text-align:center}
+.gate-card p{text-align:center}
+.gate-card .hint{text-align:center}
+.gate-field{margin-bottom:11px}
+.gate-field label{display:block;font-size:11.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--text-faint);margin-bottom:5px}
+.gate-field input{width:100%;padding:10px 12px;border-radius:10px;background:var(--raise);border:1px solid var(--border);color:var(--text);font-family:inherit;font-size:14px;outline:none}
+.gate-field input:focus{border-color:#3a3a3a;background:#131313}
+.gh-btn.google{background:#fff;color:#111}
+.gate-foot{text-align:center;margin-top:16px;font-size:12.5px;color:var(--text-faint)}
+.dot-sep{padding:0 6px;opacity:.5}
+@media (max-width:900px){
+  .sidebar{position:fixed;inset:0 auto 0 0;z-index:30;background:#050505;box-shadow:0 0 40px rgba(0,0,0,.8)}
+  .side-close{display:grid}
+>>>>>>> 7a2f7c7
   .sidebar.hidden{margin-left:calc(-1 * var(--sidebar))}
   .mobile-only{display:grid}
   .width-limiter{padding:0 16px}
