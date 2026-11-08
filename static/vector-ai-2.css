@@ -259,10 +259,6 @@ body{
 
 /* ---------- responsive ---------- */
 .mobile-only{display:none}
-<<<<<<< HEAD
-@media (max-width:900px){
-  .sidebar{position:fixed;inset:0 auto 0 0;z-index:30;background:#050505}
-=======
 
 /* ---------- sidebar escape, reply buttons, sign-in questions ---------- */
 .side-head{display:flex;align-items:center;gap:6px}
@@ -290,7 +286,6 @@ body{
 @media (max-width:900px){
   .sidebar{position:fixed;inset:0 auto 0 0;z-index:30;background:#050505;box-shadow:0 0 40px rgba(0,0,0,.8)}
   .side-close{display:grid}
->>>>>>> 7a2f7c7
   .sidebar.hidden{margin-left:calc(-1 * var(--sidebar))}
   .mobile-only{display:grid}
   .width-limiter{padding:0 16px}

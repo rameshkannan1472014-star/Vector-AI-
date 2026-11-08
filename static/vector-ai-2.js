@@ -39,11 +39,7 @@ let activeProject = null;
 let attachments = [];
 
 let me = null;
-<<<<<<< HEAD
-let authConfigured = false;
-=======
 let authProviders = { github: false, google: false };
->>>>>>> 7a2f7c7
 
 /* ------------------------------------------------------------------ */
 /* helpers                                                             */
@@ -102,14 +98,10 @@ function useChip(el){
   input.focus();
 }
 
-<<<<<<< HEAD
-function toggleSidebar(){ sidebar.classList.toggle('hidden'); }
-=======
 function toggleSidebar(){
   sidebar.classList.toggle('hidden');
   syncSide();
 }
->>>>>>> 7a2f7c7
 
 /* ------------------------------------------------------------------ */
 /* modes                                                               */
@@ -211,11 +203,7 @@ function newChat(){
 
 function goHome(){
   newChat();
-<<<<<<< HEAD
-  if (window.innerWidth < 900) sidebar.classList.add('hidden');
-=======
   closeSidebarOnMobile();
->>>>>>> 7a2f7c7
 }
 
 function openChat(id){
@@ -231,11 +219,7 @@ function openChat(id){
   paintThread();
   renderChats();
   closeDrawer();
-<<<<<<< HEAD
-  if (window.innerWidth < 900) sidebar.classList.add('hidden');
-=======
   closeSidebarOnMobile();
->>>>>>> 7a2f7c7
 }
 
 function groupFor(ts){
@@ -325,8 +309,6 @@ function scrollBottom(){
   requestAnimationFrame(() => { scroller.scrollTop = scroller.scrollHeight; });
 }
 
-<<<<<<< HEAD
-=======
 /* ------------------------------------------------------------------ */
 /* buttons at the end of every reply                                   */
 /* ------------------------------------------------------------------ */
@@ -421,7 +403,6 @@ function attachActions(msgEl, index){
   msgEl.appendChild(follow);
 }
 
->>>>>>> 7a2f7c7
 function paintThread(){
   messagesEl.innerHTML = '';
   const chips = $('suggestions');
@@ -437,11 +418,6 @@ function paintThread(){
   messagesEl.style.display = 'block';
   if (chips) chips.style.display = 'none';
 
-<<<<<<< HEAD
-  turns.forEach(m => {
-    if (m.role === 'user') addUser(m.content);
-    else addAI().innerHTML = plainRender(m.content);
-=======
   turns.forEach((m, i) => {
     if (m.role === 'user') addUser(m.content);
     else {
@@ -449,7 +425,6 @@ function paintThread(){
       body.innerHTML = plainRender(m.content);
       attachActions(body.parentElement, i);
     }
->>>>>>> 7a2f7c7
   });
 
   scroller.scrollTop = scroller.scrollHeight;
@@ -811,11 +786,8 @@ async function send(){
     body.innerHTML = plainRender(answer);
   }
 
-<<<<<<< HEAD
-=======
   attachActions(body.parentElement, failed ? -1 : turns.length - 1);
 
->>>>>>> 7a2f7c7
   attachments = [];
   paintAttachments();
 
@@ -852,27 +824,15 @@ function closeDrawer(){
 /* ------------------------------------------------------------------ */
 /* account and GitHub                                                  */
 /* ------------------------------------------------------------------ */
-<<<<<<< HEAD
-=======
 function providerLabel(p){ return p === 'google' ? 'Google' : 'GitHub'; }
 
 function providerReady(p){ return !!authProviders[p]; }
 
->>>>>>> 7a2f7c7
 async function loadAuth(){
   try {
     const res = await fetch('/api/me');
     if (res.ok){
       const data = await res.json();
-<<<<<<< HEAD
-      authConfigured = data.auth_configured !== false;
-      me = data.signed_in ? data.user : null;
-    }
-  } catch (e) { authConfigured = false; }
-  paintAccount();
-}
-
-=======
       const list = data.providers || {};
       authProviders = {
         github: list.github !== undefined ? !!list.github : data.auth_configured !== false,
@@ -895,7 +855,6 @@ function startSignIn(p){
   return false;
 }
 
->>>>>>> 7a2f7c7
 function paintAccount(){
   const av = $('accountAvatar');
   const nm = $('accountName');
@@ -906,11 +865,7 @@ function paintAccount(){
   if (me){
     const name = me.name || me.login || 'Signed in';
     nm.textContent = name;
-<<<<<<< HEAD
-    plan.textContent = 'GitHub · @' + (me.login || 'you');
-=======
     plan.textContent = providerLabel(me.provider) + ' · ' + (me.login ? '@' + me.login : 'you');
->>>>>>> 7a2f7c7
     av.textContent = String(name).slice(0, 2).toUpperCase();
     if (me.avatar_url){
       av.textContent = '';
@@ -920,49 +875,28 @@ function paintAccount(){
     }
     $('ghBadge').textContent = 'Connected';
     $('authAction').textContent = 'Sign out';
-<<<<<<< HEAD
-    $('gateNote').textContent = 'You are signed in as @' + me.login + '.';
-=======
->>>>>>> 7a2f7c7
   } else {
     nm.textContent = memory.name || 'Ramesh';
     plan.textContent = 'Signed out';
     av.textContent = String(memory.name || 'V').slice(0, 1).toUpperCase() || 'V';
-<<<<<<< HEAD
-    $('ghBadge').textContent = 'Connect';
-    $('authAction').textContent = 'Sign in with GitHub';
-    $('gateNote').textContent = authConfigured
-      ? 'Signing in keeps your chats, memory and projects together.'
-      : 'GitHub sign-in is not switched on yet. The app owner needs to add GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET on the server.';
-  }
-=======
     $('ghBadge').textContent = (authProviders.github || authProviders.google) ? 'Connect' : 'Set up';
     $('authAction').textContent = 'Sign in';
   }
   paintGateNote();
->>>>>>> 7a2f7c7
 }
 
 function openGate(){
   closeAcctMenu();
-<<<<<<< HEAD
-  paintAccount();
-=======
   loadGateState();
   paintAccount();
   showGateStep(gateAnswers.done ? 'signin' : 'ask');
->>>>>>> 7a2f7c7
   $('gate').classList.add('open');
 }
 function closeGate(){ $('gate').classList.remove('open'); }
 
 function authAction(){
   if (me) signOut();
-<<<<<<< HEAD
-  else window.location.href = '/auth/github';
-=======
   else openGate();
->>>>>>> 7a2f7c7
 }
 
 async function signOut(){
@@ -984,8 +918,6 @@ document.addEventListener('click', e => {
 });
 
 /* ------------------------------------------------------------------ */
-<<<<<<< HEAD
-=======
 /* sidebar escape                                                      */
 /* ------------------------------------------------------------------ */
 function syncSide(){
@@ -1099,7 +1031,6 @@ function skipGateQuestions(){
 }
 
 /* ------------------------------------------------------------------ */
->>>>>>> 7a2f7c7
 /* live voice                                                          */
 /* ------------------------------------------------------------------ */
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -1255,11 +1186,7 @@ function speakOut(text){
 /* ------------------------------------------------------------------ */
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape'){
-<<<<<<< HEAD
-    closeDrawer(); closeGate(); closeLive(); closeAcctMenu();
-=======
     closeDrawer(); closeGate(); closeLive(); closeAcctMenu(); closeSidebar();
->>>>>>> 7a2f7c7
   }
 });
 
@@ -1270,24 +1197,6 @@ function boot(){
   setGreeting(mode);
   autogrow();
 
-<<<<<<< HEAD
-  if (window.innerWidth < 900) sidebar.classList.add('hidden');
-
-  loadAuth();
-  loadProviders();
-
-  const params = new URLSearchParams(window.location.search);
-  const auth = params.get('auth');
-  if (auth === 'ok'){
-    toast('Signed in with GitHub 🎉');
-  } else if (auth === 'unconfigured'){
-    toast('GitHub sign-in needs the GitHub keys on the server');
-  } else if (auth === 'error'){
-    toast('GitHub sign-in did not finish — try again');
-  }
-  if (auth){
-    params.delete('auth');
-=======
   closeSidebarOnMobile();
 
   loadAuth();
@@ -1312,7 +1221,6 @@ function boot(){
   if (auth){
     params.delete('auth');
     params.delete('provider');
->>>>>>> 7a2f7c7
     const q = params.toString();
     window.history.replaceState({}, '', window.location.pathname + (q ? '?' + q : ''));
   }
