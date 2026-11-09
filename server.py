@@ -681,14 +681,13 @@ def generate_ai_response(
                         types.FunctionDeclaration(
                             name="github_create_repo",
                             description=(
-                                "Create a new GitHub repository for the signed-in user. "
-                                "Call this when the user asks you to create a new repository, "
-                                "start a new project on GitHub, or make a fresh repo. "
-                                "You may suggest a license (for example mit, apache-2.0, or gpl-3.0) "
-                                "and a .gitignore template (for example Python, Node, or React) when "
-                                "the user mentions them, but you may also create a repo with no license "
-                                "or gitignore if the user does not ask for one. "
-                                "Return the new repository name and its GitHub URL."
+                                "Create a new GitHub repository for the signed-in user by CALLING THIS TOOL. "
+                                "When the user asks you to create a repository, start a new project on GitHub, "
+                                "or make a fresh repo: YOU MUST call this tool — do not explain how to do it "
+                                "manually on the website, do not tell the user to open a terminal, and do not "
+                                "list git commands. Just call the tool with the repository name and, if the user "
+                                "asked for one, a license and a .gitignore template. "
+                                "Return only the new repository name and its GitHub URL in plain text."
                             ),
                             parameters=types.Schema(
                                 type="object",
