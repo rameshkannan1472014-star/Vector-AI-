@@ -44,7 +44,7 @@ from openai import OpenAI as OpenAICompatibleClient
 # ============================================================
 
 APP_TITLE = "Engineer AI"
-APP_VERSION = "3.0.1"
+APP_VERSION = "3.0.2"
 
 FEEDBACK_RECIPIENT_DEFAULT = "ramesh.kannan14.7.2014@gmail.com"
 
@@ -921,12 +921,16 @@ def generate_ai_response(
         # github_create_repo tool (it gave a manual guide instead), intercept and
         # call the tool ourselves. Check tool_results_parts to see if Gemini
         # already handled it.
-        if (
-            include_github_tool
-            and _looks_like_repo_create_request(prompt)
-            and not tool_results_parts
-        ):
-            logger.info("REPO FALLBACK: Gemini did not call the tool, doing it ourselves. prompt=%r", prompt)
+        _repo_create_request = include_github_tool and _looks_like_repo_create_request(prompt)
+        logger.info(
+            "REPO CHECK: include_github_tool=%s looks_like=%s tool_parts=%s prompt=%r",
+            include_github_tool,
+            _looks_like_repo_create_request(prompt),
+            len(tool_results_parts),
+            prompt,
+        )
+        if _repo_create_request and not tool_results_parts:
+            logger.info("REPO FALLBACK: Gemini did not call the tool, doing it ourselves.")
             create_result = _run_github_create_repo(
                 name=_extract_repo_name_from_prompt(prompt) or "",
                 description="",
