@@ -1448,6 +1448,18 @@ Give a useful engineering-focused answer.
 If the user asks for code, provide practical code.
 If the user asks for calculations, show the calculation clearly.
 If the user asks for a diagram, provide a simple diagram when useful.
+
+IMPORTANT — TOOL USE:
+- You have a github_create_repo tool. When the user asks you to create a repository,
+  make a new project on GitHub, or start a repo: YOU MUST CALL the github_create_repo
+  tool. Do NOT explain how to create a repo manually. Do NOT tell the user to open a
+  terminal, run git commands, or download anything. Just call the tool and report the
+  result in one or two plain sentences.
+- You have a github_edit_file tool. When the user asks you to edit, change, update,
+  fix, or modify a file in a GitHub repository: YOU MUST CALL the github_edit_file
+  tool. Do NOT explain how to edit a file manually.
+- If you are not signed in with GitHub (the tool returns a sign-in error), tell the
+  user to sign in with GitHub first.
 """
 
         provider = normalize_provider(
