@@ -603,6 +603,161 @@ def install(app: FastAPI, app_title: str = "Vector AI") -> None:
     def google_callback(request: Request, code: str = "", state: str = "", error: str = ""):
         return finish(request, "google", code, state, error)
 
+    # ------------------------------------------------------------------
+    # GitHub: create repositories with a license and .gitignore template
+    # ------------------------------------------------------------------
+    KNOWN_LICENSE_TEMPLATES = [
+        "agpl-3.0",
+        "apache-2.0",
+        "artistic-2.0",
+        "bsd-2-clause",
+        "bsd-3-clause",
+        "cc0-1.0",
+        "eupl-1.2",
+        "gpl-2.0",
+        "gpl-3.0",
+        "isc",
+        "lgpl-3.0",
+        "mit",
+        "mpl-2.0",
+        "unlicense",
+        "wtfpl",
+    ]
+
+    KNOWN_GITIGNORE_TEMPLATES = [
+        "Android",
+        "C",
+        "C++",
+        "CakePHP",
+        "CFML",
+        "CMake",
+        "CUDA",
+        "D",
+        "Django",
+        "Dockerfile",
+        "Elixir",
+        "Elm",
+        "Erlang",
+        "Express",
+        "Gatsby",
+        "GitBook",
+        "Go",
+        "Gradle",
+        "Haskell",
+        "HTML",
+        "Java",
+        "JavaScript",
+        "Jupyter Notebook",
+        "Kotlin",
+        "LaTeX",
+        "Laravel",
+        "Less",
+        "Lisp",
+        "Lua",
+        "Magento",
+        "MATLAB",
+        "Metaparticle",
+        "Python",
+        "React",
+        "Ruby",
+        "Rust",
+        "Sass",
+        "Scala",
+        "Swift",
+        "Vue",
+        "Zephyr",
+        "Node",
+        "deno",
+    ]
+
+    @app.get("/api/github/licenses")
+    def github_licenses(request: Request):
+        token = github_token(request)
+        if not token:
+            return gh_needs_signin()
+        try:
+            data = gh_call("GET", "/licenses", token)
+        except GitHubError as error:
+            return gh_reply(error.status, {"status": "error", "message": error.message})
+        if not isinstance(data, list):
+            return gh_reply(502, {"status": "error", "message": "GitHub sent an unexpected license list."})
+        licenses = []
+        for item in data:
+            name = str(item.get("name", "")).strip()
+            key = str(item.get("spdx_id", "")).strip()
+            if name and key and key != "NOASSERTION":
+                licenses.append({
+                    "key": key,
+                    "name": name,
+                    "featured": bool(item.get("featured", False)),
+                    "url": str(item.get("url", "")) or "",
+                })
+        licenses.sort(key=lambda item: item["name"].lower())
+        return {"status": "success", "licenses": licenses}
+
+    @app.post("/api/github/create-repo")
+    def github_create_repo(request: Request, payload: dict = Body(...)):
+        token = github_token(request)
+        if not token:
+            return gh_needs_signin()
+        if not same_origin(request):
+            return gh_reply(403, {"status": "error", "message": "That create request did not come from this site."})
+
+        name = str(payload.get("name") or "").strip()
+        description = str(payload.get("description") or "").strip()
+        private = bool(payload.get("private", False))
+        license_template = str(payload.get("license_template") or "").strip()
+        gitignore_template = str(payload.get("gitignore_template") or "").strip()
+        auto_init = bool(payload.get("auto_init", True))
+        has_issues = bool(payload.get("has_issues", True))
+        has_wiki = bool(payload.get("has_wiki", False))
+
+        if not name:
+            return gh_reply(400, {"status": "error", "message": "Pick a repository name first."})
+        if "/" in name or "\\" in name or name in (".", "..") or not re.match(r"^[A-Za-z0-9._-]+$", name):
+            return gh_reply(400, {"status": "error", "message": "Repository names can only use letters, numbers, dots, hyphens and underscores."})
+        if len(name) > 100:
+            return gh_reply(400, {"status": "error", "message": "Repository name is too long (max 100 characters)."})
+        if license_template and license_template not in KNOWN_LICENSE_TEMPLATES:
+            return gh_reply(400, {"status": "error", "message": "That license is not recognised. Try a common one like mit or apache-2.0."})
+        if gitignore_template and gitignore_template not in KNOWN_GITIGNORE_TEMPLATES:
+            return gh_reply(400, {"status": "error", "message": "That gitignore template is not recognised."})
+
+        try:
+            body_payload = {
+                "name": name,
+                "description": description[:500] if description else "",
+                "private": private,
+                "auto_init": auto_init,
+                "has_issues": has_issues,
+                "has_wiki": has_wiki,
+            }
+            if license_template:
+                body_payload["license_template"] = license_template
+            if gitignore_template:
+                body_payload["gitignore_template"] = gitignore_template
+
+            result = gh_call("POST", "/user/repos", token, body_payload)
+        except GitHubError as error:
+            msg = error.message
+            if error.status == 422 and "name already exists" in msg.lower():
+                msg = "A repository with that name already exists. Try a different name."
+            return gh_reply(error.status, {"status": "error", "message": msg})
+
+        repo = result if isinstance(result, dict) else {}
+        return {
+            "status": "success",
+            "repo": str(repo.get("full_name", name)),
+            "name": str(repo.get("name", name)),
+            "private": bool(repo.get("private", private)),
+            "description": str(repo.get("description") or ""),
+            "html_url": str(repo.get("html_url") or ""),
+            "clone_url": str(repo.get("clone_url") or ""),
+            "default_branch": str(repo.get("default_branch") or "main"),
+            "license": ({"key": str(repo.get("license", {}).get("spdx_id", "")), "name": str(repo.get("license", {}).get("name", ""))} if repo.get("license") else None),
+            "created_at": str(repo.get("created_at", ""))[:10],
+        }
+
     @app.post("/auth/logout")
     async def github_logout():
         response = JSONResponse({"status": "success", "signed_in": False})

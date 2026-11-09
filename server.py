@@ -666,6 +666,55 @@ def generate_ai_response(
                 ]
             )
         )
+
+        # GitHub repository creation tool — lets the AI create a new repo for the
+        # signed-in user, optionally picking a license and .gitignore template.
+        if include_github_tool:
+            function_tools.append(
+                types.Tool(
+                    function_declarations=[
+                        types.FunctionDeclaration(
+                            name="github_create_repo",
+                            description=(
+                                "Create a new GitHub repository for the signed-in user. "
+                                "Call this when the user asks you to create a new repository, "
+                                "start a new project on GitHub, or make a fresh repo. "
+                                "You may suggest a license (for example mit, apache-2.0, or gpl-3.0) "
+                                "and a .gitignore template (for example Python, Node, or React) when "
+                                "the user mentions them, but you may also create a repo with no license "
+                                "or gitignore if the user does not ask for one. "
+                                "Return the new repository name and its GitHub URL."
+                            ),
+                            parameters=types.Schema(
+                                type="object",
+                                properties={
+                                    "name": types.Schema(
+                                        type="string",
+                                        description="Repository name, for example my-awesome-project. Letters, numbers, dots, hyphens and underscores only.",
+                                    ),
+                                    "description": types.Schema(
+                                        type="string",
+                                        description="Short description of the repository, or empty string. Optional.",
+                                    ),
+                                    "private": types.Schema(
+                                        type="boolean",
+                                        description="True for a private repository, False for a public one. Default False.",
+                                    ),
+                                    "license": types.Schema(
+                                        type="string",
+                                        description="License template key such as mit, apache-2.0, gpl-3.0, bsd-3-clause. Leave empty if the user did not ask for a license. Optional.",
+                                    ),
+                                    "gitignore": types.Schema(
+                                        type="string",
+                                        description="Gitignore template name such as Python, Node, React, Go, Rust. Leave empty if the user did not ask for one. Optional.",
+                                    ),
+                                },
+                                required=["name"],
+                            ),
+                        )
+                    ]
+                )
+            )
         if function_tools:
             config_options["tools"] = function_tools
         config = types.GenerateContentConfig(**config_options)
@@ -702,9 +751,40 @@ def generate_ai_response(
                 if fc is None:
                     continue
                 call_name = getattr(fc, "name", "") or ""
-                if call_name != "github_edit_file":
+                if call_name not in ("github_edit_file", "github_create_repo"):
                     continue
                 call_args = getattr(fc, "args", {}) or {}
+                if call_name == "github_create_repo":
+                    try:
+                        create_result = _run_github_create_repo(
+                            name=str(call_args.get("name", "") or ""),
+                            description=str(call_args.get("description", "") or ""),
+                            private=bool(call_args.get("private", False)),
+                            license=str(call_args.get("license", "") or ""),
+                            gitignore=str(call_args.get("gitignore", "") or ""),
+                        )
+                        tool_results_parts.append(
+                            types.Part(
+                                function_response=types.FunctionResponse(
+                                    name="github_create_repo",
+                                    response=create_result,
+                                )
+                            )
+                        )
+                    except Exception as create_error:
+                        logger.exception("github_create_repo tool call failed")
+                        tool_results_parts.append(
+                            types.Part(
+                                function_response=types.FunctionResponse(
+                                    name="github_create_repo",
+                                    response={
+                                        "error": str(create_error),
+                                        "status": "error",
+                                    },
+                                )
+                            )
+                        )
+                    continue
                 try:
                     edit_request = GitHubEditRequest(
                         repo=str(call_args.get("repo", "")),
@@ -1581,6 +1661,65 @@ def _run_github_edit(request: GitHubEditRequest) -> dict:
                 "model": DEFAULT_MODEL,
             }
         return asyncio.run(_do_edit())
+    except Exception as error:
+        return {
+            "status": "error",
+            "message": str(error),
+        }
+
+
+def _run_github_create_repo(
+    name: str,
+    description: str,
+    private: bool,
+    license: str,
+    gitignore: str,
+) -> dict:
+    """Create a GitHub repo for the signed-in user and return a structured result."""
+    import json as _json
+    try:
+        async def _do_create() -> dict:
+            payload_body = {
+                "name": name.strip(),
+                "description": description.strip() if description.strip() else "",
+                "private": private,
+                "auto_init": True,
+                "has_issues": True,
+                "has_wiki": False,
+            }
+            if license.strip():
+                payload_body["license_template"] = license.strip()
+            if gitignore.strip():
+                payload_body["gitignore_template"] = gitignore.strip()
+            import urllib.request as _urllib
+            import urllib.error as _urllib_error
+            import base64 as _base64
+            # We cannot easily call the FastAPI route handler directly from here
+            # (it is async and lives in github_auth.py). Make the API call to our
+            # own /api/github/create-repo endpoint instead, using the session cookie
+            # so the request is authenticated as the signed-in user.
+            base_url = (_github_edit_url().rstrip("/"))[:-len("/api/github/edit")] or "https://vector-ai-izgf.onrender.com"
+            create_url = base_url + "/api/github/create-repo"
+            body_bytes = _json.dumps(payload_body).encode("utf-8")
+            req = _urllib.request.Request(
+                create_url,
+                data=body_bytes,
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            try:
+                with _urllib.request.urlopen(req, timeout=30) as resp:
+                    result = _json.loads(resp.read().decode("utf-8"))
+            except _urllib_error.HTTPError as error:
+                try:
+                    err_body = _json.loads(error.read().decode("utf-8", errors="replace"))
+                except Exception:
+                    err_body = {"status": "error", "message": str(error)}
+                return err_body
+            except Exception as error:
+                return {"status": "error", "message": str(error)}
+            return result
+        return asyncio.run(_do_create())
     except Exception as error:
         return {
             "status": "error",
