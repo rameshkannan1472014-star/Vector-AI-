@@ -31,6 +31,22 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+
+
+_signin_log_path = None
+
+def _signin_log(msg: str) -> None:
+    global _signin_log_path
+    if _signin_log_path is None:
+        try:
+            _signin_log_path = os.path.join(os.path.dirname(__file__) or ".", "signin_debug.log")
+        except Exception:
+            _signin_log_path = "/tmp/signin_debug.log"
+    try:
+        with open(_signin_log_path, "a") as f:
+            f.write(f"[{time.strftime('%H:%M:%S')}] {msg}\n")
+    except Exception:
+        pass
 from typing import Optional
 
 from fastapi import Body, FastAPI, Request
@@ -117,7 +133,12 @@ def install(app: FastAPI, app_title: str = "Vector AI") -> None:
         return data
 
     def current_user(request: Request) -> Optional[dict]:
-        return unsign(request.cookies.get(SESSION_COOKIE, ""))
+        raw = request.cookies.get(SESSION_COOKIE, "")
+        if raw:
+            _signin_log(f"current_user: cookie present (len={len(raw)})")
+        else:
+            _signin_log(f"current_user: no {SESSION_COOKIE} cookie")
+        return unsign(raw)
 
     def origin(request: Request) -> str:
         proto = request.headers.get("x-forwarded-proto") or request.url.scheme or "https"
@@ -144,17 +165,30 @@ def install(app: FastAPI, app_title: str = "Vector AI") -> None:
             return json.loads(response.read().decode("utf-8"))
 
     def begin(request: Request, name: str) -> RedirectResponse:
+        import os as _os
+        log_path = _os.path.join(_os.path.dirname(__file__) or ".", "signin_debug.log")
+        def _log(msg: str) -> None:
+            try:
+                with open(log_path, "a") as f:
+                    f.write(f"[{_os.path.basename(__file__)}] BEGIN {msg}\n")
+            except Exception:
+                pass
         spec = PROVIDERS[name]
+        _signin_log(f"BEGIN name={name} configured={configured(name)}")
         if not configured(name):
+            _signin_log(f"BEGIN redirecting to unconfigured")
             return RedirectResponse(
                 f"/?auth=unconfigured&provider={name}", status_code=302
             )
 
         client_id = creds[name][0]
+        _signin_log(f"BEGIN client_id_set={bool(client_id)} prefix={repr(client_id[:6]) if client_id else 'EMPTY'}")
         state = secrets.token_urlsafe(24)
+        redirect_uri = origin(request) + f"/auth/{name}/callback"
+        _signin_log(f"BEGIN redirect_uri={redirect_uri}")
         params = {
             "client_id": client_id,
-            "redirect_uri": origin(request) + f"/auth/{name}/callback",
+            "redirect_uri": redirect_uri,
             "scope": spec["scope"],
             "state": state,
         }
@@ -177,17 +211,9 @@ def install(app: FastAPI, app_title: str = "Vector AI") -> None:
         return response
 
     def finish(request: Request, name: str, code: str, state: str, error: str) -> RedirectResponse:
-        import os as _os
-        log_path = _os.path.join(_os.path.dirname(__file__) or ".", "signin_debug.log")
-        def _log(msg: str) -> None:
-            try:
-                with open(log_path, "a") as f:
-                    f.write(f"[{_os.path.basename(__file__)}] {msg}\n")
-            except Exception:
-                pass
-        _log(f"finish called: name={name} code={'set' if code else 'empty'} state={'set' if state else 'empty'} error={'set' if error else 'empty'}")
+        _signin_log(f"FINISH name={name} code={'SET' if code else 'EMPTY'} state={'SET' if state else 'EMPTY'} error={'SET' if error else 'none'}")
         if error or not code:
-            _log(f"redirecting to error: error={'set' if error else 'no code'}")
+            _signin_log(f"FINISH redirecting to error: reason={'error_param' if error else 'no_code'}")
             return RedirectResponse(f"/?auth=error&provider={name}", status_code=302)
 
         expected = request.cookies.get(STATE_COOKIE, "")
@@ -218,16 +244,17 @@ def install(app: FastAPI, app_title: str = "Vector AI") -> None:
                 spec["token"], data=urllib.parse.urlencode(form).encode("utf-8")
             )
             access_token = payload.get("access_token", "")
-            _log(f"token response keys: {list(payload.keys())} access_token={'set' if access_token else 'empty'}")
+            _signin_log(f"FINISH token_keys={list(payload.keys())} access_token={'SET' if access_token else 'EMPTY'} scope={payload.get('scope', 'none')}")
             if not access_token:
-                _log(f"redirecting to error: no access_token, scope={payload.get('scope', 'none')}")
+                _signin_log(f"FINISH redirecting to error: no_access_token")
                 return RedirectResponse(f"/?auth=error&provider={name}", status_code=302)
-            _log("fetching profile from GitHub...")
+            _signin_log("FINISH fetching profile...")
             profile = remote_json(spec["profile"], token=access_token)
-            _log(f"profile: login={profile.get('login', 'none')} name={profile.get('name', 'none')}")
+            _signin_log(f"FINISH profile: login={profile.get('login', 'none')} name={profile.get('name', 'none')}")
 
         except Exception:
             logger.exception("%s sign-in failed", spec["label"])
+            _signin_log(f"FINISH exception: {spec['label']} sign-in failed")
             return RedirectResponse(f"/?auth=error&provider={name}", status_code=302)
 
         if name == "github":
@@ -250,7 +277,7 @@ def install(app: FastAPI, app_title: str = "Vector AI") -> None:
             "scope": str(payload.get("scope", "") or ""),
         }
         cookie_val = sign(session)
-        _log(f"session signed, cookie length={len(cookie_val)}, scope={session['scope']}")
+        _signin_log(f"FINISH cookie_len={len(cookie_val)} scope={session['scope']}")
 
         response = RedirectResponse(f"/?auth=ok&provider={name}", status_code=302)
         response.set_cookie(
@@ -262,7 +289,7 @@ def install(app: FastAPI, app_title: str = "Vector AI") -> None:
             secure=is_secure(request),
         )
         response.delete_cookie(STATE_COOKIE)
-        _log(f"redirecting to ok, cookie set: {SESSION_COOKIE}")
+        _signin_log(f"FINISH cookie_set={SESSION_COOKIE} -> ok")
         return response
 
     @app.get("/api/me")
@@ -622,6 +649,7 @@ def install(app: FastAPI, app_title: str = "Vector AI") -> None:
 
     @app.get("/auth/github/callback")
     def github_callback(request: Request, code: str = "", state: str = "", error: str = ""):
+        _signin_log(f"CALLBACK github: code={'SET' if code else 'EMPTY'} state={'SET' if state else 'EMPTY'} error={'SET' if error else 'none'} cookies={list(request.cookies.keys())}")
         return finish(request, "github", code, state, error)
 
     @app.get("/auth/google")
@@ -630,6 +658,7 @@ def install(app: FastAPI, app_title: str = "Vector AI") -> None:
 
     @app.get("/auth/google/callback")
     def google_callback(request: Request, code: str = "", state: str = "", error: str = ""):
+        _signin_log(f"CALLBACK google: code={'SET' if code else 'EMPTY'} state={'SET' if state else 'EMPTY'} error={'SET' if error else 'none'} cookies={list(request.cookies.keys())}")
         return finish(request, "google", code, state, error)
 
     # ------------------------------------------------------------------
