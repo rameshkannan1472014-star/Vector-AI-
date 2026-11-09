@@ -3,6 +3,13 @@
 /* ================================================================== */
 const $ = id => document.getElementById(id);
 
+/* Always send the session cookie so the server can see who is signed in. */
+async function credFetch(url, opts){
+  const o = (opts || {});
+  return fetch(url, Object.assign({ credentials: 'include' }, o));
+}
+
+
 const input     = $('input');
 const sendBtn   = $('send');
 const messagesEl= $('messages');
@@ -530,7 +537,7 @@ const providerName = $('providerName');
 
 async function loadProviders(){
   try {
-    const res = await fetch('/api/providers');
+    const res = await credFetch('/api/providers');
     if (!res.ok) return;
     const data = await res.json();
     providerList = Array.isArray(data.providers) ? data.providers : [];
@@ -659,7 +666,7 @@ async function openProjects(){
 
 async function loadProjects(){
   try {
-    const res = await fetch('/api/projects');
+    const res = await credFetch('/api/projects');
     if (!res.ok) throw new Error('bad status');
     const data = await res.json();
     if (Array.isArray(data.projects)){
@@ -700,7 +707,7 @@ async function createProject(){
   if (!name){ toast('Give the project a name'); return; }
 
   try {
-    const res = await fetch('/api/projects', {
+    const res = await credFetch('/api/projects', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: name, language: 'text', description: description, code: '' })
@@ -863,7 +870,7 @@ async function send(){
   wl && paintWorkLog(wl, text);
 
   try {
-    const res = await fetch('/api/chat', {
+    const res = await credFetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -1006,7 +1013,7 @@ async function makeImage(text, atts){
       body.image = atts.find(a => a.kind === 'image').data;
       body.mime_type = 'image/png';
     }
-    const res = await fetch('/api/image/generate', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    const res = await credFetch('/api/image/generate', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
     const data = await res.json().catch(() => null);
     if (!res.ok || !data || data.status !== 'success') {
       return (data && data.detail && data.detail.message) || (data && data.message) || 'Vector could not make the picture.';
@@ -1070,7 +1077,7 @@ function providerReady(p){ return !!authProviders[p]; }
 
 async function loadAuth(){
   try {
-    const res = await fetch('/api/me');
+    const res = await credFetch('/api/me');
     if (res.ok){
       const data = await res.json();
       const list = data.providers || {};
@@ -1228,7 +1235,7 @@ function openGitHubDrawer(){
   if (loadBtn) loadBtn.onclick = () => {
     if (!(me && authProviders.github)) { toast('Connect GitHub first'); return; }
     loadBtn.textContent = 'Loading…'; loadBtn.disabled = true;
-    fetch('/api/github/summary')
+    credFetch('/api/github/summary')
       .then(r => r.json().catch(() => null))
       .then(data => {
         loadBtn.disabled = false; loadBtn.textContent = 'Refresh summary';
@@ -1271,7 +1278,7 @@ function ghFileLoadList(){
   section.style.display = 'block';
   listEl.innerHTML = '<div style="padding:10px;text-align:center;color:var(--text-faint)">Loading files…</div>';
   if (statusEl) statusEl.textContent = 'Reading your repo…';
-  fetch('/api/github/tree?repo=' + encodeURIComponent(repo))
+  credFetch('/api/github/tree?repo=' + encodeURIComponent(repo))
     .then(r => r.json().catch(() => null))
     .then(data => {
       if (statusEl) statusEl.textContent = '';
@@ -1315,7 +1322,7 @@ function ghFileOpen(path){
   if (contentEl) contentEl.value = '';
   if (resultEl) resultEl.textContent = '';
   if (statusEl) statusEl.textContent = 'Reading file…';
-  fetch('/api/github/file?repo=' + encodeURIComponent(ghStore.repo) + '&path=' + encodeURIComponent(path))
+  credFetch('/api/github/file?repo=' + encodeURIComponent(ghStore.repo) + '&path=' + encodeURIComponent(path))
     .then(r => r.json().catch(() => null))
     .then(data => {
       if (statusEl) statusEl.textContent = '';
@@ -1372,7 +1379,7 @@ function ghFileEditGenerate(){
   if (!content){ toast('File is empty'); return; }
   filePrompt && (filePrompt.style.display = 'none');
   if (resultEl) resultEl.textContent = 'Vector is rewriting the file…';
-  fetch('/api/github/edit', {
+  credFetch('/api/github/edit', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ repo: repo, path: path, instruction: instruction, content: content, language: '' })
@@ -1404,7 +1411,7 @@ function ghFileSave(){
   const content = (contentEl && contentEl.value || '').trim();
   if (!content){ toast('File is empty'); return; }
   if (resultEl) resultEl.textContent = 'Saving to GitHub…';
-  fetch('/api/github/save', {
+  credFetch('/api/github/save', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ repo: repo, path: path, content: content, message: 'Update with Vector AI' })
@@ -1467,7 +1474,7 @@ function authAction(){
 }
 
 async function signOut(){
-  try { await fetch('/auth/logout', { method: 'POST' }); } catch (e) {}
+  try { await credFetch('/auth/logout', { method: 'POST' }); } catch (e) {}
   me = null;
   paintAccount();
   toast('Signed out');
@@ -1901,7 +1908,7 @@ async function liveSend(text){
   try {
     const body = { prompt: STYLE + '\n\nAnswer this out loud, so keep it to two or three short sentences: ' + question };
     if (imageData){ body.images = [{ mime_type: 'image/png', data: imageData }]; }
-    const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const res = await credFetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     let data = null;
     try { data = await res.json(); } catch (e) { data = null; }
     if (!res.ok){
