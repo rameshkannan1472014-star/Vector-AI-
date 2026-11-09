@@ -177,7 +177,17 @@ def install(app: FastAPI, app_title: str = "Vector AI") -> None:
         return response
 
     def finish(request: Request, name: str, code: str, state: str, error: str) -> RedirectResponse:
+        import os as _os
+        log_path = _os.path.join(_os.path.dirname(__file__) or ".", "signin_debug.log")
+        def _log(msg: str) -> None:
+            try:
+                with open(log_path, "a") as f:
+                    f.write(f"[{_os.path.basename(__file__)}] {msg}\n")
+            except Exception:
+                pass
+        _log(f"finish called: name={name} code={'set' if code else 'empty'} state={'set' if state else 'empty'} error={'set' if error else 'empty'}")
         if error or not code:
+            _log(f"redirecting to error: error={'set' if error else 'no code'}")
             return RedirectResponse(f"/?auth=error&provider={name}", status_code=302)
 
         expected = request.cookies.get(STATE_COOKIE, "")
@@ -208,9 +218,14 @@ def install(app: FastAPI, app_title: str = "Vector AI") -> None:
                 spec["token"], data=urllib.parse.urlencode(form).encode("utf-8")
             )
             access_token = payload.get("access_token", "")
+            _log(f"token response keys: {list(payload.keys())} access_token={'set' if access_token else 'empty'}")
             if not access_token:
+                _log(f"redirecting to error: no access_token, scope={payload.get('scope', 'none')}")
                 return RedirectResponse(f"/?auth=error&provider={name}", status_code=302)
+            _log("fetching profile from GitHub...")
             profile = remote_json(spec["profile"], token=access_token)
+            _log(f"profile: login={profile.get('login', 'none')} name={profile.get('name', 'none')}")
+
         except Exception:
             logger.exception("%s sign-in failed", spec["label"])
             return RedirectResponse(f"/?auth=error&provider={name}", status_code=302)
@@ -231,22 +246,23 @@ def install(app: FastAPI, app_title: str = "Vector AI") -> None:
             "avatar_url": avatar,
             "provider": name,
             "exp": int(time.time()) + SESSION_MAX_AGE,
-            # Kept inside the signed, http-only cookie so the server can call
-            # the GitHub API as this person. It never reaches the page script.
             "token": access_token,
             "scope": str(payload.get("scope", "") or ""),
         }
+        cookie_val = sign(session)
+        _log(f"session signed, cookie length={len(cookie_val)}, scope={session['scope']}")
 
         response = RedirectResponse(f"/?auth=ok&provider={name}", status_code=302)
         response.set_cookie(
             SESSION_COOKIE,
-            sign(session),
+            cookie_val,
             max_age=SESSION_MAX_AGE,
             httponly=True,
             samesite="lax",
             secure=is_secure(request),
         )
         response.delete_cookie(STATE_COOKIE)
+        _log(f"redirecting to ok, cookie set: {SESSION_COOKIE}")
         return response
 
     @app.get("/api/me")
