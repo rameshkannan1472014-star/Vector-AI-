@@ -286,6 +286,19 @@ def install(app: FastAPI, app_title: str = "Vector AI") -> None:
             ),
         }
 
+    @app.get("/api/signin-log")
+    async def signin_log(request: Request):
+        import os as _os
+        log_path = _os.path.join(_os.path.dirname(__file__) or ".", "signin_debug.log")
+        try:
+            with open(log_path) as f:
+                lines = f.readlines()
+            return {"status": "success", "lines": [l.rstrip() for l in lines[-50:]]}
+        except FileNotFoundError:
+            return {"status": "success", "lines": [], "note": "no log yet"}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
     # ------------------------------------------------------------------
     # GitHub projects: read what a person works on, and edit their files
     # ------------------------------------------------------------------
