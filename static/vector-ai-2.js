@@ -56,6 +56,13 @@ function uid(){ return Date.now().toString(36) + Math.random().toString(36).slic
 function escapeHtml(s){
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
+function escapeJs(s){
+  if (s == null) return '';
+  s = String(s);
+  s = s.replace(new RegExp(String.fromCharCode(92,92), 'g'), String.fromCharCode(92,92,92,92));
+  s = s.replace(new RegExp(String.fromCharCode(39), 'g'), String.fromCharCode(92,39));
+  return s;
+}
 function escapeAttr(s){
   return escapeHtml(s).replace(/"/g,'&quot;');
 }
@@ -1137,7 +1144,7 @@ function loadGitHubState(){
   // re-read stored GitHub session for drawer display
   const st = readLS('vector.github.v1', {});
   if (st && st.repo){
-    ghStore = Object.assign({ repo: '', remember: true, summary: '', name: '' }, st);
+    ghStore = Object.assign({}, { repo: '', remember: true, summary: '', name: '' }, st);
   }
   $('ghRepo')?.(textContent = ghStore.repo || '');
   $('ghStatus')?.(textContent = ghStore.summary ? 'Summary loaded' : (ghStore.repo ? 'Repo set' : 'Not connected'));
@@ -1151,15 +1158,16 @@ function openGitHubDrawer(){
   closeAcctMenu();
   $('drawerTitle').textContent = 'GitHub';
   const connected = me && authProviders.github;
+  const repo = ghStore.repo || '';
   $('drawerBody').innerHTML = '<div class="drawer-body">' +
     '<div style="padding:6px 0 14px">' +
       '<div style="font-size:13px;color:var(--text-faint);margin-bottom:6px">Your GitHub account, connected to Vector.</div>' +
-      '<div style="font-size:15px;font-weight:600">' + (me && me.name ? me.name : (me && me.login ? '@' + me.login : 'your account')) + '</div>' +
-      '<div style="font-size:12.5px;color:var(--text-faint);margin-top:2px">' + (me && me.login ? 'GitHub: @' + me.login : '') + '</div>' +
+      '<div style="font-size:15px;font-weight:600">' + (me && me.name ? escapeHtml(me.name) : (me && me.login ? '@' + escapeHtml(me.login) : 'your account')) + '</div>' +
+      '<div style="font-size:12.5px;color:var(--text-faint);margin-top:2px">' + (me && me.login ? 'GitHub: @' + escapeHtml(me.login) : '') + '</div>' +
     '</div>' +
     '<div class="set-group">' +
       '<div class="set-row set-wide"><div><div class="lbl">Repo to work in</div><span class="sub">The GitHub repo Vector will read and edit files in.</span></div>' +
-        '<input type="text" id="ghRepoInput" value="' + (ghStore.repo || '') + '" placeholder="owner/repo" style="min-width:220px"></div></div>' +
+        '<input type="text" id="ghRepoInput" value="' + escapeHtml(repo) + '" placeholder="owner/repo" style="min-width:220px"></div></div>' +
       '<div class="set-row"><div><div class="lbl">Remember on this browser</div><span class="sub">Keep this repo bound to this browser.</span></div>' +
         '<label class="switch"><input type="checkbox" id="ghRemember" ' + (ghStore.remember ? 'checked' : '') + '><i></i></label></div></div>' +
       '<div class="set-row"><div><div class="lbl">Load my GitHub summary</div><span class="sub">Let Vector learn about you from GitHub.</span></div>' +
@@ -1171,9 +1179,33 @@ function openGitHubDrawer(){
       '<button class="set-btn" id="ghLoadSummary" style="flex:1">Refresh summary</button>' +
       '<button class="set-btn danger" id="ghDisconnect" style="flex:1">Disconnect</button>' +
     '</div>' +
+    '<hr style="margin:18px 0;border:none;border-top:1px solid var(--border-soft)">' +
+    '<div id="ghFileSection" style="display:' + (connected && repo ? 'block' : 'none') + '">' +
+      '<div style="font-size:14px;font-weight:600;margin-bottom:8px">Repo files</div>' +
+      '<div id="ghFileStatus" style="font-size:12.5px;color:var(--text-faint);margin-bottom:8px"></div>' +
+      '<div id="ghFileList" style="max-height:180px;overflow:auto;border:1px solid var(--border-soft);border-radius:10px;background:var(--raise)"></div>' +
+      '<div id="ghFileEditor" style="display:none;margin-top:10px">' +
+        '<div style="font-size:12.5px;color:var(--text-faint);margin-bottom:4px">File: <span id="ghFilePath" style="color:var(--text);font-weight:600"></span></div>' +
+        '<textarea id="ghFileContent" rows="8" style="width:100%;border:1px solid var(--border);border-radius:10px;background:var(--raise);color:var(--text);font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;padding:8px;resize:vertical"></textarea>' +
+        '<div style="display:flex;gap:8px;margin-top:8px">' +
+          '<button class="set-btn" id="ghEditFile" style="flex:1">Edit with AI</button>' +
+          '<button class="set-btn" id="ghSaveFile" style="flex:1">Save to GitHub</button>' +
+          '<button class="set-btn" id="ghCloseFile" style="flex:1">Close</button>' +
+        '</div>' +
+        '<div id="ghFileResult" style="margin-top:8px;font-size:12.5px;color:var(--text-faint)"></div>' +
+      '</div>' +
+      '<div id="ghFilePrompt" style="display:none;margin-top:10px">' +
+        '<div style="font-size:12.5px;color:var(--text-faint);margin-bottom:4px">Ask Vector to change this file:</div>' +
+        '<textarea id="ghEditPrompt" rows="3" style="width:100%;border:1px solid var(--border);border-radius:10px;background:var(--raise);color:var(--text);font-family:inherit;font-size:12.5px;padding:8px;resize:vertical" placeholder="e.g. fix the bug in the login function"></textarea>' +
+        '<div style="display:flex;gap:8px;margin-top:8px">' +
+          '<button class="set-btn" id="ghDoEdit" style="flex:1">Generate edit</button>' +
+          '<button class="set-btn" id="ghCancelEdit" style="flex:1">Cancel</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>' +
   '</div>';
   $('drawerBody').dataset.setOpen = '1';
-  // wire buttons
+  // wire repo binding
   const repoInput = $('ghRepoInput');
   const saveBtn = $('ghSaveRepo');
   const loadBtn = $('ghLoadSummary');
@@ -1187,6 +1219,7 @@ function openGitHubDrawer(){
     ghStore = Object.assign({}, ghStore, { repo: r, remember: !!(rememberChk && rememberChk.checked) });
     writeLS('vector.github.v1', ghStore);
     loadGitHubState();
+    openGitHubDrawer();
     toast('GitHub repo saved: ' + (r || 'none'));
   }
   if (saveBtn) saveBtn.onclick = save;
@@ -1204,7 +1237,6 @@ function openGitHubDrawer(){
           ghStore.name = data.name || ghStore.name;
           writeLS('vector.github.v1', ghStore);
           toast('GitHub summary loaded ✅');
-          loadGitHubState();
         } else {
           toast('Could not load summary. Try again.');
         }
@@ -1217,7 +1249,180 @@ function openGitHubDrawer(){
     loadGitHubState();
     toast('GitHub disconnected');
   };
+  // wire file editor
+  const fileSection = $('ghFileSection');
+  if (fileSection && connected && repo){
+    ghFileLoadList();
+  }
+  repoInput && (repoInput.onchange = () => { save(); });
 }
+
+let ghFileListData = [];
+let ghCurrentFile = null;
+
+function ghFileLoadList(){
+  const listEl = $('ghFileList');
+  const statusEl = $('ghFileStatus');
+  const section = $('ghFileSection');
+  if (!listEl || !section) return;
+  const repo = ghStore.repo || '';
+  if (!repo){ section.style.display = 'none'; return; }
+  if (!(me && authProviders.github)){ toast('Connect GitHub first'); return; }
+  section.style.display = 'block';
+  listEl.innerHTML = '<div style="padding:10px;text-align:center;color:var(--text-faint)">Loading files…</div>';
+  if (statusEl) statusEl.textContent = 'Reading your repo…';
+  fetch('/api/github/tree?repo=' + encodeURIComponent(repo))
+    .then(r => r.json().catch(() => null))
+    .then(data => {
+      if (statusEl) statusEl.textContent = '';
+      if (!data || data.status !== 'success'){
+        listEl.innerHTML = '<div style="padding:10px;text-align:center;color:#ff6b6b">Could not read repo. ' + (data && data.message ? data.message : '') + '</div>';
+        return;
+      }
+      ghFileListData = data.files || [];
+      if (!ghFileListData.length){
+        listEl.innerHTML = '<div style="padding:10px;text-align:center;color:var(--text-faint)">No files found.</div>';
+        return;
+      }
+      listEl.innerHTML = ghFileListData.map(f =>
+        '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;border-bottom:1px solid var(--border-soft);cursor:pointer" onclick="ghFileOpen(\'' + escapeJs(f.path) + '\')">' +
+          '<span style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:220px">' + escapeHtml(f.path) + '</span>' +
+          '<span style="font-size:10.5px;color:var(--text-faint);flex:0 0 auto">' + (f.size > 1000 ? (f.size/1000).toFixed(1) + 'kb' : f.size + 'b') + '</span>' +
+        '</div>'
+      ).join('');
+    })
+    .catch(() => {
+      if (statusEl) statusEl.textContent = '';
+      listEl.innerHTML = '<div style="padding:10px;text-align:center;color:#ff6b6b">Could not reach GitHub.</div>';
+    });
+}
+
+function ghFileOpen(path){
+  const editor = $('ghFileEditor');
+  const listEl = $('ghFileList');
+  const statusEl = $('ghFileStatus');
+  const filePrompt = $('ghFilePrompt');
+  const pathEl = $('ghFilePath');
+  const contentEl = $('ghFileContent');
+  const resultEl = $('ghFileResult');
+  if (!editor || !listEl) return;
+  if (!(me && authProviders.github)) { toast('Connect GitHub first'); return; }
+  ghCurrentFile = path;
+  listEl.style.display = 'none';
+  editor.style.display = 'block';
+  if (filePrompt) filePrompt.style.display = 'none';
+  if (pathEl) pathEl.textContent = path;
+  if (contentEl) contentEl.value = '';
+  if (resultEl) resultEl.textContent = '';
+  if (statusEl) statusEl.textContent = 'Reading file…';
+  fetch('/api/github/file?repo=' + encodeURIComponent(ghStore.repo) + '&path=' + encodeURIComponent(path))
+    .then(r => r.json().catch(() => null))
+    .then(data => {
+      if (statusEl) statusEl.textContent = '';
+      if (!data || data.status !== 'success'){
+        if (contentEl) contentEl.value = '';
+        if (resultEl) resultEl.textContent = 'Could not read file. ' + (data && data.message ? data.message : '');
+        return;
+      }
+      if (contentEl) contentEl.value = data.content || '';
+    })
+    .catch(() => {
+      if (statusEl) statusEl.textContent = '';
+      if (contentEl) contentEl.value = '';
+    });
+}
+
+function ghFileClose(){
+  const editor = $('ghFileEditor');
+  const listEl = $('ghFileList');
+  const filePrompt = $('ghFilePrompt');
+  const resultEl = $('ghFileResult');
+  if (editor) editor.style.display = 'none';
+  if (listEl) listEl.style.display = 'block';
+  if (filePrompt) filePrompt.style.display = 'none';
+  if (resultEl) resultEl.textContent = '';
+  ghCurrentFile = null;
+  ghFileLoadList();
+}
+
+function ghFileEditOpen(){
+  const editor = $('ghFileEditor');
+  const filePrompt = $('ghFilePrompt');
+  const resultEl = $('ghFileResult');
+  if (!editor) return;
+  editor.style.display = 'none';
+  if (filePrompt) filePrompt.style.display = 'block';
+  if (resultEl) resultEl.textContent = '';
+}
+
+function ghFileEditGenerate(){
+  const promptEl = $('ghEditPrompt');
+  const filePrompt = $('ghFilePrompt');
+  const editor = $('ghFileEditor');
+  const resultEl = $('ghFileResult');
+  const contentEl = $('ghFileContent');
+  const repo = ghStore.repo || '';
+  const path = ghCurrentFile;
+  if (!path){ toast('No file open'); return; }
+  if (!(me && authProviders.github)) { toast('Connect GitHub first'); return; }
+  const instruction = (promptEl && promptEl.value || '').trim();
+  if (!instruction){ toast('Tell Vector what to change'); return; }
+  if (!contentEl) return;
+  const content = contentEl.value;
+  if (!content){ toast('File is empty'); return; }
+  filePrompt && (filePrompt.style.display = 'none');
+  if (resultEl) resultEl.textContent = 'Vector is rewriting the file…';
+  fetch('/api/github/edit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ repo: repo, path: path, instruction: instruction, content: content, language: '' })
+  })
+  .then(r => r.json().catch(() => null))
+  .then(data => {
+    if (!data || data.status !== 'success'){
+      if (resultEl) resultEl.textContent = 'Edit failed. ' + (data && data.message ? data.message : 'The AI could not rewrite the file.');
+      editor && (editor.style.display = 'block');
+      return;
+      }
+    if (contentEl) contentEl.value = data.content || '';
+    if (resultEl) resultEl.textContent = 'File rewritten. Press "Save to GitHub" to commit the change.';
+    editor && (editor.style.display = 'block');
+  })
+  .catch(() => {
+    if (resultEl) resultEl.textContent = 'Could not reach the editor.';
+    editor && (editor.style.display = 'block');
+  });
+}
+
+function ghFileSave(){
+  const contentEl = $('ghFileContent');
+  const resultEl = $('ghFileResult');
+  const repo = ghStore.repo || '';
+  const path = ghCurrentFile;
+  if (!path){ toast('No file open'); return; }
+  if (!(me && authProviders.github)) { toast('Connect GitHub first'); return; }
+  const content = (contentEl && contentEl.value || '').trim();
+  if (!content){ toast('File is empty'); return; }
+  if (resultEl) resultEl.textContent = 'Saving to GitHub…';
+  fetch('/api/github/save', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ repo: repo, path: path, content: content, message: 'Update with Vector AI' })
+  })
+  .then(r => r.json().catch(() => null))
+  .then(data => {
+    if (!data || data.status !== 'success'){
+      if (resultEl) resultEl.textContent = 'Save failed. ' + (data && data.message ? data.message : 'Could not save to GitHub.');
+      return;
+    }
+    if (resultEl) resultEl.textContent = 'Saved to GitHub ✅ ' + (data.url || '');
+    toast('File saved to GitHub');
+  })
+  .catch(() => {
+    if (resultEl) resultEl.textContent = 'Could not reach GitHub.';
+  });
+}
+
 
 function clearChatHistory(){
   if (!confirm('Clear the whole chat? This cannot be undone.')) return;
