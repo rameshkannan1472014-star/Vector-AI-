@@ -1348,8 +1348,31 @@ def generate_image(request: ImageRequest):
     try:
         result = run_with_gemini_failover(operation)
     except Exception as error:
-        logger.exception("Image generation failed")
-        status_code = 429 if is_gemini_key_or_capacity_error(error) else 502
+        gemini_error = error
+        logger.exception("Gemini image generation failed; trying Cloudflare fallback")
+
+        # Cloudflare Workers AI fallback
+        if cloudflare_image_configured():
+            try:
+                cf_result = generate_cloudflare_image(instruction)
+                if cf_result.get("data"):
+                    data = cf_result["data"]
+                    # Cloudflare Workers AI returns the image as a raw base64 string (no data: prefix).
+                    if isinstance(data, str) and data.startswith("data:"):
+                        image_url = data
+                    else:
+                        image_url = "data:image/jpeg;base64," + str(data)
+                    return {
+                        "status": "success",
+                        "image": image_url,
+                        "model": "cloudflare-workers-ai",
+                        "note": "Made with Cloudflare Workers AI (Gemini image was unavailable).",
+                    }
+            except Exception as cf_error:
+                logger.exception("Cloudflare image generation also failed")
+
+        # No fallback succeeded
+        status_code = 429 if is_gemini_key_or_capacity_error(gemini_error) else 502
         raise HTTPException(
             status_code=status_code,
             detail={
