@@ -1351,6 +1351,7 @@ def generate_image(request: ImageRequest):
         gemini_error = error
         logger.exception("Gemini image generation failed; trying Cloudflare fallback")
 
+        # ---- DEBUG: Cloudflare fallback marker v1 ----
         # Cloudflare Workers AI fallback
         if cloudflare_image_configured():
             try:
