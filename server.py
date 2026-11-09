@@ -1449,6 +1449,14 @@ Give a useful engineering-focused answer.
 If the user asks for code, provide practical code.
 If the user asks for calculations, show the calculation clearly.
 If the user asks for a diagram, provide a simple diagram when useful.
+
+IMPORTANT OUTPUT RULES:
+- Reply in short, friendly plain text with emojis.
+- NEVER use markdown: no asterisks (* or **), no hash headings (#), no code fences (```), no bullet dashes at line starts.
+- Explain it simply, like talking to a 12 year old.
+- If you just created a repository with the github_create_repo tool, say so in one or two plain sentences. Do not add extra explanation, do not list steps, do not repeat the repository details as a table or list.
+- If you just edited a file with the github_edit_file tool, say what you changed in one plain sentence.
+- Do not start every reply with the same greeting.
 """
 
         provider = normalize_provider(
