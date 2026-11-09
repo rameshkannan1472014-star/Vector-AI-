@@ -3370,18 +3370,18 @@ async def pwa_app_icon():
 
 @app.get("/sw.js")
 async def pwa_service_worker():
-    return FileResponse("sw.js", media_type="application/javascript", headers={"Cache-Control": "no-cache"})
+    return FileResponse("sw.js", media_type="application/javascript", headers={"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0", "Pragma": "no-cache", "Expires": "0"})
 
 
 
 @app.get("/static/vector-ai-2.css")
 async def vector_ai_2_css():
-    return FileResponse("static/vector-ai-2.css", media_type="text/css", headers={"Cache-Control": "no-cache"})
+    return FileResponse("static/vector-ai-2.css", media_type="text/css", headers={"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0", "Pragma": "no-cache", "Expires": "0"})
 
 
 @app.get("/static/vector-ai-2.js")
 async def vector_ai_2_js():
-    return FileResponse("static/vector-ai-2.js", media_type="application/javascript", headers={"Cache-Control": "no-cache"})
+    return FileResponse("static/vector-ai-2.js", media_type="application/javascript", headers={"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0", "Pragma": "no-cache", "Expires": "0"})
 
 
 # ============================================================
