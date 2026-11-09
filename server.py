@@ -148,6 +148,26 @@ def _extract_repo_name_from_prompt(prompt: str) -> str:
     return ""
 
 
+def _looks_like_file_edit_request(prompt: str) -> bool:
+    """Return True when the user asks to edit/change/update a file in a repo."""
+    p = prompt or ""
+    return bool(
+        re.search(
+            r"\b(edit|change|update|modify|rewrite|replace|fix|add\s+.+to|delete\s+.+from)\b.*\b(\.\w+|server\.py|index\.html|package\.json|requirements\.txt|readme|file)\b",
+            p,
+            re.IGNORECASE,
+        )
+        or re.search(
+            r"\b(file|repo|repository|github).*\b(edit|change|update|modify|rewrite|replace|fix)\b",
+            p,
+            re.IGNORECASE,
+        )
+    )
+
+
+
+
+
 MAX_CHAT_PROMPT_CHARS = 750000
 MAX_CODE_CHARS = 30000
 
@@ -1568,12 +1588,37 @@ If the user asks for a diagram, provide a simple diagram when useful.
             answer = solve_simple_arithmetic(request.prompt)
 
         if answer is None:
-            answer = await ask_ai(
-                prompt,
-                max_tokens=1600,
-                provider=provider,
-                images=request.images
-            )
+            # If the user asked to create a GitHub repository, handle it directly
+            # instead of sending it to Gemini (which often ignores the tool and
+            # gives a manual guide). Only intercept when there is no file-edit
+            # instruction, because file edits still go through Gemini.
+            if (
+                include_github_tool
+                and _looks_like_repo_create_request(request.prompt)
+                and not _looks_like_file_edit_request(request.prompt)
+            ):
+                name = _extract_repo_name_from_prompt(request.prompt) or ""
+                create_result = _run_github_create_repo(
+                    name=name,
+                    description="",
+                    private=False,
+                    license="",
+                    gitignore="",
+                )
+                if create_result.get("status") == "success":
+                    answer = (
+                        f"I created the repository {create_result.get('name', '')} on GitHub. "
+                        f"You can see it at {create_result.get('html_url', '')}."
+                    )
+                else:
+                    answer = create_result.get("message", "I could not create the repository.")
+            if answer is None:
+                answer = await ask_ai(
+                    prompt,
+                    max_tokens=1600,
+                    provider=provider,
+                    images=request.images
+                )
 
         record_request(
             start_time,
