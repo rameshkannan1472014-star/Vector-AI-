@@ -1593,8 +1593,7 @@ If the user asks for a diagram, provide a simple diagram when useful.
             # gives a manual guide). Only intercept when there is no file-edit
             # instruction, because file edits still go through Gemini.
             if (
-                include_github_tool
-                and _looks_like_repo_create_request(request.prompt)
+                _looks_like_repo_create_request(request.prompt)
                 and not _looks_like_file_edit_request(request.prompt)
             ):
                 name = _extract_repo_name_from_prompt(request.prompt) or ""
