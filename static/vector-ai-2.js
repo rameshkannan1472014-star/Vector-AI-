@@ -21,7 +21,9 @@ const LS = {
 
 const STYLE = 'Reply in short, friendly plain text with emojis. ' +
               'Never use markdown: no asterisks, no #, no code blocks, no bullet dashes. ' +
-              'Explain it simply, like you are talking to a 12 year old.';
+              'Explain it simply, like you are talking to a 12 year old. ' +
+              'Do not start every reply with the same greeting. Greet only on the very first message of a chat, ' +
+              'and change the wording each time. On later messages go straight to the answer.';
 
 let busy = false;
 let mode = 'chat';
@@ -112,14 +114,15 @@ function labelFor(m){
   return { chat:'Agent', code:'Code', debug:'Debug', review:'Review', diagram:'Diagram', image:'Image' }[m] || 'Agent';
 }
 function setGreeting(m){
-  const copy = {
-    chat:    ['How can I help you', 'today?', 'Ask anything, paste an error, or drop a file. Vector works through code, debugging and engineering problems with you.'],
-    code:    ['What should we', 'build?', 'Describe what you want and Vector will help you build it step by step.'],
-    debug:   ['What is', 'breaking?', 'Paste the error or the stack trace and we will work out why it happens.'],
-    review:  ['What should I', 'review?', 'Paste your code and Vector will look for bugs, slow parts and easy wins.'],
-    diagram: ['What should we', 'map out?', 'Describe the system and Vector will sketch how the pieces fit together.'],
-    image:   ['What should I', 'create?', 'Describe a picture and Vector will generate it for you.']
-  }[m] || ['How can I help you','today?','Ask Vector anything.'];
+  const greetings = {
+    chat:    ['Hey Ramesh,', 'how are things going?', 'Ask anything, paste an error, or drop a file. Vector works through code, debugging and engineering problems with you.'],
+    code:    ['Hey Ramesh,', 'what should we build today?', 'Describe what you want and Vector will help you build it step by step.'],
+    debug:   ['Hey Ramesh,', 'what looks broken?', 'Paste the error or the stack trace and we will work out why it happens.'],
+    review:  ['Hey Ramesh,', 'what should I look at?', 'Paste your code and Vector will look for bugs, slow parts and easy wins.'],
+    diagram: ['Hey Ramesh,', 'what should we map out?', 'Describe the system and Vector will sketch how the pieces fit together.'],
+    image:   ['Hey Ramesh,', 'what picture should I make?', 'Describe a picture and Vector will generate it for you.']
+  };
+  const copy = greetings[m] || ['Hey Ramesh,', 'what can I help with?', 'Ask Vector anything, and I will help you out.'];
 
   $('heroTitle').innerHTML = escapeHtml(copy[0]) + '<span>' + escapeHtml(copy[1]) + '</span>';
   $('heroSub').textContent = copy[2];
@@ -288,9 +291,11 @@ function toggleSearch(){
 function addUser(text){
   const el = document.createElement('div');
   el.className = 'msg user';
-  el.innerHTML = '<div class="bubble"></div>';
-  el.querySelector('.bubble').textContent = text;
+  el.innerHTML =
+    '<div class="head user-head"><div class="ai-mark" style="background:#fff;color:#000">U</div><div class="ai-name" style="color:var(--text-dim)">You</div></div>' +
+    '<div class="body user-body"></div>';
   messagesEl.appendChild(el);
+  el.querySelector('.user-body').innerHTML = plainRender(text);
   scrollBottom();
 }
 
@@ -342,9 +347,68 @@ function saveAnswer(index){
   if (!text){ toast('Nothing to save yet'); return; }
   notes.unshift('Vector said: ' + text.replace(/\s+/g, ' ').slice(0, 130));
   notes = notes.slice(0, 20);
-  writeLS(LS.notes, notes);
-  paintMemoryBadge();
-  toast('Saved to memory ✅');
+function rateAnswer(index, good){
+  const store = readLS('vector.feedback.v1', []);
+  store.unshift({ at: Date.now(), good: !!good, text: answerText(index).slice(0, 400) });
+  writeLS('vector.feedback.v1', store.slice(0, 200));
+  toast(good ? 'Noted — more like this 👍' : 'Noted — I will try better 👎');
+}
+
+function readAloud(index){
+  const text = answerText(index);
+  if (!text){ toast('Nothing to read yet'); return; }
+  if (!('speechSynthesis' in window)){ toast('This browser cannot speak text'); return; }
+  try {
+    if (speechSynthesis.speaking){ speechSynthesis.cancel(); toast('Stopped reading'); return; }
+    const clean = String(text).replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/gu, '').replace(/[•*#`]/g, '').slice(0, 2000);
+    const u = new SpeechSynthesisUtterance(clean);
+    u.rate = 1.02;
+    u.onend = () => toast('Finished reading');
+    speechSynthesis.speak(u);
+    toast('Reading aloud 🔊');
+  } catch (e) { toast('Reading aloud is blocked in this browser'); }
+}
+
+function shareAnswer(index){
+  const text = answerText(index);
+  if (!text){ toast('Nothing to share yet'); return; }
+  const full = text + '\n— from Vector AI';
+  if (navigator.share){ navigator.share({ title: 'Vector AI', text: full }).catch(() => copyText(full)); return; }
+  copyText(full);
+}
+
+function branchChat(index){
+  const upto = index >= 0 ? turns.slice(0, index + 1) : turns.slice();
+  if (!upto.length){ toast('Nothing to branch yet'); return; }
+  const source = activeChat();
+  const firstUser = upto.find(t => t.role === 'user');
+  const chat = {
+    id: uid(),
+    title: 'Branch · ' + String((firstUser && firstUser.content) || 'chat').slice(0, 44),
+    messages: upto.map(m => ({ role: m.role, content: m.content })),
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    projectId: source ? source.projectId : null
+  };
+  chats.unshift(chat);
+  persistChats();
+  activeId = chat.id;
+  turns = chat.messages.slice();
+  paintThread();
+  renderChats();
+  closeDrawer();
+  closeSidebarOnMobile();
+  toast('Branched into a new chat 🌿');
+}
+
+function copyText(text){
+  if (navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text)
+      .then(() => toast('Copied — paste it anywhere ✅'))
+      .catch(() => toast('Copying is blocked in this browser'));
+  } else { toast('Copying is not available in this browser'); }
+}
+
 }
 
 function sendText(text){
@@ -365,6 +429,16 @@ function retryAt(index){
   sendText(said);
 }
 
+const ICONS = {
+  copy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M15 5.5H6.5A1.5 1.5 0 0 0 5 7v8.5"/></svg>',
+  up: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7 20V9l4-6 1.7.9a3 3 0 0 1 1.5 3.4L13.5 9H19a2 2 0 0 1 2 2.4l-1.2 6.6A2 2 0 0 1 17.8 20H7Z"/><path d="M7 9.5H4V20h3"/></svg>',
+  down: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4v11l4 6 1.7-.9a3 3 0 0 0 1.5-3.4L13.5 15H19a2 2 0 0 0 2-2.4l-1.2-6.6A2 2 0 0 0 17.8 4H7Z"/><path d="M7 14.5H4V4h3"/></svg>',
+  speak: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 9.5v5h3l5 4V5.5l-5 4H4Z"/><path d="M16.5 9a4.2 4.2 0 0 1 0 6"/><path d="M19 6.5a7.8 7.8 0 0 1 0 11"/></svg>',
+  share: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="8" r="1.6" fill="currentColor"/><circle cx="18" cy="12.5" r="1.6" fill="currentColor"/><path d="M2 12s3-4 8-4 8 4 8 4-3 4-8 4-8-4-8-4Z"/></svg>',
+  retry: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4v4.5h-4.5"/></svg>',
+  branch: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="5" r="2.2"/><circle cx="7" cy="19" r="2.2"/><circle cx="17" cy="9" r="2.2"/><path d="M7 7.2v9.6"/><path d="M17 11.2c0 4.2-4 3.4-6.5 4.6"/></svg>'
+};
+
 function attachActions(msgEl, index){
   if (!msgEl) return;
   const old = msgEl.querySelector('.msg-actions');
@@ -375,15 +449,26 @@ function attachActions(msgEl, index){
   const row = document.createElement('div');
   row.className = 'msg-actions';
 
-  const actions = [
-    { label: '⧉ Copy', run: () => copyAnswer(index) },
-    { label: '↻ Try again', run: () => retryAt(index) },
-    { label: '☆ Save to memory', run: () => saveAnswer(index) }
+  const spec = [
+    { icon: 'copy', title: 'Copy answer', run: () => copyAnswer(index) },
+    { icon: 'up', title: 'Good answer', run: () => rateAnswer(index, true) },
+    { icon: 'down', title: 'Bad answer', run: () => rateAnswer(index, false) },
+    { icon: 'speak', title: 'Read aloud', run: () => readAloud(index) },
+    { icon: 'share', title: 'Share answer', run: () => shareAnswer(index) },
+    { sep: true },
+    { icon: 'retry', title: 'Try again', run: () => retryAt(index) },
+    { icon: 'branch', title: 'Branch into a new chat', run: () => branchChat(index) }
   ];
-  actions.forEach(a => {
+  spec.forEach(a => {
+    if (a.sep){
+      const w = document.createElement('span'); w.className = 'sep'; row.appendChild(w); return;
+    }
     const b = document.createElement('button');
     b.className = 'act';
-    b.textContent = a.label;
+    b.type = 'button';
+    b.setAttribute('aria-label', a.title);
+    b.title = a.title;
+    b.innerHTML = ICONS[a.icon];
     b.onclick = a.run;
     row.appendChild(b);
   });
@@ -706,8 +791,11 @@ function contextPayload(){
     parts.push('Project: ' + activeProject.name +
       (activeProject.description ? '\n' + activeProject.description : ''));
   }
+  if (rememberGh && ghStore && ghStore.summary){
+    parts.push('MY GITHUB (what this person works on, use it when relevant):\n' + ghStore.summary);
+  }
   attachments.forEach(a => {
-    if (a.kind === 'text') parts.push('File ' + a.name + ':\n' + a.text);
+    if (a.kind === 'text') parts.push('File ' + a.name + '\n' + a.text);
   });
   return parts.join('\n\n').slice(0, 24000);
 }
@@ -739,11 +827,33 @@ async function send(){
   }));
 
   const hasImages = attachments.some(a => a.kind === 'image');
-  const body = addAI();
-  body.innerHTML = '<span class="caret"></span>';
-
   let answer = null;
   let failed = false;
+  const bodyEl = addAI();
+  if (wantsImageFromText(text, attachments)) {
+    bodyEl.innerHTML = '<div class="img-placeholder">‘Making the picture…’</div>';
+    const img = await makeImage(text, attachments);
+    bodyEl.innerHTML = '';
+    if (img && img.image) {
+      turns.push({ role:'assistant', content:'', attachments: [{kind:'image', mime_type: 'image/png', data: img.image}] });
+      renderAttachments(bodyEl, img.image);
+    } else {
+      turns.push({ role:'assistant', content: img || 'Vector could not make the picture just now.' });
+      bodyEl.innerHTML = plainRender(turns.pop().content);
+    }
+    syncChat();
+    attachActions(bodyEl.parentElement, turns.length - 1);
+    attachments = [];
+    paintAttachments();
+    busy = false;
+    autogrow();
+    scrollBottom();
+    input.focus();
+    return;
+  }
+  bodyEl.innerHTML = '<div class="work-log" id="wl"></div>';
+  const wl = $('wl');
+  wl && paintWorkLog(wl, text);
 
   try {
     const res = await fetch('/api/chat', {
@@ -778,15 +888,20 @@ async function send(){
     failed = true;
   }
 
+  const last = turns.length - 1;
   if (!failed){
     turns.push({ role: 'assistant', content: String(answer) });
-    body.innerHTML = plainRender(answer);
-    syncChat();
+    const textEl = document.createElement('div');
+    textEl.innerHTML = plainRender(answer);
+    bodyEl.parentNode.appendChild(textEl);
   } else {
-    body.innerHTML = plainRender(answer);
+    bodyEl.innerHTML = plainRender(answer);
   }
 
-  attachActions(body.parentElement, failed ? -1 : turns.length - 1);
+  attachActions(bodyEl.parentElement, failed ? -1 : turns.length - 1);
+  maybeProjectSuggestion(bodyEl.parentElement, text);
+
+  wlogDone();
 
   attachments = [];
   paintAttachments();
@@ -795,6 +910,124 @@ async function send(){
   autogrow();
   scrollBottom();
   input.focus();
+}
+
+/* ----------------------------- work log ----------------------------- */
+let wlTimer = null;
+let wlSteps = [];
+let wlCurrent = 0;
+
+function paintWorkLog(container, text){
+  wlSteps = workLogSteps(text, attachments);
+  wlCurrent = 0;
+  container.innerHTML = '';
+  tickWorkLog(container);
+}
+
+function tickWorkLog(container){
+  wlTimer && clearInterval(wlTimer);
+  if (wlTimer) wlTimer = null;
+  if (wlCurrent >= wlSteps.length){
+    container.innerHTML = '<span class="done">All done.</span>';
+    return;
+  }
+  wlTimer = setInterval(() => {
+    const i = wlCurrent++;
+    const el = document.createElement('span');
+    el.className = 'wl';
+    el.innerHTML = '<span class="spin"></span>' + escapeHtml(wlSteps[i]);
+    container.appendChild(el);
+    if (container.parentNode){ container.parentNode.scrollTop = container.parentNode.scrollHeight; }
+    if (i >= wlSteps.length - 1) {
+      clearInterval(wlTimer); wlTimer = null;
+      setTimeout(() => { const e = document.createElement('span'); e.className = 'wl done'; e.textContent = 'All done.'; if(container) container.appendChild(e); }, 260);
+    }
+  }, 430);
+}
+
+function wlogDone(){ wlTimer && clearInterval(wlTimer); wlTimer = null; }
+
+function workLogSteps(text, atts){
+  const t = (text || '').toLowerCase();
+  const steps = [];
+  if (/[…∞]/.test(t) || /(infinite loop|never stops|crash loop)/.test(t) || /(hang|freezes?|stuck|lock)/.test(t)){
+    steps.push('Checking what is stuck');
+  }
+  if (/(read|open|load|show|parse|inspect|line [0-9]|function|variable|file |`)/.test(t)) steps.push('Reading the file or code');
+  if (/(write|fix|create|change|replace|update|add|build)/.test(t)) steps.push('Writing the fix or file');
+  if (/(run|test|exec|compile|deploy|server|npm|node|python)/.test(t)) steps.push('Running the command');
+  if (/(server|connection|api|endpoint|http|web|mcp|proxy)/i.test(t)) steps.push('Checking the server connection');
+  if (/(browser|html|page|screenshot|visit|url|css|dom)/.test(t)) steps.push('Opening the browser view');
+  if (/(diagram|map|draw|architecture|flow|chart)/.test(t)) steps.push('Drawing the diagram');
+  if (/(debug|error|break|wrong|bug|throw|crash|fail)/.test(t)) steps.push('Looking for the bug');
+  if (!steps.length) steps.push('Thinking about your message');
+  steps.push('Building the answer');
+  return steps;
+}
+
+function maybeProjectSuggestion(bodyEl, text){
+  const t = (text || '').toLowerCase();
+  if (activeProject) return;
+  if (!/(build|make|create|program|project|code|app|website|game|bot|tool|dev|software)/.test(t)) return;
+  const card = document.createElement('div');
+  card.className = 'project-detect';
+  card.innerHTML = '<div style="display:flex;align-items:center;gap:10px">' +
+    '<b>This sounds like a build project 🧱</b>' +
+    '<button class="set-btn" id="pdMake">Make it a project</button>' +
+    '<button class="set-btn" id="pdSkip" style="margin-left:auto">Not right now</button>' +
+    '</div>' +
+    '<p>Turn this chat into a project so Vector can keep the details with every reply.</p>';
+  if (bodyEl && bodyEl.parentNode) bodyEl.parentNode.appendChild(card);
+  const close = () => { if(card && card.parentNode) card.remove(); };
+  const makeBtn = card && card.querySelector('#pdMake');
+  if (makeBtn) makeBtn.onclick = () => { newChat(); openProjects(); close(); toast('Project mode is on — tell me what to build. 🧱'); };
+  const skipBtn = card && card.querySelector('#pdSkip');
+  if (skipBtn) skipBtn.onclick = close;
+}
+
+/* ---------------------------- image ask ---------------------------- */
+function wantsImageFromText(text, atts){
+  if (atts && atts.some(a => a.kind === 'image')) return false;
+  return /\b(draw|create|make|generate|show me a picture|an image of|i need an image|image)/i.test(text || '');
+}
+
+async function makeImage(text, atts){
+  const prompt = (text || '').trim();
+  try {
+    const body = { prompt: prompt };
+    if (atts && atts.some(a => a.kind === 'image')) {
+      body.image = atts.find(a => a.kind === 'image').data;
+      body.mime_type = 'image/png';
+    }
+    const res = await fetch('/api/image/generate', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data || data.status !== 'success') {
+      return (data && data.detail && data.detail.message) || (data && data.message) || 'Vector could not make the picture.';
+    }
+    return data;
+  } catch (e) {
+    return 'Vector could not reach the picture maker.';
+  }
+}
+
+function renderAttachments(bodyEl, dataUrl){
+  const wrap = document.createElement('div');
+  wrap.className = 'img-wrap';
+  const img = document.createElement('img');
+  img.src = dataUrl; img.alt = 'Generated image';
+  const act = document.createElement('div');
+  act.className = 'img-actions';
+  const closeBtn = document.createElement('button');
+  closeBtn.className = 'act'; closeBtn.innerHTML = ICONS.copy; closeBtn.title = 'Keep image';
+  closeBtn.onclick = () => { if (navigator.clipboard && navigator.clipboard.write) {
+    const raw = atob(dataUrl.split(',')[1]);
+    const bytes = new Uint8Array(raw.length);
+    for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+    const blob = new Blob([bytes], { type: 'image/png' });
+    navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]).then(() => toast('Image kept')).catch(() => toast('Copying blocked'));
+  } else { toast('Copying blocked'); } };
+  act.appendChild(closeBtn);
+  wrap.appendChild(img); wrap.appendChild(act); bodyEl.appendChild(wrap);
 }
 
 function shareChat(){
@@ -894,6 +1127,135 @@ function openGate(){
 }
 function closeGate(){ $('gate').classList.remove('open'); }
 
+function paintHero(){
+  const hero = $('hero');
+  const messagesEl = $('messages');
+  if (hero) hero.style.display = messagesEl && messagesEl.style.display === 'block' ? 'none' : '';
+}
+
+function loadGitHubState(){
+  // re-read stored GitHub session for drawer display
+  const st = readLS('vector.github.v1', {});
+  if (st && st.repo){
+    ghStore = Object.assign({ repo: '', remember: true, summary: '', name: '' }, st);
+  }
+  $('ghRepo')?.(textContent = ghStore.repo || '');
+  $('ghStatus')?.(textContent = ghStore.summary ? 'Summary loaded' : (ghStore.repo ? 'Repo set' : 'Not connected'));
+}
+
+function ghBindDrawer(){
+  // nothing extra needed; drawer content is built by openGitHubDrawer / paintAccount
+}
+
+function openGitHubDrawer(){
+  closeAcctMenu();
+  $('drawerTitle').textContent = 'GitHub';
+  const connected = me && authProviders.github;
+  $('drawerBody').innerHTML = '<div class="drawer-body">' +
+    '<div style="padding:6px 0 14px">' +
+      '<div style="font-size:13px;color:var(--text-faint);margin-bottom:6px">Your GitHub account, connected to Vector.</div>' +
+      '<div style="font-size:15px;font-weight:600">' + (me && me.name ? me.name : (me && me.login ? '@' + me.login : 'your account')) + '</div>' +
+      '<div style="font-size:12.5px;color:var(--text-faint);margin-top:2px">' + (me && me.login ? 'GitHub: @' + me.login : '') + '</div>' +
+    '</div>' +
+    '<div class="set-group">' +
+      '<div class="set-row set-wide"><div><div class="lbl">Repo to work in</div><span class="sub">The GitHub repo Vector will read and edit files in.</span></div>' +
+        '<input type="text" id="ghRepoInput" value="' + (ghStore.repo || '') + '" placeholder="owner/repo" style="min-width:220px"></div></div>' +
+      '<div class="set-row"><div><div class="lbl">Remember on this browser</div><span class="sub">Keep this repo bound to this browser.</span></div>' +
+        '<label class="switch"><input type="checkbox" id="ghRemember" ' + (ghStore.remember ? 'checked' : '') + '><i></i></label></div></div>' +
+      '<div class="set-row"><div><div class="lbl">Load my GitHub summary</div><span class="sub">Let Vector learn about you from GitHub.</span></div>' +
+        '<label class="switch"><input type="checkbox" id="ghRememberOpt" ' + (ghStore.remember ? 'checked' : '') + '><i></i></label></div></div>' +
+    '</div>' +
+    '<div class="set-note">Vector can read your public repo files and make edits when you ask. It does not touch anything else.</div>' +
+    '<div style="display:flex;gap:8px;margin-top:6px">' +
+      '<button class="set-btn" id="ghSaveRepo" style="flex:1">Save repo</button>' +
+      '<button class="set-btn" id="ghLoadSummary" style="flex:1">Refresh summary</button>' +
+      '<button class="set-btn danger" id="ghDisconnect" style="flex:1">Disconnect</button>' +
+    '</div>' +
+  '</div>';
+  $('drawerBody').dataset.setOpen = '1';
+  // wire buttons
+  const repoInput = $('ghRepoInput');
+  const saveBtn = $('ghSaveRepo');
+  const loadBtn = $('ghLoadSummary');
+  const disconnectBtn = $('ghDisconnect');
+  const rememberChk = $('ghRemember');
+  const rememberOpt = $('ghRememberOpt');
+  if (rememberChk) rememberChk.checked = !!ghStore.remember;
+  if (rememberOpt) rememberOpt.checked = !!ghStore.remember;
+  function save(){
+    const r = (repoInput && repoInput.value || '').trim();
+    ghStore = Object.assign({}, ghStore, { repo: r, remember: !!(rememberChk && rememberChk.checked) });
+    writeLS('vector.github.v1', ghStore);
+    loadGitHubState();
+    toast('GitHub repo saved: ' + (r || 'none'));
+  }
+  if (saveBtn) saveBtn.onclick = save;
+  if (rememberChk) rememberChk.onchange = () => { if(rememberChk) ghStore.remember = rememberChk.checked; writeLS('vector.github.v1', ghStore); loadGitHubState(); toast(ghStore.remember ? 'GitHub remembered on this browser' : 'GitHub not remembered'); };
+  if (rememberOpt) rememberOpt.onchange = () => { if(rememberOpt){ ghStore.remember = rememberOpt.checked; writeLS('vector.github.v1', ghStore); loadGitHubState(); } };
+  if (loadBtn) loadBtn.onclick = () => {
+    if (!(me && authProviders.github)) { toast('Connect GitHub first'); return; }
+    loadBtn.textContent = 'Loading…'; loadBtn.disabled = true;
+    fetch('/api/github/summary')
+      .then(r => r.json().catch(() => null))
+      .then(data => {
+        loadBtn.disabled = false; loadBtn.textContent = 'Refresh summary';
+        if (data && data.summary) {
+          ghStore.summary = data.summary;
+          ghStore.name = data.name || ghStore.name;
+          writeLS('vector.github.v1', ghStore);
+          toast('GitHub summary loaded ✅');
+          loadGitHubState();
+        } else {
+          toast('Could not load summary. Try again.');
+        }
+      })
+      .catch(() => { loadBtn.disabled = false; loadBtn.textContent = 'Refresh summary'; toast('Could not reach GitHub.'); });
+  };
+  if (disconnectBtn) disconnectBtn.onclick = () => {
+    ghStore = { repo: '', remember: false, summary: '', name: '' };
+    writeLS('vector.github.v1', ghStore);
+    loadGitHubState();
+    toast('GitHub disconnected');
+  };
+}
+
+function clearChatHistory(){
+  if (!confirm('Clear the whole chat? This cannot be undone.')) return;
+  turns = [];
+  attachments = [];
+  paintAttachments();
+  $('messages').innerHTML = '';
+  $('messages').style.display = 'none';
+  $('hero').style.display = '';
+  $('suggestions') && ($('suggestions').style.display = '');
+  writeLS(LS.chat, null);
+  toast('Chat cleared');
+}
+
+function resetMemory(){
+  if (!confirm('Forget my name, age, and notes? This cannot be undone.')) return;
+  memory = {};
+  gateAnswers = { name: '', age: '', build: '', done: false };
+  notes = [];
+  writeLS(LS.mem, memory);
+  writeLS(GATE_LS, gateAnswers);
+  writeLS(LS.notes, notes);
+  paintAccount();
+  paintMemoryBadge();
+  toast('Memory reset');
+}
+
+function clearSavedFiles(){
+  attachments = [];
+  paintAttachments();
+  toast('Saved files cleared');
+}
+
+function viewSessions(){
+  toast('Sessions are managed on the server. Sign out here to leave this browser.');
+}
+
+
 function authAction(){
   if (me) signOut();
   else openGate();
@@ -937,6 +1299,45 @@ function closeSidebarOnMobile(){
 }
 
 window.addEventListener('resize', syncSide);
+
+/* ----------------------------- github remember helper ----------------------------- */
+function rememberGh(){
+  return !!(ghStore && ghStore.remember);
+}
+
+/* ----------------------------- agents ---------------------------- */
+const AGENTS = [
+  { id:'chat', name:'Agent', tip:'General help, calm and clear' },
+  { id:'code', name:'Code', tip:'Write, change, and explain code' },
+  { id:'debug', name:'Debug', tip:'Find why things break' },
+  { id:'review', name:'Review', tip:'Review your code and suggest fixes' },
+  { id:'diagram', name:'Diagram', tip:'Draw architecture and flow pictures' },
+  { id:'image', name:'Image', tip:'Make and edit pictures' }
+];
+
+function openAgents(){
+  const menu = $('agentsMenu');
+  if (!menu) return;
+  menu.classList.toggle('open');
+}
+
+function chooseAgent(id){
+  mode = id;
+  $('modeLabel').textContent = (AGENTS.find(a => a.id === id) || {}).name || 'Agent';
+  setGreeting(mode);
+  const a = AGENTS.find(x => x.id === id);
+  toast('Using Agent: ' + (a ? a.name : 'Agent') + (a && a.tip ? ' — ' + a.tip : ''));
+  closeAgents();
+}
+
+function closeAgents(){
+  const menu = $('agentsMenu');
+  if (menu) menu.classList.remove('open');
+}
+
+document.addEventListener('click', e => {
+  if (e.target && e.target.closest && !e.target.closest('#agentsBtn') && !e.target.closest('#agentsMenu')) closeAgents();
+});
 
 /* ------------------------------------------------------------------ */
 /* sign-in questions and buttons                                       */
@@ -1037,6 +1438,12 @@ const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 let liveOn = false;
 let recState = 'idle';
 let rec = null;
+let micTapCount = 0;
+let micTimer = null;
+let micStream = null;
+let camStream = null;
+let soundActive = false;
+let soundAnim = null;
 
 function openLive(){
   closeAcctMenu();
@@ -1044,15 +1451,34 @@ function openLive(){
   liveOn = true;
   $('liveAnswer').textContent = '';
   $('live').classList.add('open');
+  micTapCount = 0;
+  if (micTimer) clearTimeout(micTimer);
+  micTimer = null;
+  soundActive = false;
+  if (soundAnim) clearInterval(soundAnim);
+  soundAnim = null;
   $('liveStatus').textContent = SR
-    ? 'Tap the circle and start talking.'
+    ? 'Tap the circle twice to use the microphone.'
     : 'This browser has no voice input, so type below and Vector will answer out loud.';
+  $('liveTools').innerHTML = liveToolsHtml();
+  $('liveCamWrap').classList.remove('on');
+  $('soundBar').classList.remove('on');
+  stopRec();
+  stopSound();
+  if (micStream) { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
+  if (camStream) { camStream.getTracks().forEach(t => t.stop()); camStream = null; }
+  $('liveCamVideo').srcObject = null;
 }
 
 function closeLive(){
   liveOn = false;
   $('live').classList.remove('open');
   stopRec();
+  stopSound();
+  if (micStream) { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
+  if (camStream) { camStream.getTracks().forEach(t => t.stop()); camStream = null; }
+  $('liveCamVideo').srcObject = null;
+  $('liveCamWrap').classList.remove('on');
   if ('speechSynthesis' in window){
     try { speechSynthesis.cancel(); } catch (e) {}
   }
@@ -1063,27 +1489,54 @@ function setOrb(on){ $('liveOrb').classList.toggle('rec', !!on); }
 function liveToggle(){
   if (recState === 'listening'){
     stopRec();
-    $('liveStatus').textContent = 'Paused. Tap the circle to talk again.';
+    $('liveStatus').textContent = 'Paused. Tap the circle again to resume.';
     return;
   }
-  startRec();
+  handleMicTap();
 }
 
-function startRec(){
+function handleMicTap(){
+  micTapCount++;
+  if (micTapCount === 1){
+    $('liveStatus').textContent = 'Tap the circle one more time to turn on the microphone.';
+    if (micTimer) clearTimeout(micTimer);
+    micTimer = setTimeout(() => { micTapCount = 0; $('liveStatus').textContent = SR ? 'Tap the circle twice to use the microphone.' : 'This browser has no voice input.'; }, 1400);
+    return;
+  }
+  if (micTapCount === 2){
+    if (micTimer) clearTimeout(micTimer);
+    micTapCount = 0;
+    startMic();
+  }
+}
+
+function startMic(){
   if (!SR){
-    $('liveStatus').textContent = 'Type your question below and Vector will answer out loud.';
+    $('liveStatus').textContent = 'This browser has no voice input. Type below instead.';
     $('liveText').focus();
     return;
   }
-  try { rec = new SR(); }
-  catch (e) { $('liveStatus').textContent = 'I could not start the microphone.'; return; }
+  if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia){
+    navigator.mediaDevices.getUserMedia({ audio: true })
+      .then(stream => { micStream = stream; beginListening(); })
+      .catch(err => {
+        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError'){
+          $('liveStatus').textContent = 'Microphone is blocked. Allow it in the browser, or type below.';
+        } else {
+          $('liveStatus').textContent = 'I could not start the microphone. Type below instead.';
+        }
+      });
+  } else {
+    beginListening();
+  }
+}
 
+function beginListening(){
+  try { rec = new SR(); } catch (e) { $('liveStatus').textContent = 'I could not start the microphone.'; return; }
   rec.lang = 'en-IN';
   rec.interimResults = true;
   rec.continuous = false;
-
-  rec.onstart = () => { recState = 'listening'; setOrb(true); $('liveStatus').textContent = 'Listening…'; };
-
+  rec.onstart = () => { recState = 'listening'; setOrb(true); startSound(); $('liveStatus').textContent = 'Listening…'; };
   rec.onresult = ev => {
     let said = '';
     for (let i = 0; i < ev.results.length; i++) said += ev.results[i][0].transcript;
@@ -1091,22 +1544,21 @@ function startRec(){
     const last = ev.results[ev.results.length - 1];
     if (last && last.isFinal){
       stopRec();
+      stopSound();
       liveSend(said);
     }
   };
-
   rec.onerror = ev => {
+    stopRec();
+    stopSound();
     setOrb(false);
     recState = 'idle';
     $('liveStatus').textContent = ev.error === 'not-allowed'
       ? 'Microphone is blocked. Allow it in the browser, or type below.'
-      : 'I did not catch that — tap the circle and try again.';
+      : 'I did not catch that — tap the circle twice and try again.';
   };
-
   rec.onend = () => { setOrb(false); if (recState === 'listening') recState = 'idle'; };
-
-  try { rec.start(); }
-  catch (e) { $('liveStatus').textContent = 'Tap the circle once more to start listening.'; }
+  try { rec.start(); } catch (e) { $('liveStatus').textContent = 'Tap the circle twice to start listening.'; }
 }
 
 function stopRec(){
@@ -1118,45 +1570,143 @@ function stopRec(){
   setOrb(false);
 }
 
+function liveToolsHtml(){
+  return '<div class="live-tools">' +
+    '<button class="live-tool" id="liveMicBtn" title="Microphone (tap twice)">' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>' +
+    '</button>' +
+    '<button class="live-tool" id="liveCamBtn" title="Camera">' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7 16 12 23 17 23 7Z"/><rect x="1" y="5" width="14" height="14" rx="2"/></svg>' +
+    '</button>' +
+    '</div>' +
+    '<div class="sound-bar" id="soundBar">' +
+      '<i></i><i></i><i></i><i></i><i></i><i></i>' +
+    '</div>' +
+    '<div class="live-cam-wrap" id="liveCamWrap">' +
+      '<video id="liveCamVideo" autoplay playsinline muted></video>' +
+      '<button class="set-btn" id="liveCamOff" style="margin-top:8px">Turn off camera</button>' +
+    '</div>' +
+    '<div class="live-hint">Tap the circle twice for the mic. Turn on the camera to include a photo with your voice note.</div>';
+}
+
+function startSound(){
+  if (soundActive) return;
+  soundActive = true;
+  $('soundBar').classList.add('on');
+  const bars = $('soundBar').querySelectorAll('i');
+  if (soundAnim) clearInterval(soundAnim);
+  soundAnim = setInterval(() => {
+    bars.forEach((b, i) => {
+      const h = 3 + Math.floor(Math.random() * 22);
+      b.style.height = h + 'px';
+      b.style.opacity = 0.4 + Math.random() * 0.6;
+    });
+  }, 90);
+}
+
+function stopSound(){
+  soundActive = false;
+  if (soundAnim) clearInterval(soundAnim);
+  soundAnim = null;
+  $('soundBar').classList.remove('on');
+  const bars = $('soundBar').querySelectorAll('i');
+  bars.forEach(b => { b.style.height = '4px'; b.style.opacity = '0.4'; });
+}
+
+function startCamera(){
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    toast('This browser cannot use the camera');
+    return;
+  }
+  $('liveCamBtn').disabled = true;
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } })
+    .then(stream => {
+      camStream = stream;
+      $('liveCamVideo').srcObject = stream;
+      $('liveCamWrap').classList.add('on');
+      $('liveCamBtn').classList.add('on');
+      $('liveCamBtn').disabled = false;
+      toast('Camera on — your photo will be included');
+    })
+    .catch(err => {
+      $('liveCamBtn').disabled = false;
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError'){
+        toast('Camera is blocked. Allow it in the browser, or turn it off.');
+      } else {
+        toast('I could not start the camera.');
+      }
+    });
+}
+
+function stopCamera(){
+  if (camStream){ camStream.getTracks().forEach(t => t.stop()); camStream = null; }
+  $('liveCamVideo').srcObject = null;
+  $('liveCamWrap').classList.remove('on');
+  const camBtn = $('liveCamBtn');
+  if (camBtn) camBtn.classList.remove('on');
+}
+
+function liveToggleMic(){
+  if (recState === 'listening'){
+    stopRec(); stopSound();
+    $('liveMicBtn').classList.remove('on');
+    $('liveStatus').textContent = 'Paused. Tap the circle again to resume.';
+    return;
+  }
+  handleMicTap();
+}
+
+$('liveMicBtn') && ($('liveMicBtn').onclick = liveToggleMic);
+$('liveCamBtn') && ($('liveCamBtn').onclick = () => {
+  if ($('liveCamWrap').classList.contains('on')){ stopCamera(); toast('Camera off'); }
+  else { startCamera(); }
+});
+$('liveCamOff') && ($('liveCamOff').onclick = () => { stopCamera(); toast('Camera off'); });
+
 async function liveSend(text){
   const question = String(text || '').trim();
   if (!question) return;
-
   $('liveText').value = '';
   $('liveStatus').textContent = 'Thinking…';
   $('liveAnswer').textContent = '';
-
+  stopSound();
+  let imageData = null;
+  if (camStream){
+    try {
+      const track = camStream.getVideoTracks()[0];
+      if (track){
+        const blob = new Blob([], { type: 'video/webm' });
+        const recorder = new MediaRecorder(track, { mimeType: MediaRecorder.isTypeSupported('video/webm;codecs=vp8') ? 'video/webm;codecs=vp8' : 'video/webm' });
+        const chunks = [];
+        recorder.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+        recorder.onstop = () => {
+          const b = new Blob(chunks, { type: recorder.mimeType });
+          const fr = new FileReader();
+          fr.onload = () => { imageData = fr.result.split(',')[1] || null; };
+          fr.readAsDataURL(b);
+        };
+        recorder.start();
+        setTimeout(() => { try { recorder.stop(); } catch (e) {} }, 180);
+      }
+    } catch (e) { imageData = null; }
+  }
   ensureChat(question);
   turns.push({ role: 'user', content: question });
   syncChat();
-
   try {
-    const res = await fetch('/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        prompt: STYLE + '\n\nAnswer this out loud, so keep it to two or three short sentences: ' + question,
-        provider: provider,
-        history: [],
-        memory: memoryPayload(),
-        workspace_context: contextPayload(),
-        images: []
-      })
-    });
-
+    const body = { prompt: STYLE + '\n\nAnswer this out loud, so keep it to two or three short sentences: ' + question };
+    if (imageData){ body.images = [{ mime_type: 'image/png', data: imageData }]; }
+    const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     let data = null;
     try { data = await res.json(); } catch (e) { data = null; }
-
     if (!res.ok){
       const detail = data && data.detail;
       $('liveStatus').textContent = (detail && (detail.message || detail.error)) || 'The server did not answer.';
       return;
     }
-
     const answer = (data && (data.response || data.output || data.message)) || 'No answer came back.';
     $('liveAnswer').innerHTML = plainRender(answer);
     $('liveStatus').textContent = 'Tap the circle to talk again.';
-
     turns.push({ role: 'assistant', content: String(answer) });
     syncChat();
     paintThread();
@@ -1180,6 +1730,236 @@ function speakOut(text){
     speechSynthesis.speak(utter);
   } catch (e) {}
 }
+/* ----------------------------- settings wiring ----------------------------- */
+function bindSetRows(name){
+  const nav = $('setNav');
+  const main = $('setMain');
+  if (!nav || !main) return;
+  nav.onclick = (e) => { const b = e.target.closest('[data-set-id]'); if (!b) return; selectSection(b.getAttribute('data-set-id')); };
+  const item = readLS('vector.settings.v1', {});
+  selectSection(item.section || 'General');
+}
+
+function stAccentsPick(value){
+  const shades = ['#ffffff','#60a5fa','#22d3ee','#34d399','#fbbf24','#fb923c','#f87171','#a78bfa'];
+  const wrap = $('stAccents');
+  if (!wrap) return;
+  wrap.innerHTML = shades.map(c => '<span class="swatch' + (c.toLowerCase() === value.toLowerCase() ? ' on' : '') + '" style="background:' + c + '" onclick="setAccent(\'' + c + '\')" />').join('');
+}
+
+function setAccent(value){
+  writeLS('vector.settings.v1', Object.assign({}, readLS('vector.settings.v1', {}), { accent: value }));
+  applySettings();
+  stAccentsPick(value);
+  toast('Accent colour saved');
+}
+
+function applySettings(){
+  const item = readLS('vector.settings.v1', {});
+  const theme = item.theme || 'System';
+  const accent = item.accent || '#ffffff';
+  document.documentElement.setAttribute('data-theme', theme === 'System' ? 'dark' : theme.toLowerCase());
+  document.documentElement.style.setProperty('--accent', accent);
+}
+
+function setTheme(value){
+  writeLS('vector.settings.v1', Object.assign({}, readLS('vector.settings.v1', {}), { theme: value }));
+  applySettings();
+  toast('Theme applied');
+}
+
+function setLang(value){
+  writeLS('vector.settings.v1', Object.assign({}, readLS('vector.settings.v1', {}), { language: value }));
+  toast('Language set to ' + value);
+}
+
+function setVoice(value){
+  writeLS('vector.settings.v1', Object.assign({}, readLS('vector.settings.v1', {}), { voice: value }));
+  toast('Voice: ' + value);
+}
+
+function openSettings(){
+  closeAcctMenu();
+  closeDrawer();
+  $('drawerTitle').textContent = 'Settings';
+  $('drawerBody').innerHTML = settingsTemplate();
+  paintSettings();
+  $('drawerBody').dataset.setOpen = '1';
+}
+
+function closeSettings(){
+  const body = $('drawerBody');
+  if (body) body.dataset.setOpen = '';
+  closeDrawer();
+}
+
+/* ----------------------------- settings template ----------------------------- */
+const SET_SECTIONS = [
+  { id:'General', label:'General' },
+  { id:'Personalization', label:'Personalization' },
+  { id:'Apps', label:'Apps & connectors' },
+  { id:'Data', label:'Data controls' },
+  { id:'Security', label:'Security' },
+  { id:'Account', label:'Account' },
+  { id:'Parental', label:'Parental controls' }
+];
+
+function settingsTemplate(){
+  return '<div class="settings-card">' +
+    '<button class="icon-btn settings-close" onclick="closeSettings()" title="Close settings">' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m6 6 12 12M18 6 6 18"/></svg>' +
+    '</button>' +
+    '<nav class="settings-nav" id="setNav">' +
+      SET_SECTIONS.map(s => '<button data-set-id="' + s.id + '">' + s.label + '</button>').join('') +
+    '</nav>' +
+    '<div class="settings-main" id="setMain"></div>' +
+  '</div>';
+}
+
+function paintSettings(){
+  bindSetRows();
+}
+
+let currentSetSection = null;
+
+function selectSection(id){
+  currentSetSection = id;
+  const nav = $('setNav');
+  if (nav){
+    nav.querySelectorAll('button[data-set-id]').forEach(b => b.classList.toggle('active', b.getAttribute('data-set-id') === id));
+  }
+  const main = $('setMain');
+  if (!main) return;
+  writeLS('vector.settings.v1', Object.assign({}, readLS('vector.settings.v1', {}), { section: id }));
+  const item = readLS('vector.settings.v1', {});
+  const render = {
+    'General': () => '<div class="set-group">' +
+      '<div class="set-row set-wide"><div><div class="lbl">Name</div><span class="sub">What Vector calls you</span></div>' +
+        '<input type="text" id="stName" value="' + (memory.name || '') + '" placeholder="Your name"></div></div>' +
+      '<div class="set-row set-wide"><div><div class="lbl">How old are you?</div><span class="sub">Helps Vector give better answers</span></div>' +
+        '<input type="text" id="stAge" value="' + (memory.age || '') + '" placeholder="e.g. 12"></div></div>' +
+      '<div class="set-row set-wide"><div><div class="lbl">About you</div><span class="sub">Anything you want Vector to know</span></div>' +
+        '<textarea id="stAbout" rows="3" placeholder="e.g. I like building games">' + (memory.about || '') + '</textarea></div></div>' +
+      '<div class="set-row set-wide"><div><div class="lbl">Language</div><span class="sub">The language Vector uses with you</span></div>' +
+        '<select id="stLang">' +
+          '<option value="English"' + (item.language === 'English' ? ' selected' : '') + '>English</option>' +
+          '<option value="Hindi"' + (item.language === 'Hindi' ? ' selected' : '') + '>Hindi</option>' +
+          '<option value="Tamil"' + (item.language === 'Tamil' ? ' selected' : '') + '>Tamil</option>' +
+        '</select></div></div>' +
+      '<div class="set-row"><div><div class="lbl">Start Vector when you open the page</div><span class="sub">Opens the chat right away</span></div>' +
+        '<label class="switch"><input type="checkbox" id="stAutoStart" ' + (item.auto_start ? 'checked' : '') + '><i></i></label></div></div>' +
+      '<div class="set-row"><div><div class="lbl">Play sound when Vector answers</div><span class="sub">A small beep when it is done</span></div>' +
+        '<label class="switch"><input type="checkbox" id="stSound" ' + (item.sound_on ? 'checked' : '') + '><i></i></label></div></div>' +
+    '</div>' +
+    '<button class="set-btn" onclick="saveGeneral()">Save changes</button>',
+    'Personalization': () => '<div class="set-group">' +
+      '<div class="set-row set-wide"><div><div class="lbl">Theme</div><span class="sub">Light, dark, or follow your device</span></div>' +
+        '<select id="stTheme">' +
+          '<option value="System"' + (item.theme === 'System' ? ' selected' : '') + '>System default</option>' +
+          '<option value="Dark"' + (item.theme === 'Dark' ? ' selected' : '') + '>Dark</option>' +
+          '<option value="Light"' + (item.theme === 'Light' ? ' selected' : '') + '>Light</option>' +
+        '</select></div></div>' +
+      '<div class="set-row set-wide"><div><div class="lbl">Accent colour</div><span class="sub">The blue-purple in buttons and bars</span></div>' +
+        '<div class="swatches" id="stAccents"></div></div>' +
+      '<div class="set-row set-wide"><div><div class="lbl">How Vector sounds</div><span class="sub">Friendly, calm, and clear for you</span></div>' +
+        '<select id="stVoice">' +
+          '<option value="Friendly"' + (item.voice === 'Friendly' ? ' selected' : '') + '>Friendly</option>' +
+          '<option value="Calm"' + (item.voice === 'Calm' ? ' selected' : '') + '>Calm</option>' +
+          '<option value="Curious"' + (item.voice === 'Curious' ? ' selected' : '') + '>Curious</option>' +
+        '</select></div></div>' +
+      '<div class="set-row"><div><div class="lbl">Show suggestion chips at the start</div><span class="sub">Quick ideas when you open a chat</span></div>' +
+        '<label class="switch"><input type="checkbox" id="stChips" ' + (item.show_chips !== false ? 'checked' : '') + '><i></i></label></div></div>' +
+    '</div>' +
+    '<div class="set-note">Your accent, theme, and voice are saved on this device only.</div>',
+    'Apps': () => '<div class="set-group">' +
+      '<div class="set-row set-wide"><div><div class="lbl">GitHub</div><span class="sub">Edit files in your GitHub repos and let Vector learn about you from GitHub.</span></div>' +
+        '<button class="set-btn" id="ghConnectBtn">' +
+          ((authProviders.github && me) ? 'Connected' : 'Connect GitHub') +
+        '</button></div></div>' +
+      '<div class="set-row set-wide"><div><div class="lbl">Google</div><span class="sub">Sign in with your Google account.</span></div>' +
+        '<button class="set-btn" id="glConnectBtn">' +
+          ((authProviders.google && me) ? 'Connected' : 'Connect Google') +
+        '</button></div></div>' +
+      '<div class="set-row"><div><div class="lbl">Remember GitHub on this browser</div><span class="sub">Keep your GitHub repo bound to this browser</span></div>' +
+        '<label class="switch"><input type="checkbox" id="stGhRemember" ' + (ghStore && ghStore.remember ? 'checked' : '') + '><i></i></label></div></div>' +
+    '</div>' +
+    '<div class="set-note">GitHub and Google are used only to sign you in and make the features you choose work.</div>',
+    'Data': () => '<div class="set-group">' +
+      '<div class="set-row set-wide"><div><div class="lbl">Clear chat history</div><span class="sub">Start fresh. This cannot be undone.</span></div>' +
+        '<button class="set-btn danger" onclick="clearChatHistory()">Clear history</button></div></div>' +
+      '<div class="set-row set-wide"><div><div class="lbl">Reset memory</div><span class="sub">Forget your name, age, and notes.</span></div>' +
+        '<button class="set-btn danger" onclick="resetMemory()">Reset memory</button></div></div>' +
+      '<div class="set-row set-wide"><div><div class="lbl">Delete saved files</div><span class="sub">Remove files you attached before.</span></div>' +
+        '<button class="set-btn danger" onclick="clearSavedFiles()">Clear files</button></div></div>' +
+    '</div>' +
+    '<div class="set-note">Your chats are kept on this device and in your signed-in account when you sign in.</div>',
+    'Security': () => '<div class="set-group">' +
+      '<div class="set-row set-wide"><div><div class="lbl">Sign-in key</div><span class="sub">' +(me ? providerLabel(me.provider) + ' is connected. ' : '') +
+          'Only you can sign in on this browser.</div></div>' +
+        '<button class="set-btn" onclick="viewSessions()">Manage sessions</button></div></div>' +
+      '<div class="set-row"><div><div class="lbl">Two-step sign-in</div><span class="sub">Extra protection when you sign in.</span></div>' +
+        '<label class="switch"><input type="checkbox" id="st2fa" ' + (item.twofa ? 'checked' : '') + '><i></i></label></div></div>' +
+      '<div class="set-row"><div><div class="lbl">Lock Vector after inactivity</div><span class="sub">Ask for sign-in again after a while.</span></div>' +
+        '<label class="switch"><input type="checkbox" id="stLock" ' + (item.lock_after ? 'checked' : '') + '><i></i></label></div></div>' +
+    '</div>' +
+    '<div class="set-note">Your sign-in is protected by ' + providerLabel(me && me.provider) + '.</div>',
+    'Account': () => '<div class="set-group">' +
+      '<div class="set-row set-wide"><div><div class="lbl">Signed in as</div><span class="sub">Your account on this browser</span></div>' +
+        '<div style="font-size:13px">' + (me ? (me.name || me.login) + ' (' + providerLabel(me.provider) + ')' : 'Signed out') + '</div></div></div>' +
+      '<div class="set-row set-wide"><div><div class="lbl">Email</div><span class="sub">The email on your account</span></div>' +
+        '<div style="font-size:13px">' + (me && me.email ? me.email : '—') + '</div></div></div>' +
+      '<div class="set-row set-wide"><div><div class="lbl">Plan</div><span class="sub">Free</span></div>' +
+        '<div style="font-size:13px">Free</div></div></div>' +
+    '</div>' +
+    '<div class="set-note">Your account is kept safe by your sign-in provider.</div>',
+    'Parental': () => '<div class="set-group">' +
+      '<div class="set-row set-wide"><div><div class="lbl">Parental controls</div><span class="sub">Help keep things safe when you are younger.</span></div>' +
+        '<label class="switch"><input type="checkbox" id="stParental" ' + (item.parental ? 'checked' : '') + '><i></i></label></div></div>' +
+      '<div class="set-row set-wide"><div><div class="lbl">Who can message you</div><span class="sub">Only people you know.</span></div>' +
+        '<select id="stWhoCanMessage">' +
+          '<option value="Everyone"' + (item.who_can_message === 'Everyone' ? ' selected' : '') + '>Everyone</option>' +
+          '<option value="People you know"' + (item.who_can_message === 'People you know' ? ' selected' : '') + '>People you know</option>' +
+          '<option value="No one"' + (item.who_can_message === 'No one' ? ' selected' : '') + '>No one</option>' +
+        '</select></div></div>' +
+      '<div class="set-row set-wide"><div><div class="lbl">Ask a parent before sharing</div><span class="sub">Vector will ask before sharing anything.</span></div>' +
+        '<label class="switch"><input type="checkbox" id="stAskParent" ' + (item.ask_parent ? 'checked' : '') + '><i></i></label></div></div>' +
+    '</div>' +
+    '<div class="set-note">These settings help keep your experience safe.</div>',
+  }[id] || (() => '<div class="set-note">This section is not ready yet.</div>');
+  main.innerHTML = render();
+  // wire accent re-paint after render
+  if (id === 'Personalization'){ stAccentsPick(item.accent || '#ffffff'); }
+  // wire GitHub connect button
+  const ghBtn = $('ghConnectBtn');
+  if (ghBtn){
+    ghBtn.onclick = () => { if (me && authProviders.github){ openGitHubDrawer(); } else { openGate(); showGateStep('signin'); paintGateNote('github'); toast('Connect GitHub to use this feature'); } };
+  }
+  const glBtn = $('glConnectBtn');
+  if (glBtn){
+    glBtn.onclick = () => { if (me && authProviders.google){ toast('Google is already connected'); } else { openGate(); showGateStep('signin'); paintGateNote('google'); toast('Connect Google to use this feature'); } };
+  }
+}
+
+function saveGeneral(){
+  const name = ($('stName').value || '').trim();
+  const age = ($('stAge').value || '').trim();
+  const about = ($('stAbout').value || '').trim();
+  const lang = ($('stLang').value || 'English');
+  const autoStart = $('stAutoStart').checked;
+  const sound = $('stSound').checked;
+  if (name){ memory.name = name; } else { toast('Tell me your name first 🙂'); $('stName').focus(); return; }
+  if (age) memory.age = age;
+  if (about) memory.about = about;
+  writeLS(LS.mem, memory);
+  writeLS('vector.settings.v1', Object.assign(readLS('vector.settings.v1', {}), {
+    language: lang, auto_start: autoStart, sound_on: sound
+  }));
+  gateAnswers.name = name; gateAnswers.age = age; gateAnswers.build = about;
+  writeLS(GATE_LS, gateAnswers);
+  paintAccount(); paintMemoryBadge();
+  toast('Saved');
+  setTimeout(() => selectSection('General'), 50);
+}
 
 /* ------------------------------------------------------------------ */
 /* keyboard and boot                                                   */
@@ -1199,9 +1979,22 @@ function boot(){
 
   closeSidebarOnMobile();
 
+  applySettings();
+  ghStore = readLS('vector.github.v1', {}) || {};
+  if (!ghStore) ghStore = { repo: '', remember: true, summary: '', name: '' };
+  else ghStore = Object.assign({ repo: '', remember: true, summary: '', name: '' }, ghStore);
   loadAuth();
   loadProviders();
+  loadGitHubState();
+  ghBindDrawer();
   syncSide();
+  paintHero();
+  $('liveMicBtn') && ($('liveMicBtn').onclick = liveToggleMic);
+  $('liveCamBtn') && ($('liveCamBtn').onclick = () => {
+    if ($('liveCamWrap').classList.contains('on')){ stopCamera(); toast('Camera off'); }
+    else { startCamera(); }
+  });
+  $('liveCamOff') && ($('liveCamOff').onclick = () => { stopCamera(); toast('Camera off'); });
 
   const params = new URLSearchParams(window.location.search);
   const auth = params.get('auth');

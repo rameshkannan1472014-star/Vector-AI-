@@ -6,7 +6,7 @@
 <title>Vector AI</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23fff'/%3E%3Ctext x='16' y='22' font-family='system-ui' font-size='17' font-weight='800' text-anchor='middle' fill='%23000'%3EV%3C/text%3E%3C/svg%3E" />
 <meta name="theme-color" content="#000000" />
-<link rel="stylesheet" href="/static/vector-ai-2.css?v=6" />
+<link rel="stylesheet" href="/static/vector-ai-2.css?v=7" />
 </head>
 <body>
 <div class="app">
@@ -83,6 +83,10 @@
       <button class="mode-pill" id="modePill" onclick="cycleMode()" title="Change mode">
         <span class="dot"></span>
         <span id="modeLabel">Agent</span>
+      </button>
+      <button class="pill mode-pill" id="agentsBtn" onclick="openAgents()" title="Pick an agent">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/><path d="M5 14c2-1 4 0 6 0 1.4 0 2.6-.7 3.4-1.6"/></svg>
+        Agents
       </button>
       <div style="flex:1"></div>
       <button class="pill" id="liveBtn" onclick="openLive()" title="Talk to Vector">
@@ -218,7 +222,14 @@
   <div class="live-title">Live with Vector</div>
   <div class="live-status" id="liveStatus">Tap the circle and start talking.</div>
   <div class="live-answer" id="liveAnswer"></div>
-  <div class="live-input">
+  <div class="live-tools" id="liveTools"></div>
+      <div class="sound-bar" id="soundBar"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      <div class="live-cam-wrap" id="liveCamWrap">
+        <video id="liveCamVideo" autoplay playsinline muted></video>
+        <button class="set-btn" id="liveCamOff" style="margin-top:8px">Turn off camera</button>
+      </div>
+      <div class="live-hint">Tap the circle twice for the mic. Turn on the camera to include a photo with your voice note.</div>
+      <div class="live-input">
     <input id="liveText" type="text" placeholder="Or type your question" onkeydown="if(event.key==='Enter')liveSend(liveText.value)">
     <button class="btn" onclick="liveSend(liveText.value)">Send</button>
   </div>
@@ -228,6 +239,7 @@
   <button onclick="closeAcctMenu();openMemory()">Memory</button>
   <button onclick="closeAcctMenu();openProjects()">Projects</button>
   <button onclick="closeAcctMenu();openLive()">Live voice</button>
+  <button onclick="closeAcctMenu();openSettings()">Settings</button>
   <hr>
   <button onclick="closeAcctMenu();openGate()">Sign in with Google</button>
   <button id="authAction" onclick="authAction()">Sign in</button>
@@ -235,6 +247,6 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="/static/vector-ai-2.js?v=6"></script>
+<script src="/static/vector-ai-2.js?v=7"></script>
 </body>
 </html>

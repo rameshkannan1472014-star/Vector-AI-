@@ -1310,6 +1310,163 @@ If the user asks for a diagram, provide a simple diagram when useful.
 
 
 # ============================================================
+# 🖼️ IMAGE MAKING (create and edit pictures in the chat)
+# ============================================================
+
+class ImageRequest(BaseModel):
+    prompt: str = Field(default="", max_length=2000)
+    image: Optional[str] = Field(default=None, max_length=12_000_000)
+    mime_type: str = Field(default="image/png", max_length=60)
+
+
+@app.post("/api/image/generate")
+def generate_image(request: ImageRequest):
+
+    instruction = request.prompt.strip()
+    if not instruction:
+        raise HTTPException(status_code=400, detail={"message": "Describe the picture first."})
+
+    model = os.getenv("GEMINI_IMAGE_MODEL", "gemini-2.5-flash-image").strip() or "gemini-2.5-flash-image"
+
+    def operation(client):
+        parts = [types.Part.from_text(text=instruction)]
+        if request.image:
+            raw = request.image.split(",", 1)[-1]
+            parts.append(
+                types.Part.from_bytes(
+                    data=base64.b64decode(raw),
+                    mime_type=request.mime_type or "image/png",
+                )
+            )
+        config = types.GenerateContentConfig(response_modalities=["IMAGE", "TEXT"])
+        return client.models.generate_content(
+            model=model,
+            contents=[types.Content(role="user", parts=parts)],
+            config=config,
+        )
+
+    try:
+        result = run_with_gemini_failover(operation)
+    except Exception as error:
+        logger.exception("Image generation failed")
+        status_code = 429 if is_gemini_key_or_capacity_error(error) else 502
+        raise HTTPException(
+            status_code=status_code,
+            detail={
+                "error": "image_failed",
+                "message": "The picture maker is busy right now. Try again in a minute, or ask me to describe the picture instead.",
+            },
+        )
+
+    image_url = ""
+    note = ""
+    candidates = getattr(result, "candidates", None) or []
+    for candidate in candidates:
+        content = getattr(candidate, "content", None)
+        for part in (getattr(content, "parts", None) or []):
+            inline = getattr(part, "inline_data", None)
+            if inline is not None and getattr(inline, "data", None):
+                mime = getattr(inline, "mime_type", None) or "image/png"
+                encoded = base64.b64encode(inline.data).decode("ascii")
+                image_url = "data:" + mime + ";base64," + encoded
+                break
+            text = getattr(part, "text", None)
+            if text and not note:
+                note = str(text)[:400]
+        if image_url:
+            break
+
+    if not image_url:
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "error": "image_failed",
+                "message": note or "The picture came back empty. Try describing it a different way.",
+            },
+        )
+
+    return {"status": "success", "image": image_url, "model": model, "note": note}
+
+
+# ============================================================
+# 🐙 GITHUB FILE EDIT
+# ============================================================
+
+class GitHubEditRequest(BaseModel):
+    path: str = Field(default="", max_length=400)
+    instruction: str = Field(default="", max_length=4000)
+    content: str = Field(default="", max_length=200000)
+    language: str = Field(default="", max_length=40)
+    repo: str = Field(default="", max_length=200)
+
+
+def strip_code_fences(text: str) -> str:
+    body = (text or "").strip()
+    if not body.startswith("```"):
+        return body
+    first_break = body.find("\n")
+    if first_break == -1:
+        return ""
+    body = body[first_break + 1:]
+    if body.rstrip().endswith("```"):
+        body = body.rstrip()[:-3]
+    return body.strip("\n")
+
+
+@app.post("/api/github/edit")
+async def github_edit_file(request: GitHubEditRequest):
+
+    if not request.path.strip():
+        raise HTTPException(status_code=400, detail={"message": "Pick a file first."})
+    if not request.instruction.strip():
+        raise HTTPException(status_code=400, detail={"message": "Say what should change in the file."})
+
+    start_time = time.perf_counter()
+
+    prompt = f"""
+You are editing a real file inside a person's GitHub project. Reply with the COMPLETE new file only.
+
+Rules:
+- Return the whole file, start to finish, ready to save exactly as it is.
+- No explanations, no commentary, no markdown fences, no "here is the file".
+- Keep the existing code, style and indentation unless the request says otherwise.
+- Never invent a different file or move code to another file.
+
+File: {request.path.strip()}
+Project: {request.repo.strip() or "(not shared)"}
+Language: {request.language.strip() or "(unknown)"}
+
+What the person wants changed:
+{request.instruction.strip()}
+
+Current file content:
+{request.content}
+"""
+
+    try:
+        answer = await ask_ai(prompt, max_tokens=4000, provider="gemini")
+    except Exception as error:
+        record_request(start_time, False)
+        logger.exception("GitHub file edit failed")
+        raise HTTPException(
+            status_code=502,
+            detail={"message": str(error)[:400] or "The AI could not rewrite that file."}
+        )
+
+    record_request(start_time, True)
+
+    new_content = strip_code_fences(answer)
+
+    return {
+        "status": "success",
+        "path": request.path.strip(),
+        "content": new_content,
+        "changed": new_content.strip() != (request.content or "").strip(),
+        "model": DEFAULT_MODEL,
+    }
+
+
+# ============================================================
 # 💻 AI CODING ASSISTANT
 # ============================================================
 
