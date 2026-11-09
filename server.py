@@ -634,33 +634,31 @@ def generate_ai_response(
                             "Call this when the user asks you to edit, rewrite, or update a file in their "
                             "GitHub project. Return the complete new file content."
                         ),
-                        parameters=types.FunctionParameters(
-                            schema=types.FunctionSchema(
-                                type="object",
-                                properties={
-                                    "repo": types.Schema(
-                                        type="string",
-                                        description="GitHub repository in owner/repo format, e.g. owner/repo.",
-                                    ),
-                                    "path": types.Schema(
-                                        type="string",
-                                        description="Path of the file inside the repository, e.g. server.py or index.html.",
-                                    ),
-                                    "content": types.Schema(
-                                        type="string",
-                                        description="Complete new content for the file. Provide the full file, not just the changed part.",
-                                    ),
-                                    "instruction": types.Schema(
-                                        type="string",
-                                        description="Short description of what changed, e.g. Updated the header text.",
-                                    ),
-                                    "language": types.Schema(
-                                        type="string",
-                                        description="File language/extension hint, e.g. python, html, javascript. Optional.",
-                                    ),
-                                },
-                                required=["repo", "path", "content"],
-                            )
+                        parameters=types.Schema(
+                            type="object",
+                            properties={
+                                "repo": types.Schema(
+                                    type="string",
+                                    description="GitHub repository in owner/repo format, e.g. owner/repo.",
+                                ),
+                                "path": types.Schema(
+                                    type="string",
+                                    description="Path of the file inside the repository, e.g. server.py or index.html.",
+                                ),
+                                "content": types.Schema(
+                                    type="string",
+                                    description="Complete new content for the file. Provide the full file, not just the changed part.",
+                                ),
+                                "instruction": types.Schema(
+                                    type="string",
+                                    description="Short description of what changed, e.g. Updated the header text.",
+                                ),
+                                "language": types.Schema(
+                                    type="string",
+                                    description="File language/extension hint, e.g. python, html, javascript. Optional.",
+                                ),
+                            },
+                            required=["repo", "path", "content"],
                         ),
                     )
                 ]
@@ -690,43 +688,51 @@ def generate_ai_response(
             raise last_error
         # Handle Gemini function/tool calls: execute github_edit_file and feed the
         # result back so the model can give a final natural-language answer.
-        tool_calls = getattr(response, "function_calls", None) or []
+        # Function calls live in response.candidates[*].content.parts[*].function_call.
         tool_results_parts: list[types.Part] = []
-        for call in tool_calls:
-            call_name = getattr(call, "name", "")
-            call_args = getattr(call, "args", {}) or {}
-            if call_name != "github_edit_file":
+        candidates = getattr(response, "candidates", None) or []
+        for candidate in candidates:
+            candidate_content = getattr(candidate, "content", None)
+            if candidate_content is None:
                 continue
-            try:
-                edit_request = GitHubEditRequest(
-                    repo=str(call_args.get("repo", "")),
-                    path=str(call_args.get("path", "")),
-                    content=str(call_args.get("content", "")),
-                    instruction=str(call_args.get("instruction", "")),
-                    language=str(call_args.get("language", "")),
-                )
-                edit_result = _run_github_edit(edit_request)
-                tool_results_parts.append(
-                    types.Part(
-                        function_response=types.FunctionResponse(
-                            name="github_edit_file",
-                            response=edit_result,
+            for part in getattr(candidate_content, "parts", None) or []:
+                fc = getattr(part, "function_call", None)
+                if fc is None:
+                    continue
+                call_name = getattr(fc, "name", "") or ""
+                if call_name != "github_edit_file":
+                    continue
+                call_args = getattr(fc, "args", {}) or {}
+                try:
+                    edit_request = GitHubEditRequest(
+                        repo=str(call_args.get("repo", "")),
+                        path=str(call_args.get("path", "")),
+                        content=str(call_args.get("content", "")),
+                        instruction=str(call_args.get("instruction", "")),
+                        language=str(call_args.get("language", "")),
+                    )
+                    edit_result = _run_github_edit(edit_request)
+                    tool_results_parts.append(
+                        types.Part(
+                            function_response=types.FunctionResponse(
+                                name="github_edit_file",
+                                response=edit_result,
+                            )
                         )
                     )
-                )
-            except Exception as edit_error:
-                logger.exception("github_edit_file tool call failed")
-                tool_results_parts.append(
-                    types.Part(
-                        function_response=types.FunctionResponse(
-                            name="github_edit_file",
-                            response={
-                                "error": str(edit_error),
-                                "status": "error",
-                            },
+                except Exception as edit_error:
+                    logger.exception("github_edit_file tool call failed")
+                    tool_results_parts.append(
+                        types.Part(
+                            function_response=types.FunctionResponse(
+                                name="github_edit_file",
+                                response={
+                                    "error": str(edit_error),
+                                    "status": "error",
+                                },
+                            )
                         )
                     )
-                )
         if tool_results_parts:
             followup_contents = [
                 types.Content(
