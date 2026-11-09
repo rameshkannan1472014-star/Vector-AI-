@@ -917,31 +917,31 @@ def generate_ai_response(
         text = getattr(response, "text", None)
         if not text:
             raise RuntimeError("AI returned an empty response.")
-        # If the user asked to create a repository but the AI gave a manual guide
-        # (didn't call the github_create_repo tool), intercept and call the tool
-        # ourselves so the user gets a real repository creation result.
-        if include_github_tool and _looks_like_repo_create_request(prompt):
-            if _response_is_manual_repo_guide(text):
-                logger.info("REPO FALLBACK: AI gave manual guide, calling github_create_repo ourselves. prompt=%r", prompt)
-                create_result = _run_github_create_repo(
-                    name=_extract_repo_name_from_prompt(prompt) or "",
-                    description="",
-                    private=False,
-                    license="",
-                    gitignore="",
+        # If the user asked to create a repository but Gemini did NOT call the
+        # github_create_repo tool (it gave a manual guide instead), intercept and
+        # call the tool ourselves. Check tool_results_parts to see if Gemini
+        # already handled it.
+        if (
+            include_github_tool
+            and _looks_like_repo_create_request(prompt)
+            and not tool_results_parts
+        ):
+            logger.info("REPO FALLBACK: Gemini did not call the tool, doing it ourselves. prompt=%r", prompt)
+            create_result = _run_github_create_repo(
+                name=_extract_repo_name_from_prompt(prompt) or "",
+                description="",
+                private=False,
+                license="",
+                gitignore="",
+            )
+            logger.info("REPO FALLBACK result: %s", create_result)
+            if create_result.get("status") == "success":
+                text = (
+                    f"I created the repository {create_result.get('name', '')} on GitHub. "
+                    f"You can see it at {create_result.get('html_url', '')}."
                 )
-                logger.info("REPO FALLBACK result: %s", create_result)
-                if create_result.get("status") == "success":
-                    text = (
-                        f"I created the repository {create_result.get('name', '')} on GitHub. "
-                        f"You can see it at {create_result.get('html_url', '')}."
-                    )
-                else:
-                    text = create_result.get("message", "I could not create the repository.")
             else:
-                logger.info("REPO FALLBACK skipped: response is not a manual guide. text[:100]=%r", text[:100])
-        else:
-            logger.info("REPO FALLBACK skipped: include_github_tool=%s looks_like=%s. prompt=%r", include_github_tool, _looks_like_repo_create_request(prompt), prompt)
+                text = create_result.get("message", "I could not create the repository.")
         if needs_live_search:
             sources = []
             for candidate in getattr(response, "candidates", None) or []:
