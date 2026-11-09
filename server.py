@@ -7,6 +7,7 @@ import time
 import asyncio
 import sqlite3
 import smtplib
+import concurrent.futures
 from email.message import EmailMessage
 import logging
 from datetime import datetime, timezone
@@ -747,6 +748,20 @@ def generate_ai_response(
                 logger.warning("Gemini model %s failed; trying next model if any.", model_name)
         if response is None:
             raise last_error
+
+    # Hard timeout: run the Gemini call in a thread with a strict time limit so the
+    # Render worker never hangs indefinitely when the Gemini API is slow.
+    _gemini_timeout_seconds = 45
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        future = executor.submit(generate, client)
+        try:
+            result = future.result(timeout=_gemini_timeout_seconds)
+            response = result
+        except concurrent.futures.TimeoutError:
+            logger.warning("Gemini call timed out after %ss; treating as capacity error.", _gemini_timeout_seconds)
+            raise RuntimeError("Gemini timed out.") from None
+        except Exception:
+            raise
         # Handle Gemini function/tool calls: execute github_edit_file and feed the
         # result back so the model can give a final natural-language answer.
         # Function calls live in response.candidates[*].content.parts[*].function_call.
