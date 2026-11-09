@@ -1002,7 +1002,11 @@ function maybeProjectSuggestion(bodyEl, text){
 /* ---------------------------- image ask ---------------------------- */
 function wantsImageFromText(text, atts){
   if (atts && atts.some(a => a.kind === 'image')) return false;
-  return /\b(draw|create|make|generate|show me a picture|an image of|i need an image|image)/i.test(text || '');
+  const t = text || '';
+  // Don't treat 'create repository' / 'create a repo' as an image request —
+  // those are GitHub repo creation requests, not picture requests.
+  if (/\b(create|create a|make|generate)\b/i.test(t) && /\b(repo|repository|project|github)\b/i.test(t)) return false;
+  return /\b(draw|create|make|generate|show me a picture|an image of|i need an image|image)/i.test(t);
 }
 
 async function makeImage(text, atts){
