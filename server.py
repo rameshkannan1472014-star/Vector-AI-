@@ -1084,6 +1084,7 @@ async def ask_ai(
             and not images
             and os.getenv("GROQ_API_KEY", "").strip()
             and not (ENABLE_LIVE_SEARCH and looks_like_live_search(prompt))
+            and not is_coding_request(prompt)
         ):
             groq_tried = True
             try:
