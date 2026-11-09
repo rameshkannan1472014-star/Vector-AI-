@@ -20,6 +20,11 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+# Thread-local storage for the GitHub token of the user whose chat request is
+# currently being processed. The AI tool handlers read from here so they can
+# call GitHub on the user's behalf without making unauthenticated self-HTTP calls.
+_current_request_token = threading.local()
+
 from collections import deque
 from fastapi import FastAPI, HTTPException, Query, BackgroundTasks, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -1391,6 +1396,18 @@ async def chat(request: ChatRequest):
 
     start_time = time.perf_counter()
 
+    # Make the signed-in user's GitHub token available to AI tool handlers
+    # that run later in the same thread (via asyncio.to_thread).
+    try:
+        from github_auth import current_user as _gh_current_user
+        _user = _gh_current_user(request)
+        if _user and _user.get("token"):
+            _current_request_token.value = str(_user["token"])
+        else:
+            _current_request_token.value = ""
+    except Exception:
+        _current_request_token.value = ""
+
     try:
 
         analytics["chat_requests"] += 1
@@ -1677,9 +1694,12 @@ def _run_github_create_repo(
 ) -> dict:
     """Create a GitHub repo for the signed-in user and return a structured result."""
     import json as _json
+    token = getattr(_current_request_token, "value", "") or ""
+    if not token:
+        return {"status": "error", "message": "You are not signed in with GitHub. Sign in first to create a repository."}
     try:
         async def _do_create() -> dict:
-            payload_body = {
+            body_payload = {
                 "name": name.strip(),
                 "description": description.strip() if description.strip() else "",
                 "private": private,
@@ -1688,37 +1708,36 @@ def _run_github_create_repo(
                 "has_wiki": False,
             }
             if license.strip():
-                payload_body["license_template"] = license.strip()
+                body_payload["license_template"] = license.strip()
             if gitignore.strip():
-                payload_body["gitignore_template"] = gitignore.strip()
-            import urllib.request as _urllib
-            import urllib.error as _urllib_error
-            import base64 as _base64
-            # We cannot easily call the FastAPI route handler directly from here
-            # (it is async and lives in github_auth.py). Make the API call to our
-            # own /api/github/create-repo endpoint instead, using the session cookie
-            # so the request is authenticated as the signed-in user.
-            base_url = (_github_edit_url().rstrip("/"))[:-len("/api/github/edit")] or "https://vector-ai-izgf.onrender.com"
-            create_url = base_url + "/api/github/create-repo"
-            body_bytes = _json.dumps(payload_body).encode("utf-8")
-            req = _urllib.request.Request(
-                create_url,
-                data=body_bytes,
-                headers={"Content-Type": "application/json"},
-                method="POST",
-            )
+                body_payload["gitignore_template"] = gitignore.strip()
+            # Call the GitHub API directly (not through our own endpoint) using the
+            # user's token from the current session. github_auth.py's gh_call is the
+            # same helper the /api/github/create-repo route uses.
             try:
-                with _urllib.request.urlopen(req, timeout=30) as resp:
-                    result = _json.loads(resp.read().decode("utf-8"))
-            except _urllib_error.HTTPError as error:
-                try:
-                    err_body = _json.loads(error.read().decode("utf-8", errors="replace"))
-                except Exception:
-                    err_body = {"status": "error", "message": str(error)}
-                return err_body
+                from github_auth import gh_call as _gh_call
+            except Exception:
+                return {"status": "error", "message": "GitHub helper not available."}
+            try:
+                result = _gh_call("POST", "/user/repos", token, body_payload)
             except Exception as error:
-                return {"status": "error", "message": str(error)}
-            return result
+                msg = str(error)
+                if "name already exists" in msg.lower() or "already exists" in msg.lower():
+                    msg = "A repository with that name already exists. Try a different name."
+                return {"status": "error", "message": msg}
+            repo = result if isinstance(result, dict) else {}
+            return {
+                "status": "success",
+                "repo": str(repo.get("full_name", name)),
+                "name": str(repo.get("name", name)),
+                "private": bool(repo.get("private", private)),
+                "description": str(repo.get("description") or ""),
+                "html_url": str(repo.get("html_url") or ""),
+                "clone_url": str(repo.get("clone_url") or ""),
+                "default_branch": str(repo.get("default_branch") or "main"),
+                "license": ({"key": str(repo.get("license", {}).get("spdx_id", "")), "name": str(repo.get("license", {}).get("name", ""))} if repo.get("license") else None),
+                "created_at": str(repo.get("created_at", ""))[:10],
+            }
         return asyncio.run(_do_create())
     except Exception as error:
         return {
