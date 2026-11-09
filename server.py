@@ -587,7 +587,8 @@ PRODUCT KNOWLEDGE:
 def generate_ai_response(
     prompt: str,
     max_tokens: int = 1500,
-    images: Optional[list[dict[str, str]]] = None
+    images: Optional[list[dict[str, str]]] = None,
+    include_github_tool: bool = True,
 ):
     contents: Any = prompt
     if images:
@@ -623,7 +624,8 @@ def generate_ai_response(
         if needs_live_search:
             function_tools.append(types.Tool(google_search=types.GoogleSearch()))
         # GitHub file editing tool — lets the AI rewrite files in the signed-in user's repos.
-        function_tools.append(
+        if include_github_tool:
+            function_tools.append(
             types.Tool(
                 function_declarations=[
                     types.FunctionDeclaration(
@@ -982,7 +984,8 @@ async def ask_ai(
     prompt: str,
     max_tokens: int = 1500,
     provider: Optional[str] = "gemini",
-    images: Optional[list[dict[str, str]]] = None
+    images: Optional[list[dict[str, str]]] = None,
+    include_github_tool: bool = True,
 ):
 
     provider = normalize_provider(provider)
@@ -1013,7 +1016,8 @@ async def ask_ai(
                 generate_ai_response,
                 prompt,
                 max_tokens,
-                images
+                images,
+                include_github_tool=include_github_tool,
             )
         except Exception as error:
             # When every Gemini key/model is out of quota, use DeepSeek or
@@ -1531,33 +1535,57 @@ def _github_edit_url() -> str:
 
 
 def _run_github_edit(request: GitHubEditRequest) -> dict:
-    """Execute a GitHub file edit via the local API and return a structured result."""
+    """Execute a GitHub file edit directly (no self-HTTP round-trip) and return a structured result."""
     import json as _json
-    body = _json.dumps({
-        "path": request.path,
-        "instruction": request.instruction,
-        "content": request.content,
-        "language": request.language,
-        "repo": request.repo,
-    })
-    req = urllib.request.Request(
-        _github_edit_url(),
-        data=body.encode("utf-8"),
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
     try:
-        with urllib.request.urlopen(req, timeout=120) as resp:
-            result = _json.loads(resp.read().decode("utf-8"))
-    except urllib.error.HTTPError as error:
-        try:
-            detail = _json.loads(error.read().decode("utf-8", errors="replace"))
-        except Exception:
-            detail = {"error": str(error), "message": "GitHub edit request failed."}
-        raise RuntimeError(_json.dumps(detail)) from error
+        async def _do_edit() -> dict:
+            req = GitHubEditRequest(
+                path=request.path,
+                instruction=request.instruction,
+                content=request.content,
+                language=request.language,
+                repo=request.repo,
+            )
+            if not req.path.strip():
+                return {"status": "error", "message": "Pick a file first."}
+            if not req.instruction.strip():
+                return {"status": "error", "message": "Say what should change in the file."}
+            prompt = (
+                "You are editing a real file inside a person\'s GitHub project. "
+                "Reply with the COMPLETE new file only.\n"
+                "Do NOT wrap the file in markdown code fences (no ```). "
+                "Return ONLY the raw file content, starting at the very first character.\n"
+                "User instruction:\n"
+                '"""\n'
+                + req.instruction + "\n"
+                '"""\n\n'
+                "Current file (" + (req.language or "text") + "):\n"
+                '"""\n'
+                + req.content + "\n"
+                '"""\n\n'
+                "Return the COMPLETE updated file content with the instruction applied.\n"
+            )
+            body = ask_ai(
+                prompt,
+                max_tokens=8000,
+                provider="gemini",
+                images=None,
+                include_github_tool=False,
+            )
+            stripped = strip_code_fences(body)
+            return {
+                "status": "success",
+                "path": req.path,
+                "content": stripped,
+                "changed": True,
+                "model": DEFAULT_MODEL,
+            }
+        return asyncio.run(_do_edit())
     except Exception as error:
-        raise RuntimeError(str(error)) from error
-    return result
+        return {
+            "status": "error",
+            "message": str(error),
+        }
 
 
 class GitHubEditRequest(BaseModel):
