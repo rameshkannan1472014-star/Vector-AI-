@@ -44,7 +44,7 @@ from openai import OpenAI as OpenAICompatibleClient
 # ============================================================
 
 APP_TITLE = "Engineer AI"
-APP_VERSION = "3.0.4"
+APP_VERSION = "3.0.5"
 
 FEEDBACK_RECIPIENT_DEFAULT = "ramesh.kannan14.7.2014@gmail.com"
 
@@ -3872,6 +3872,35 @@ async def pwa_manifest():
 @app.get("/icons/vector-ai.svg")
 async def pwa_app_icon():
     return FileResponse("icons/vector-ai.svg", media_type="image/svg+xml")
+
+
+@app.get("/static/vector-ai-2.v{version}.js")
+async def vector_ai_2_js_versioned(version: str):
+    """Versioned JS route so browser cache can be busted by changing the
+    version number in index.html without renaming the file on disk."""
+    return FileResponse(
+        "static/vector-ai-2.js",
+        media_type="application/javascript",
+        headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+            "Pragma": "no-cache",
+            "Expires": "0",
+        },
+    )
+
+
+@app.get("/static/vector-ai-2.v{version}.css")
+async def vector_ai_2_css_versioned(version: str):
+    """Versioned CSS route."""
+    return FileResponse(
+        "static/vector-ai-2.css",
+        media_type="text/css",
+        headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+            "Pragma": "no-cache",
+            "Expires": "0",
+        },
+    )
 
 
 @app.get("/sw.js")
