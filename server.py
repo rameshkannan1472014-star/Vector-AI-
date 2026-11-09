@@ -91,10 +91,57 @@ PROVIDER_CONFIGS = {
 SUPPORTED_PROVIDERS = ["gemini", "deepseek", "kimi"]
 
 MAX_PROMPT_CHARS = 24000
+
+# ---- Repo-creation request detection (fallback when Gemini doesn't call the tool) ----
+
+_REPO_CREATE_PATTERNS = re.compile(
+    r"\b(create|make|build|start|set\s*up)\s*(a\s+)?(new\s+)?(github\s+)?(repo(?:sitory)?|project|repository)\b",
+    re.IGNORECASE,
+)
+_GITHUB_URL_PATTERN = re.compile(
+    r"https?://github\.com/\S+"
+)
+
+
+def _looks_like_repo_create_request(prompt: str) -> bool:
+    """Return True when the user's prompt asks to create a GitHub repository."""
+    return bool(_REPO_CREATE_PATTERNS.search(prompt or ""))
+
+
+def _response_is_manual_repo_guide(text: str) -> bool:
+    """Return True when the AI answered with a manual guide instead of calling the tool."""
+    lower = text.lower()
+    return (
+        ("how to create" in lower or "ways to create" in lower or "method" in lower)
+        and ("github" in lower and ("web" in lower or "website" in lower or "cli" in lower or "terminal" in lower or "git " in lower))
+        and not _GITHUB_URL_PATTERN.search(text)
+    )
+
+
+def _extract_repo_name_from_prompt(prompt: str) -> str:
+    """Try to pull a repository name out of a repo-creation prompt."""
+    m = re.search(
+        r"(?:called|named|called\s+)?(['\"]?([a-zA-Z0-9][a-zA-Z0-9._-]*)['\"]?)\s*(?:,|$|with|and|that|which)",
+        prompt or "",
+        re.IGNORECASE,
+    )
+    if m:
+        candidate = m.group(2).strip()
+        if re.match(r"^[a-zA-Z0-9][a-zA-Z0-9._-]*$", candidate) and len(candidate) <= 100:
+            return candidate
+    words = re.split(r"\s+", prompt or "")
+    for w in reversed(words):
+        w = w.strip(",.:;!?\"'()")
+        if re.match(r"^[a-zA-Z0-9][a-zA-Z0-9._-]*$", w) and len(w) <= 100:
+            return w
+    return ""
+
+
 MAX_CHAT_PROMPT_CHARS = 750000
 MAX_CODE_CHARS = 30000
 
 # Quota-saving knobs (all overridable from Render environment variables)
+
 HISTORY_MESSAGES = int(os.getenv("HISTORY_MESSAGES", "10"))
 HISTORY_CHARS = int(os.getenv("HISTORY_CHARS", "1200"))
 ENABLE_LIVE_SEARCH = os.getenv("ENABLE_LIVE_SEARCH", "true").strip().lower() != "false"
@@ -859,6 +906,25 @@ def generate_ai_response(
         text = getattr(response, "text", None)
         if not text:
             raise RuntimeError("AI returned an empty response.")
+        # If the user asked to create a repository but the AI gave a manual guide
+        # (didn't call the github_create_repo tool), intercept and call the tool
+        # ourselves so the user gets a real repository creation result.
+        if include_github_tool and _looks_like_repo_create_request(prompt):
+            if _response_is_manual_repo_guide(text):
+                create_result = _run_github_create_repo(
+                    name=_extract_repo_name_from_prompt(prompt) or "",
+                    description="",
+                    private=False,
+                    license="",
+                    gitignore="",
+                )
+                if create_result.get("status") == "success":
+                    text = (
+                        f"I created the repository {create_result.get('name', '')} on GitHub. "
+                        f"You can see it at {create_result.get('html_url', '')}."
+                    )
+                else:
+                    text = create_result.get("message", "I could not create the repository.")
         if needs_live_search:
             sources = []
             for candidate in getattr(response, "candidates", None) or []:
