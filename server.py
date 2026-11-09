@@ -503,7 +503,10 @@ def run_with_gemini_failover(operation):
     for offset in range(len(keys)):
         index = (start_index + offset) % len(keys)
         try:
-            client = genai.Client(api_key=keys[index])
+            client = genai.Client(
+                api_key=keys[index],
+                http_options=types.HttpOptions(timeout=45),
+            )
             result = operation(client)
             with _gemini_key_lock:
                 _gemini_active_key_index = index
@@ -536,7 +539,10 @@ def get_gemini_client():
         raise RuntimeError("No Gemini keys are configured. Set GEMINI_API_KEY on the server.")
     with _gemini_key_lock:
         index = _gemini_active_key_index % len(keys)
-    return genai.Client(api_key=keys[index])
+    return genai.Client(
+        api_key=keys[index],
+        http_options=types.HttpOptions(timeout=45),
+    )
 
 
 SYSTEM_INSTRUCTION = """
