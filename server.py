@@ -111,11 +111,22 @@ def _looks_like_repo_create_request(prompt: str) -> bool:
 def _response_is_manual_repo_guide(text: str) -> bool:
     """Return True when the AI answered with a manual guide instead of calling the tool."""
     lower = text.lower()
-    return (
-        ("how to create" in lower or "ways to create" in lower or "method" in lower)
-        and ("github" in lower and ("web" in lower or "website" in lower or "cli" in lower or "terminal" in lower or "git " in lower))
+    hasGuide = (
+        ("how to create" in lower
+         or "ways to create" in lower
+         or "typical way" in lower
+         or "common way" in lower
+         or "practical, step" in lower
+         or "step-by-step guide" in lower
+         or "method" in lower
+         or ("below are" in lower and ("way" in lower or "option" in lower or "method" in lower)))
+        and "github" in lower
+        and ("web" in lower or "website" in lower or "cli" in lower
+             or "terminal" in lower or "git " in lower or "command" in lower
+             or "log in" in lower or "sign in" in lower)
         and not _GITHUB_URL_PATTERN.search(text)
     )
+    return hasGuide
 
 
 def _extract_repo_name_from_prompt(prompt: str) -> str:
