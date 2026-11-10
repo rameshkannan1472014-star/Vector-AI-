@@ -123,27 +123,39 @@ def install(app: FastAPI, app_title: str = "Vector AI") -> None:
         return raw + "." + sig
 
     def unsign(token: str) -> Optional[dict]:
-        if not token or "." not in token:
+        if not token:
+            _signin_log("unsign: token empty")
+            return None
+        if "." not in token:
+            _signin_log(f"unsign: no separator in token (len={len(token)})")
             return None
         raw, _, sig = token.rpartition(".")
         expected = hmac.new(session_key(), raw.encode("ascii"), hashlib.sha256).hexdigest()[:40]
         if not hmac.compare_digest(sig, expected):
-            _signin_log(f"unsign: sig mismatch got={sig[:12]}... exp={expected[:12]}...")
+            _signin_log(
+                f"unsign: SIG MISMATCH got={sig[:10]} exp={expected[:10]} rawlen={len(raw)}"
+            )
             return None
         try:
             padded = raw + "=" * (-len(raw) % 4)
             data = json.loads(base64.urlsafe_b64decode(padded.encode("ascii")))
-        except (ValueError, binascii.Error):
+        except (ValueError, binascii.Error) as exc:
+            _signin_log(f"unsign: DECODE FAILED {type(exc).__name__} rawlen={len(raw)} rawhead={raw[:24]}")
             return None
         if not isinstance(data, dict):
+            _signin_log(f"unsign: payload not a dict ({type(data).__name__})")
             return None
         try:
-            if int(data.get("exp", 0)) < int(time.time()):
-                return None
+            exp = int(data.get("exp", 0))
         except (TypeError, ValueError):
+            _signin_log(f"unsign: exp not an int ({data.get('exp')!r})")
             return None
+        now = int(time.time())
+        if exp < now:
+            _signin_log(f"unsign: EXPIRED exp={exp} now={now} (expired {now - exp}s ago)")
+            return None
+        _signin_log(f"unsign: OK login={data.get('login')} exp_in={exp - now}s")
         return data
-
     def current_user(request: Request) -> Optional[dict]:
         raw = request.cookies.get(SESSION_COOKIE, "")
         if raw:
@@ -331,6 +343,41 @@ def install(app: FastAPI, app_title: str = "Vector AI") -> None:
             "status": "success",
             "lines": list(_signin_log_lines),
         }
+
+    @app.get("/api/session-debug")
+    async def session_debug(request: Request):
+        raw = request.cookies.get(SESSION_COOKIE, "")
+        info = {
+            "cookie_names": list(request.cookies.keys()),
+            "cookie_len": len(raw),
+            "session_cookie_len": len(raw),
+            "session_secret_set": bool((os.getenv("SESSION_SECRET") or os.getenv("SECRET_KEY") or "").strip()),
+            "session_secret_len": len((os.getenv("SESSION_SECRET") or os.getenv("SECRET_KEY") or "").strip()),
+            "now": int(time.time()),
+        }
+        if not raw or "." not in raw:
+            info["stage"] = "no_cookie"
+            return info
+        payload_raw, _, sig = raw.rpartition(".")
+        expected = hmac.new(session_key(), payload_raw.encode("ascii"), hashlib.sha256).hexdigest()[:40]
+        info["sig_matches"] = hmac.compare_digest(sig, expected)
+        try:
+            padded = payload_raw + "=" * (-len(payload_raw) % 4)
+            data = json.loads(base64.urlsafe_b64decode(padded.encode("ascii")))
+            info["payload_keys"] = sorted(data.keys()) if isinstance(data, dict) else None
+            if isinstance(data, dict):
+                info["login"] = data.get("login")
+                info["provider"] = data.get("provider")
+                info["exp"] = data.get("exp")
+                info["exp_in_seconds"] = int(data.get("exp", 0)) - int(time.time())
+                info["scope"] = data.get("scope")
+                info["has_token"] = bool(data.get("token"))
+            info["stage"] = "decoded"
+        except Exception as exc:
+            info["stage"] = "decode_failed"
+            info["decode_error"] = f"{type(exc).__name__}: {exc}"
+        info["verified_user"] = bool(unsign(raw))
+        return info
 
     # ------------------------------------------------------------------
     # GitHub projects: read what a person works on, and edit their files
