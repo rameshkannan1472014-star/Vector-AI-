@@ -101,8 +101,13 @@ def install(app: FastAPI, app_title: str = "Vector AI") -> None:
 
     def session_key() -> bytes:
         if session_secret:
+            _signin_log(f"session_key: using SESSION_SECRET (len={len(session_secret)})")
             return session_secret.encode("utf-8")
-        return hashlib.sha256(f"{app_title}:{os.getpid()}".encode("utf-8")).digest()
+        key = hashlib.sha256(
+            f"{app_title}:{os.path.dirname(os.path.abspath(__file__))}".encode("utf-8")
+        ).digest()
+        _signin_log(f"session_key: using fallback key (no SESSION_SECRET set)")
+        return key
 
     def sign(payload: dict) -> str:
         raw = base64.urlsafe_b64encode(
@@ -117,6 +122,7 @@ def install(app: FastAPI, app_title: str = "Vector AI") -> None:
         raw, _, sig = token.rpartition(".")
         expected = hmac.new(session_key(), raw.encode("ascii"), hashlib.sha256).hexdigest()[:40]
         if not hmac.compare_digest(sig, expected):
+            _signin_log(f"unsign: sig mismatch got={sig[:12]}... exp={expected[:12]}...")
             return None
         try:
             padded = raw + "=" * (-len(raw) % 4)
