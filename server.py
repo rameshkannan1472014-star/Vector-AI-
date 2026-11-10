@@ -185,6 +185,64 @@ def _extract_repo_name_from_prompt(prompt: str) -> str:
     return ""
 
 
+def _extract_repo_from_prompt(prompt: str) -> str:
+    """Try to pull an owner/repo from a file-edit prompt."""
+    p = prompt or ""
+    m = re.search(r"https?://github\.com/([a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+)", p, re.IGNORECASE)
+    if m:
+        return m.group(1)
+    m = re.search(r"(?<![a-zA-Z0-9_])([a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+)(?![a-zA-Z0-9_])", p)
+    if m and _looks_like_file_edit_request(p):
+        return m.group(1)
+    return ""
+
+
+def _extract_path_from_prompt(prompt: str) -> str:
+    """Try to pull a file path out of a file-edit prompt."""
+    p = prompt or ""
+    # Explicit path mentions: path/to/file.py, file.py, ./file.py
+    for pattern in (
+        r"(?<![a-zA-Z0-9_./])(?:[a-zA-Z0-9_./]*[/\\])?[a-zA-Z0-9_.-]+\.(?:py|js|ts|html|css|json|md|txt|yml|yaml|sh|bash|rst|ipynb)\b",
+        r"(?<![a-zA-Z0-9_./])[/\\][a-zA-Z0-9_./]*[a-zA-Z0-9_.-]+\.(?:py|js|ts|html|css|json|md|txt|yml|yaml|sh|bash|rst|ipynb)",
+    ):
+        m = re.search(pattern, p, re.IGNORECASE)
+        if m:
+            candidate = m.group(0).strip("./\\")
+            if "/" in candidate or "." in candidate:
+                return candidate
+    return ""
+
+
+def _extract_content_from_prompt(prompt: str) -> str:
+    """Try to pull file content out of a file-edit prompt."""
+    p = prompt or ""
+    # Look for markdown code blocks
+    m = re.search(r"```(?:\w+)?\s*\n(.*?)\n?```", p, re.DOTALL)
+    if m:
+        return m.group(1).strip()
+    # Last sentence or two as fallback
+    sentences = re.split(r"[.!?]+", p)
+    for s in reversed(sentences):
+        s = s.strip()
+        if len(s) > 20:
+            return s[:5000]
+    return ""
+
+
+def _extract_instructions_from_prompt(prompt: str) -> str:
+    """Try to pull the instruction text out of a file-edit prompt."""
+    p = prompt or ""
+    m = re.search(r"(?<![a-zA-Z0-9])what\s+(?:should|i)?\s*(?:i|we|the)?\s*(?:i?\s*)?(?:do|change|update|fix|add|edit)[^.]*", p, re.IGNORECASE)
+    if m:
+        return m.group(0).strip()[:500]
+    sentences = re.split(r"[.!?]+", p)
+    for s in reversed(sentences):
+        s = s.strip()
+        if len(s) > 20 and s.lower() not in {"ok", "okay", "thanks", "thank you", "sure", "yes", "no"}:
+            return s[:500]
+    return ""
+
+
 def _looks_like_file_edit_request(prompt: str) -> bool:
     """Return True when the user asks to edit/change/update a file in a repo."""
     p = prompt or ""
@@ -896,12 +954,9 @@ def generate_ai_response(
                 call_args = getattr(fc, "args", {}) or {}
                 if call_name == "github_create_repo":
                     try:
-                        create_result = _run_github_create_repo(
-                            name=str(call_args.get("name", "") or ""),
-                            description=str(call_args.get("description", "") or ""),
-                            private=bool(call_args.get("private", False)),
-                            license=str(call_args.get("license", "") or ""),
-                            gitignore=str(call_args.get("gitignore", "") or ""),
+                        create_result = _run_github_create_repo_followup(
+                            request=request,
+                            call_args=call_args,
                         )
                         tool_results_parts.append(
                             types.Part(
@@ -1042,6 +1097,30 @@ def generate_ai_response(
                 )
             else:
                 text = create_result.get("message", "I could not create the repository.")
+        if _looks_like_file_edit_request(prompt) and not tool_results_parts:
+            logger.info("FILE EDIT FALLBACK: Gemini did not call the tool, doing it ourselves.")
+            import urllib.request
+            import urllib.error
+            repo = _extract_repo_from_prompt(prompt) or ""
+            path = _extract_path_from_prompt(prompt) or ""
+            content = _extract_content_from_prompt(prompt) or ""
+            if not path:
+                create_result = {"status": "error", "message": "Could not extract file path from prompt."}
+            else:
+                try:
+                    edit_result = _gh_commit_edit(
+                        repo=repo or "",
+                        path=path,
+                        content=content,
+                        message=_extract_instructions_from_prompt(prompt) or "Update file via Vector AI",
+                        token=_gh_edit_token(request),
+                    )
+                except Exception as edit_error:
+                    edit_result = {"status": "error", "message": str(edit_error)}
+                if edit_result.get("status") == "success":
+                    text = edit_result.get("message", "File updated.")
+                else:
+                    text = edit_result.get("message", "I could not update the file.")
         if needs_live_search:
             sources = []
             for candidate in getattr(response, "candidates", None) or []:
@@ -4089,6 +4168,58 @@ async def vector_ai_2_js():
 # /auth/github and /auth/google unregistered and answered them with a raw
 # {"detail":"Not Found"} page. install() is idempotent, so loading it here and
 # in app.py only ever registers the routes once.
+
+
+def _run_github_create_repo_followup(request: "Request", call_args: dict) -> dict:
+    """Create a GitHub repo when the AI calls the github_create_repo tool."""
+    import urllib.request
+    import urllib.error
+    name = str(call_args.get("name", "") or "").strip()
+    description = str(call_args.get("description", "") or "").strip()
+    private = bool(call_args.get("private", False))
+    license_template = str(call_args.get("license", "") or "").strip()
+    gitignore_template = str(call_args.get("gitignore", "") or "").strip()
+
+    if not name:
+        return {"status": "error", "message": "Pick a repository name first."}
+    if "/" in name or "\\" in name or name in (".", "..") or not re.match(r"^[A-Za-z0-9._-]+$", name):
+        return {"status": "error", "message": "Repository names can only use letters, numbers, dots, hyphens and underscores."}
+    if len(name) > 100:
+        return {"status": "error", "message": "Repository name is too long (max 100 characters)."}
+
+    try:
+        payload = json.dumps({
+            "name": name,
+            "description": description[:500] if description else "",
+            "private": private,
+            "auto_init": True,
+            "has_issues": True,
+            "has_wiki": False,
+        }).encode("utf-8")
+        req = urllib.request.Request(
+            _github_create_repo_url(),
+            data=payload,
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": "Bearer " + _gh_edit_token(request),
+                "Accept": "application/vnd.github+json",
+                "User-Agent": "vector-ai",
+            },
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=25) as response:
+            raw = response.read().decode("utf-8")
+        create_result = json.loads(raw)
+        if create_result.get("status") == "success":
+            return create_result
+        else:
+            return create_result
+    except urllib.error.HTTPError as error:
+        body = error.read().decode("utf-8", errors="replace")[:300]
+        return {"status": "error", "message": "GitHub HTTP " + str(error.code) + ": " + body}
+    except Exception as error:
+        return {"status": "error", "message": "GitHub error: " + str(error)}
+
 
 try:
 
