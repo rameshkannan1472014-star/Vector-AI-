@@ -933,7 +933,21 @@ def generate_ai_response(
                         instruction=str(call_args.get("instruction", "")),
                         language=str(call_args.get("language", "")),
                     )
-                    edit_result = _run_github_edit(edit_request)
+                    # Commit the file change to GitHub
+                    token = _gh_edit_token(request)
+                    if not token:
+                        edit_result = {
+                            "status": "error",
+                            "message": "Sign in with GitHub first.",
+                        }
+                    else:
+                        edit_result = _gh_commit_edit(
+                            repo=edit_request.repo,
+                            path=edit_request.path,
+                            content=edit_request.content,
+                            message=edit_request.instruction or "Update file via Vector AI",
+                            token=token,
+                        )
                     tool_results_parts.append(
                         types.Part(
                             function_response=types.FunctionResponse(
@@ -1835,30 +1849,15 @@ def _github_edit_url() -> str:
     return f"{base.rstrip('/')}/api/github/edit"
 
 
-def _gh_edit_token():
-    """Return the signed-in user's GitHub token, cached after first read."""
-    import threading
-    _lock = threading.Lock()
-    _cache = {}
-    key = "gh_edit_token"
-    with _lock:
-        if key in _cache:
-            return _cache[key]
-        try:
-            from github_auth import current_user as _cu
-            _request = _cu
-        except Exception:
-            _request = None
-        if _request is not None:
-            try:
-                user = _request(None)
-                if user and user.get("token"):
-                    _cache[key] = str(user["token"])
-                    return _cache[key]
-            except Exception:
-                pass
-        _cache[key] = ""
-        return ""
+def _gh_edit_token(request: Request):
+    """Return the signed-in user's GitHub token from the session."""
+    from github_auth import current_user as _cu
+    try:
+        user = _cu(request)
+        if user and user.get("token"):
+            return str(user["token"])
+    except Exception:
+        pass
     return ""
 
 
@@ -2015,7 +2014,7 @@ def strip_code_fences(text: str) -> str:
 
 
 @app.post("/api/github/edit")
-async def github_edit_file(request: GitHubEditRequest):
+async def github_edit_file(request: Request, body: GitHubEditRequest):
     """Rewrite a file inside a signed-in user's GitHub repo and commit it.
 
     The frontend sends the full new content, the repo (owner/repo), the file
@@ -2025,14 +2024,14 @@ async def github_edit_file(request: GitHubEditRequest):
     from fastapi import HTTPException
     from github_auth import gh_call
 
-    token = _gh_edit_token()
+    token = _gh_edit_token(request)
     if not token:
         raise HTTPException(status_code=401, detail={"message": "Sign in with GitHub first."})
 
-    repo = (request.repo or "").strip()
-    path = (request.path or "").strip()
-    content = request.content or ""
-    instruction = (request.instruction or "").strip()
+    repo = (body.repo or "").strip()
+    path = (body.path or "").strip()
+    content = body.content or ""
+    instruction = (body.instruction or "").strip()
 
     if not repo:
         raise HTTPException(status_code=400, detail={"message": "Choose a GitHub repo first (owner/repo)."})
@@ -2042,15 +2041,17 @@ async def github_edit_file(request: GitHubEditRequest):
         raise HTTPException(status_code=400, detail={"message": "Say what should change in the file."})
     if not content:
         raise HTTPException(status_code=400, detail={"message": "There is no file content to save."})
-    if "/" in repo or "\\" in repo or repo in (".", "..") or not re.match(r"^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$", repo):
+    if not re.match(r"^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$", repo):
         raise HTTPException(status_code=400, detail={"message": "Repo must be owner/repo (letters, numbers, dots, hyphens, underscores)."})
     if len(repo) > 100:
         raise HTTPException(status_code=400, detail={"message": "Repo name is too long."})
 
     try:
         # Confirm the file is inside the chosen repo before writing.
-        file_url = "https://api.github.com/repos/" + repo + "/contents/" + path
-        existing = gh_call("GET", file_url, token)
+        # gh_call prepends 'https://api.github.com' to the path, so only pass the
+        # relative path part.
+        file_path = "/repos/" + repo + "/contents/" + path
+        existing = gh_call("GET", file_path, token)
         sha = existing.get("sha") if isinstance(existing, dict) else None
         if not sha:
             raise RuntimeError("GitHub could not find that file in the chosen repo.")
@@ -2068,15 +2069,15 @@ async def github_edit_file(request: GitHubEditRequest):
                     "message": "No changes. The file already matches.",
                     "path": path,
                     "repo": repo,
-                    "url": file_url,
+                    "url": "https://github.com/" + repo + "/blob/" + (existing.get("sha") or "")[:8] + "/" + path,
                     "committed": False,
                 }
 
-        commit_url = "https://api.github.com/repos/" + repo + "/contents/" + path
+        commit_url = "/repos/" + repo + "/contents/" + path
         payload = {
             "message": instruction or "Update " + path,
             "content": base64.b64encode(new_content.encode("utf-8")).decode("ascii"),
-            "branch": gh_call("GET", "https://api.github.com/repos/" + repo, token).get("default_branch", "main"),
+            "branch": gh_call("GET", "/repos/" + repo, token).get("default_branch", "main"),
         }
         result = gh_call("PUT", commit_url, payload)
         html_url = result.get("content", {}).get("html_url") if isinstance(result, dict) else None
@@ -2092,6 +2093,7 @@ async def github_edit_file(request: GitHubEditRequest):
             "size": result.get("content", {}).get("size"),
             "model": DEFAULT_MODEL,
         }
+
     except Exception as error:
         return {"status": "error", "message": str(error)}
 
