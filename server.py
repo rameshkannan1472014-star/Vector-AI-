@@ -991,8 +991,7 @@ def generate_ai_response(
         # If the user asked to create a repository but Gemini did NOT call the
         # github_create_repo tool (it gave a manual guide instead), intercept and
         # call the tool ourselves. Check tool_results_parts to see if Gemini
-        # already handled it.
-        _repo_create_request = include_github_tool and _looks_like_repo_create_request(prompt)
+        # already handled it.            _repo_create_request = include_github_tool and _looks_like_repo_create_request(prompt)
         logger.info(
             "REPO CHECK: include_github_tool=%s looks_like=%s tool_parts=%s prompt=%r",
             include_github_tool,
@@ -1002,13 +1001,39 @@ def generate_ai_response(
         )
         if _repo_create_request and not tool_results_parts:
             logger.info("REPO FALLBACK: Gemini did not call the tool, doing it ourselves.")
-            create_result = _run_github_create_repo(
-                name=_extract_repo_name_from_prompt(prompt) or "",
-                description="",
-                private=False,
-                license="",
-                gitignore="",
-            )
+            import urllib.request
+            import urllib.error
+            name = _extract_repo_name_from_prompt(prompt) or ""
+            if not name:
+                create_result = {"status": "error", "message": "Could not extract repository name from prompt."}
+            else:
+                try:
+                    payload = json.dumps({
+                        "name": name,
+                        "description": "",
+                        "private": False,
+                        "license_template": "",
+                        "gitignore_template": "",
+                    }).encode("utf-8")
+                    req = urllib.request.Request(
+                        _github_create_repo_url(),
+                        data=payload,
+                        headers={
+                            "Content-Type": "application/json",
+                            "Authorization": "Bearer " + _gh_edit_token(request),
+                            "Accept": "application/vnd.github+json",
+                            "User-Agent": "vector-ai",
+                        },
+                        method="POST",
+                    )
+                    with urllib.request.urlopen(req, timeout=25) as response:
+                        raw = response.read().decode("utf-8")
+                    create_result = json.loads(raw)
+                except urllib.error.HTTPError as error:
+                    body = error.read().decode("utf-8", errors="replace")[:300]
+                    create_result = {"status": "error", "message": "GitHub HTTP " + str(error.code) + ": " + body}
+                except Exception as error:
+                    create_result = {"status": "error", "message": "GitHub error: " + str(error)}
             logger.info("REPO FALLBACK result: %s", create_result)
             if create_result.get("status") == "success":
                 text = (
@@ -1847,6 +1872,18 @@ def _github_edit_url() -> str:
     """Return the live /api/github/edit URL for the current deployment."""
     base = os.getenv("APP_URL", "").strip() or "https://vector-ai-izgf.onrender.com"
     return f"{base.rstrip('/')}/api/github/edit"
+
+
+def _github_edit_url() -> str:
+    """Return the live /api/github/edit URL for the current deployment."""
+    base = os.getenv("APP_URL", "").strip() or "https://vector-ai-izgf.onrender.com"
+    return f"{base.rstrip('/')}/api/github/edit"
+
+
+def _github_create_repo_url() -> str:
+    """Return the live /api/github/create-repo URL for the current deployment."""
+    base = os.getenv("APP_URL", "").strip() or "https://vector-ai-izgf.onrender.com"
+    return f"{base.rstrip('/')}/api/github/create-repo"
 
 
 def _gh_edit_token(request: Request):
