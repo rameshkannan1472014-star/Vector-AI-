@@ -61,7 +61,7 @@ from openai import OpenAI as OpenAICompatibleClient
 # ============================================================
 
 APP_TITLE = "Engineer AI"
-APP_VERSION = "3.0.14"
+APP_VERSION = "3.0.15"
 
 FEEDBACK_RECIPIENT_DEFAULT = "ramesh.kannan14.7.2014@gmail.com"
 
@@ -112,7 +112,7 @@ MAX_PROMPT_CHARS = 24000
 # ---- Repo-creation request detection (fallback when Gemini doesn't call the tool) ----
 
 _REPO_CREATE_PATTERNS = re.compile(
-    r"\b(create|make|build|start|set\s*up)\s*(a\s+)?(new\s+)?(github\s+)?(repo(?:sitory)?|project|repository)\b",
+    r"\b(create|make|start|set\s*up)\s+(a\s+)?(new\s+)?(github\s+)?(repo(?:sitory)?|project)\b",
     re.IGNORECASE,
 )
 _GITHUB_URL_PATTERN = re.compile(
@@ -122,7 +122,19 @@ _GITHUB_URL_PATTERN = re.compile(
 
 def _looks_like_repo_create_request(prompt: str) -> bool:
     """Return True when the user's prompt asks to create a GitHub repository."""
-    return bool(_REPO_CREATE_PATTERNS.search(prompt or ""))
+    p = prompt or ""
+    if not _REPO_CREATE_PATTERNS.search(p):
+        return False
+    # "make/create X in the repository called Y" means work inside an existing repo,
+    # not create a new repository.
+    if re.search(r"\b(in|inside|to|for)\s+(the\s+|my\s+|a\s+)?(github\s+)?(repo|repository)\b", p, re.IGNORECASE):
+        # But allow "create a new repo for..." which is still creating the repo.
+        if not re.search(r"\b(create|make|start|set\s*up)\s+(a\s+)?new\s+(github\s+)?(repo|repository|project)\b", p, re.IGNORECASE):
+            return False
+    # "add/make/create a file/calculator/page/code in..." is not repo creation.
+    if re.search(r"\b(add|write|put|build|make|create)\s+.{0,40}\b(in|inside)\b", p, re.IGNORECASE) and not re.search(r"\b(create|make|start|set\s*up)\s+(a\s+)?(new\s+)?(github\s+)?(repo|repository)\s*(called|named)?\s*$", p, re.IGNORECASE):
+        return False
+    return True
 
 
 def _response_is_manual_repo_guide(text: str) -> bool:
@@ -148,18 +160,26 @@ def _response_is_manual_repo_guide(text: str) -> bool:
 
 def _extract_repo_name_from_prompt(prompt: str) -> str:
     """Try to pull a repository name out of a repo-creation prompt."""
-    m = re.search(
-        r"(?:called|named|called\s+)?(['\"]?([a-zA-Z0-9][a-zA-Z0-9._-]*)['\"]?)\s*(?:,|$|with|and|that|which)",
-        prompt or "",
-        re.IGNORECASE,
-    )
-    if m:
-        candidate = m.group(2).strip()
-        if re.match(r"^[a-zA-Z0-9][a-zA-Z0-9._-]*$", candidate) and len(candidate) <= 100:
-            return candidate
-    words = re.split(r"\s+", prompt or "")
-    for w in reversed(words):
+    p = prompt or ""
+    # Prefer explicit "repo/repository/project called/named X" or "called/named X"
+    for pattern in (
+        r"\b(?:repo(?:sitory)?|project)\s+(?:called|named)\s+['\"]?([a-zA-Z0-9][a-zA-Z0-9._-]{0,99})['\"]?",
+        r"\b(?:called|named)\s+['\"]?([a-zA-Z0-9][a-zA-Z0-9._-]{0,99})['\"]?",
+        r"\b(?:create|make|start|set\s*up)\s+(?:a\s+)?(?:new\s+)?(?:github\s+)?(?:repo(?:sitory)?|project)\s+['\"]?([a-zA-Z0-9][a-zA-Z0-9._-]{0,99})['\"]?",
+    ):
+        m = re.search(pattern, p, re.IGNORECASE)
+        if m:
+            candidate = m.group(1).strip()
+            if candidate.lower() not in {"a", "new", "the", "my", "called", "named", "repo", "repository", "project", "github"}:
+                return candidate
+    # Fallback: last plausible token, skipping common words
+    skip = {"a","an","the","new","my","repo","repository","project","github","create","make","please","me","one","it","called","named","private","public","with"}
+    for w in reversed(re.split(r"\s+", p)):
         w = w.strip(",.:;!?\"'()")
+        if not w:
+            continue
+        if w.lower() in skip:
+            continue
         if re.match(r"^[a-zA-Z0-9][a-zA-Z0-9._-]*$", w) and len(w) <= 100:
             return w
     return ""
@@ -1571,12 +1591,24 @@ async def chat(request: ChatRequest, http_request: Request):
             if key in {"name", "age", "preferences", "about"} and str(value).strip()
         )
 
+        # Let the model know if GitHub is connected for this signed-in session.
+        _gh_status_line = "GitHub: not connected in this chat."
+        try:
+            _tok = _current_request_token.get() or ""
+            if _tok:
+                _gh_status_line = "GitHub: connected for this user. You can create repositories and edit files in their repos using the available GitHub tools when they ask."
+        except Exception:
+            pass
+
         prompt = f"""
 User message:
 
 {request.prompt}
 
 Answer as Engineer AI.
+
+GITHUB CONNECTION STATUS FOR THIS USER (trust this for the current session):
+{_gh_status_line}
 
 USER MEMORY (user-editable; use only when relevant):
 {memory_context or "(No saved user memory.)"}
