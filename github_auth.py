@@ -34,9 +34,15 @@ import urllib.request
 
 
 _signin_log_path = None
+_signin_log_lines: list[str] = []
 
 def _signin_log(msg: str) -> None:
     global _signin_log_path
+    ts = time.strftime('%H:%M:%S')
+    line = f"[{ts}] {msg}"
+    _signin_log_lines.append(line)
+    if len(_signin_log_lines) > 200:
+        del _signin_log_lines[:100]
     if _signin_log_path is None:
         try:
             _signin_log_path = os.path.join(os.path.dirname(__file__) or ".", "signin_debug.log")
@@ -44,7 +50,7 @@ def _signin_log(msg: str) -> None:
             _signin_log_path = "/tmp/signin_debug.log"
     try:
         with open(_signin_log_path, "a") as f:
-            f.write(f"[{time.strftime('%H:%M:%S')}] {msg}\n")
+            f.write(line + "\n")
     except Exception:
         pass
 from typing import Optional
