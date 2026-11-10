@@ -145,16 +145,15 @@ def install(app: FastAPI, app_title: str = "Vector AI") -> None:
         if not isinstance(data, dict):
             _signin_log(f"unsign: payload not a dict ({type(data).__name__})")
             return None
-        try:
-            exp = int(data.get("exp", 0))
-        except (TypeError, ValueError):
-            _signin_log(f"unsign: exp not an int ({data.get('exp')!r})")
-            return None
         now = int(time.time())
-        if exp < now:
+        try:
+            exp = int(data.get("exp", 0) or 0)
+        except (TypeError, ValueError):
+            exp = 0
+        if exp and exp < now:
             _signin_log(f"unsign: EXPIRED exp={exp} now={now} (expired {now - exp}s ago)")
             return None
-        _signin_log(f"unsign: OK login={data.get('login')} exp_in={exp - now}s")
+        _signin_log(f"unsign: OK login={data.get('login')} exp_in={(exp - now) if exp else 'none'}")
         return data
     def current_user(request: Request) -> Optional[dict]:
         raw = request.cookies.get(SESSION_COOKIE, "")
@@ -308,12 +307,25 @@ def install(app: FastAPI, app_title: str = "Vector AI") -> None:
             SESSION_COOKIE,
             cookie_val,
             max_age=SESSION_MAX_AGE,
+            path="/",
             httponly=True,
             samesite="lax",
             secure=is_secure(request),
         )
         response.delete_cookie(STATE_COOKIE)
         _signin_log(f"FINISH cookie_set={SESSION_COOKIE} -> ok")
+        return response
+
+    @app.middleware("http")
+    async def _no_store_api(request: Request, call_next):
+        response = await call_next(request)
+        try:
+            if request.url.path.startswith("/api/"):
+                response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+                response.headers["Pragma"] = "no-cache"
+                response.headers["Expires"] = "0"
+        except Exception:
+            pass
         return response
 
     @app.get("/api/me")

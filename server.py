@@ -17,14 +17,19 @@ import binascii
 import tempfile
 import uuid
 import threading
+import contextvars
 import urllib.error
 import urllib.parse
 import urllib.request
 
-# Thread-local storage for the GitHub token of the user whose chat request is
-# currently being processed. The AI tool handlers read from here so they can
-# call GitHub on the user's behalf without making unauthenticated self-HTTP calls.
-_current_request_token = threading.local()
+# Per-request storage for the GitHub token of the person whose chat message is
+# being handled. This has to be a ContextVar, not a thread-local: the AI work is
+# handed to a worker thread with asyncio.to_thread, and a thread-local slot is
+# empty there, which made repo creation answer "you are not signed in" even
+# though the person was signed in. ContextVars travel with the request.
+_current_request_token: "contextvars.ContextVar[str]" = contextvars.ContextVar(
+    "vector_github_token", default=""
+)
 
 from collections import deque
 from fastapi import FastAPI, HTTPException, Query, BackgroundTasks, Request
@@ -44,7 +49,7 @@ from openai import OpenAI as OpenAICompatibleClient
 # ============================================================
 
 APP_TITLE = "Engineer AI"
-APP_VERSION = "3.0.12"
+APP_VERSION = "3.0.13"
 
 FEEDBACK_RECIPIENT_DEFAULT = "ramesh.kannan14.7.2014@gmail.com"
 
@@ -1530,11 +1535,11 @@ async def chat(request: ChatRequest):
         from github_auth import current_user as _gh_current_user
         _user = _gh_current_user(request)
         if _user and _user.get("token"):
-            _current_request_token.value = str(_user["token"])
+            _current_request_token.set(str(_user["token"]))
         else:
-            _current_request_token.value = ""
+            _current_request_token.set("")
     except Exception:
-        _current_request_token.value = ""
+        _current_request_token.set("")
 
     try:
 
@@ -1846,7 +1851,7 @@ def _run_github_create_repo(
 ) -> dict:
     """Create a GitHub repo for the signed-in user and return a structured result."""
     import json as _json
-    token = getattr(_current_request_token, "value", "") or ""
+    token = _current_request_token.get() or ""
     if not token:
         return {"status": "error", "message": "You are not signed in with GitHub. Sign in first to create a repository."}
     try:
