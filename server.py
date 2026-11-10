@@ -1835,120 +1835,163 @@ def _github_edit_url() -> str:
     return f"{base.rstrip('/')}/api/github/edit"
 
 
-def _run_github_edit(request: "GitHubEditRequest") -> dict:
-    """Execute a GitHub file edit directly (no self-HTTP round-trip) and return a structured result."""
-    import json as _json
-    try:
-        async def _do_edit() -> dict:
-            req = GitHubEditRequest(
-                path=request.path,
-                instruction=request.instruction,
-                content=request.content,
-                language=request.language,
-                repo=request.repo,
-            )
-            if not req.path.strip():
-                return {"status": "error", "message": "Pick a file first."}
-            if not req.instruction.strip():
-                return {"status": "error", "message": "Say what should change in the file."}
-            prompt = (
-                "You are editing a real file inside a person\'s GitHub project. "
-                "Reply with the COMPLETE new file only.\n"
-                "Do NOT wrap the file in markdown code fences (no ```). "
-                "Return ONLY the raw file content, starting at the very first character.\n"
-                "User instruction:\n"
-                '"""\n'
-                + req.instruction + "\n"
-                '"""\n\n'
-                "Current file (" + (req.language or "text") + "):\n"
-                '"""\n'
-                + req.content + "\n"
-                '"""\n\n'
-                "Return the COMPLETE updated file content with the instruction applied.\n"
-            )
-            body = ask_ai(
-                prompt,
-                max_tokens=8000,
-                provider="gemini",
-                images=None,
-                include_github_tool=False,
-            )
-            stripped = strip_code_fences(body)
-            return {
-                "status": "success",
-                "path": req.path,
-                "content": stripped,
-                "changed": True,
-                "model": DEFAULT_MODEL,
-            }
-        return _run_async_safely(_do_edit())
-    except Exception as error:
-        return {
-            "status": "error",
-            "message": str(error),
-        }
-
-
-def _run_github_create_repo(
-    name: str,
-    description: str,
-    private: bool,
-    license: str,
-    gitignore: str,
-) -> dict:
-    """Create a GitHub repo for the signed-in user and return a structured result."""
-    import json as _json
-    token = _current_request_token.get() or ""
-    if not token:
-        return {"status": "error", "message": "You are not signed in with GitHub. Sign in first to create a repository."}
-    try:
-        async def _do_create() -> dict:
-            body_payload = {
-                "name": name.strip(),
-                "description": description.strip() if description.strip() else "",
-                "private": private,
-                "auto_init": True,
-                "has_issues": True,
-                "has_wiki": False,
-            }
-            if license.strip():
-                body_payload["license_template"] = license.strip()
-            if gitignore.strip():
-                body_payload["gitignore_template"] = gitignore.strip()
-            # Call the GitHub API directly (not through our own endpoint) using the
-            # user's token from the current session. github_auth.py's gh_call is the
-            # same helper the /api/github/create-repo route uses.
+def _gh_edit_token():
+    """Return the signed-in user's GitHub token, cached after first read."""
+    import threading
+    _lock = threading.Lock()
+    _cache = {}
+    key = "gh_edit_token"
+    with _lock:
+        if key in _cache:
+            return _cache[key]
+        try:
+            from github_auth import current_user as _cu
+            _request = _cu
+        except Exception:
+            _request = None
+        if _request is not None:
             try:
-                from github_auth import gh_call as _gh_call
+                user = _request(None)
+                if user and user.get("token"):
+                    _cache[key] = str(user["token"])
+                    return _cache[key]
             except Exception:
-                return {"status": "error", "message": "GitHub helper not available."}
-            try:
-                result = _gh_call("POST", "/user/repos", token, body_payload)
-            except Exception as error:
-                msg = str(error)
-                if "name already exists" in msg.lower() or "already exists" in msg.lower():
-                    msg = "A repository with that name already exists. Try a different name."
-                return {"status": "error", "message": msg}
-            repo = result if isinstance(result, dict) else {}
+                pass
+        _cache[key] = ""
+        return ""
+    return ""
+
+
+def _gh_commit_edit(repo, path, content, message, token):
+    """Commit content to a GitHub repo file. Returns a dict result."""
+    import urllib.request
+
+    def call(method, url, payload=None):
+        data = None
+        headers = {
+            "Accept": "application/vnd.github+json",
+            "User-Agent": "vector-ai",
+            "X-GitHub-Api-Version": "2022-11-28",
+            "Authorization": "Bearer " + token,
+        }
+        if payload is not None:
+            data = json.dumps(payload).encode("utf-8")
+            headers["Content-Type"] = "application/json"
+        req = urllib.request.Request(url, data=data, headers=headers, method=method)
+        try:
+            with urllib.request.urlopen(req, timeout=25) as response:
+                raw = response.read().decode("utf-8")
+        except urllib.error.HTTPError as error:
+            body = error.read().decode("utf-8", errors="replace")[:300]
+            raise RuntimeError(
+                "GitHub " + method + " " + url + " HTTP " + str(error.code) + ": " + body
+            )
+        except Exception as error:
+            raise RuntimeError("GitHub " + method + " " + url + " failed: " + str(error))
+        if not raw.strip():
+            return {}
+        try:
+            return json.loads(raw)
+        except ValueError:
+            raise RuntimeError("GitHub returned unreadable JSON")
+
+    owner, _, repo_name = repo.partition("/")
+    if not owner or not repo_name:
+        raise RuntimeError("Invalid repo '" + repo + "' (need owner/repo)")
+
+    encoded_path = path.replace("/", "%2F")
+    file_url = "https://api.github.com/repos/" + repo + "/contents/" + encoded_path
+
+    existing = call("GET", file_url)
+    sha = existing.get("sha") if isinstance(existing, dict) else None
+    default_branch = existing.get("default_branch") if isinstance(existing, dict) else None
+    if default_branch is None:
+        default_branch = "main"
+
+    new_blob = None
+    if sha:
+        old_b64 = existing.get("content") or ""
+        try:
+            old_content = base64.b64decode(old_b64).decode("utf-8")
+        except Exception:
+            old_content = ""
+        if old_content == content:
             return {
                 "status": "success",
-                "repo": str(repo.get("full_name", name)),
-                "name": str(repo.get("name", name)),
-                "private": bool(repo.get("private", private)),
-                "description": str(repo.get("description") or ""),
-                "html_url": str(repo.get("html_url") or ""),
-                "clone_url": str(repo.get("clone_url") or ""),
-                "default_branch": str(repo.get("default_branch") or "main"),
-                "license": ({"key": str(repo.get("license", {}).get("spdx_id", "")), "name": str(repo.get("license", {}).get("name", ""))} if repo.get("license") else None),
-                "created_at": str(repo.get("created_at", ""))[:10],
+                "message": "No changes. The file already matches.",
+                "url": file_url,
+                "committed": False,
             }
-        return _run_async_safely(_do_create())
-    except Exception as error:
-        return {
-            "status": "error",
-            "message": str(error),
-        }
+        blob = call(
+            "PUT",
+            "https://api.github.com/repos/" + repo + "/git/blobs",
+            {
+                "content": base64.b64encode(content.encode("utf-8")).decode("ascii"),
+                "encoding": "utf-8",
+            },
+        )
+        new_blob = blob.get("sha")
+    else:
+        blob = call(
+            "PUT",
+            "https://api.github.com/repos/" + repo + "/git/blobs",
+            {
+                "content": base64.b64encode(content.encode("utf-8")).decode("ascii"),
+                "encoding": "utf-8",
+            },
+        )
+        new_blob = blob.get("sha")
 
+    if not new_blob:
+        raise RuntimeError("GitHub did not return a blob sha")
+
+    encoded_tree_path = path.replace("/", "%2F")
+    tree_url = "https://api.github.com/repos/" + repo + "/git/trees"
+    tree = call(
+        "POST",
+        tree_url,
+        {
+            "base_tree": (sha or default_branch),
+            "tree": [
+                {
+                    "path": encoded_tree_path,
+                    "mode": "100644",
+                    "type": "blob",
+                    "sha": new_blob,
+                }
+            ],
+        },
+    )
+    new_tree = tree.get("sha")
+    if not new_tree:
+        raise RuntimeError("GitHub did not return a tree sha")
+
+    commit = call(
+        "POST",
+        "https://api.github.com/repos/" + repo + "/git/commits",
+        {
+            "message": message,
+            "tree": new_tree,
+            "parents": ([sha] if sha else []),
+        },
+    )
+    new_commit_sha = commit.get("sha")
+    if not new_commit_sha:
+        raise RuntimeError("GitHub did not return a commit sha")
+
+    call(
+        "PATCH",
+        "https://api.github.com/repos/" + repo + "/branches/main",
+        {"sha": new_commit_sha, "force": False},
+    )
+
+    return {
+        "status": "success",
+        "message": "Committed " + str(len(content)) + " bytes to " + repo + "/" + path,
+        "url": "https://github.com/" + repo + "/blob/" + new_commit_sha[:8] + "/" + path,
+        "committed": True,
+        "commit": new_commit_sha[:8],
+    }
 
 class GitHubEditRequest(BaseModel):
     path: str = Field(default="", max_length=400)
@@ -1973,55 +2016,84 @@ def strip_code_fences(text: str) -> str:
 
 @app.post("/api/github/edit")
 async def github_edit_file(request: GitHubEditRequest):
+    """Rewrite a file inside a signed-in user's GitHub repo and commit it.
 
-    if not request.path.strip():
+    The frontend sends the full new content, the repo (owner/repo), the file
+    path and a short instruction. This route validates the repo name, verifies
+    the file actually belongs to that repo on GitHub, then commits the change.
+    """
+    from fastapi import HTTPException
+    from github_auth import gh_call
+
+    token = _gh_edit_token()
+    if not token:
+        raise HTTPException(status_code=401, detail={"message": "Sign in with GitHub first."})
+
+    repo = (request.repo or "").strip()
+    path = (request.path or "").strip()
+    content = request.content or ""
+    instruction = (request.instruction or "").strip()
+
+    if not repo:
+        raise HTTPException(status_code=400, detail={"message": "Choose a GitHub repo first (owner/repo)."})
+    if not path:
         raise HTTPException(status_code=400, detail={"message": "Pick a file first."})
-    if not request.instruction.strip():
+    if not instruction:
         raise HTTPException(status_code=400, detail={"message": "Say what should change in the file."})
-
-    start_time = time.perf_counter()
-
-    prompt = f"""
-You are editing a real file inside a person's GitHub project. Reply with the COMPLETE new file only.
-
-Rules:
-- Return the whole file, start to finish, ready to save exactly as it is.
-- No explanations, no commentary, no markdown fences, no "here is the file".
-- Keep the existing code, style and indentation unless the request says otherwise.
-- Never invent a different file or move code to another file.
-
-File: {request.path.strip()}
-Project: {request.repo.strip() or "(not shared)"}
-Language: {request.language.strip() or "(unknown)"}
-
-What the person wants changed:
-{request.instruction.strip()}
-
-Current file content:
-{request.content}
-"""
+    if not content:
+        raise HTTPException(status_code=400, detail={"message": "There is no file content to save."})
+    if "/" in repo or "\\" in repo or repo in (".", "..") or not re.match(r"^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$", repo):
+        raise HTTPException(status_code=400, detail={"message": "Repo must be owner/repo (letters, numbers, dots, hyphens, underscores)."})
+    if len(repo) > 100:
+        raise HTTPException(status_code=400, detail={"message": "Repo name is too long."})
 
     try:
-        answer = await ask_ai(prompt, max_tokens=4000, provider="gemini")
+        # Confirm the file is inside the chosen repo before writing.
+        file_url = "https://api.github.com/repos/" + repo + "/contents/" + path
+        existing = gh_call("GET", file_url, token)
+        sha = existing.get("sha") if isinstance(existing, dict) else None
+        if not sha:
+            raise RuntimeError("GitHub could not find that file in the chosen repo.")
+
+        new_content = content
+        if sha and existing.get("size"):
+            old_b64 = existing.get("content") or ""
+            try:
+                old_content = base64.b64decode(old_b64).decode("utf-8")
+            except Exception:
+                old_content = ""
+            if old_content == new_content:
+                return {
+                    "status": "success",
+                    "message": "No changes. The file already matches.",
+                    "path": path,
+                    "repo": repo,
+                    "url": file_url,
+                    "committed": False,
+                }
+
+        commit_url = "https://api.github.com/repos/" + repo + "/contents/" + path
+        payload = {
+            "message": instruction or "Update " + path,
+            "content": base64.b64encode(new_content.encode("utf-8")).decode("ascii"),
+            "branch": gh_call("GET", "https://api.github.com/repos/" + repo, token).get("default_branch", "main"),
+        }
+        result = gh_call("PUT", commit_url, payload)
+        html_url = result.get("content", {}).get("html_url") if isinstance(result, dict) else None
+        if not html_url:
+            html_url = "https://github.com/" + repo + "/edit/main/" + path
+        return {
+            "status": "success",
+            "path": path,
+            "repo": repo,
+            "url": html_url,
+            "committed": True,
+            "commit": result.get("content", {}).get("sha", "")[:8],
+            "size": result.get("content", {}).get("size"),
+            "model": DEFAULT_MODEL,
+        }
     except Exception as error:
-        record_request(start_time, False)
-        logger.exception("GitHub file edit failed")
-        raise HTTPException(
-            status_code=502,
-            detail={"message": str(error)[:400] or "The AI could not rewrite that file."}
-        )
-
-    record_request(start_time, True)
-
-    new_content = strip_code_fences(answer)
-
-    return {
-        "status": "success",
-        "path": request.path.strip(),
-        "content": new_content,
-        "changed": new_content.strip() != (request.content or "").strip(),
-        "model": DEFAULT_MODEL,
-    }
+        return {"status": "error", "message": str(error)}
 
 
 # ============================================================
