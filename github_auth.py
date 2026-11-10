@@ -163,6 +163,16 @@ def install(app: FastAPI, app_title: str = "Vector AI") -> None:
             _signin_log(f"current_user: no {SESSION_COOKIE} cookie")
         return unsign(raw)
 
+    # These helpers are defined inside install(), so other modules could not do
+    # `from github_auth import current_user`. Publish them at module level so the
+    # chat endpoint can read the signed-in person's GitHub token.
+    for _exported_name, _exported_fn in (
+        ("current_user", current_user),
+        ("sign", sign),
+        ("unsign", unsign),
+    ):
+        globals()[_exported_name] = _exported_fn
+
     def origin(request: Request) -> str:
         proto = request.headers.get("x-forwarded-proto") or request.url.scheme or "https"
         host = (
@@ -886,3 +896,11 @@ def install(app: FastAPI, app_title: str = "Vector AI") -> None:
         response = JSONResponse({"status": "success", "signed_in": False})
         response.delete_cookie(SESSION_COOKIE)
         return response
+
+    # These helpers live inside install(), so publish them at module level;
+    # otherwise `from github_auth import current_user` / `gh_call` fails and
+    # every GitHub action thinks the person is signed out.
+    globals()["current_user"] = current_user
+    globals()["gh_call"] = gh_call
+    globals()["sign"] = sign
+    globals()["unsign"] = unsign

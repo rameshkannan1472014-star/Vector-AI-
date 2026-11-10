@@ -31,6 +31,18 @@ _current_request_token: "contextvars.ContextVar[str]" = contextvars.ContextVar(
     "vector_github_token", default=""
 )
 
+
+def _run_async_safely(coro):
+    """Run a coroutine whether or not an event loop is already running here."""
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(coro)
+    # A loop is already running (we are inside the async chat endpoint), so the
+    # coroutine gets its own loop on a helper thread instead of blowing up.
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+        return pool.submit(asyncio.run, coro).result()
+
 from collections import deque
 from fastapi import FastAPI, HTTPException, Query, BackgroundTasks, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -49,7 +61,7 @@ from openai import OpenAI as OpenAICompatibleClient
 # ============================================================
 
 APP_TITLE = "Engineer AI"
-APP_VERSION = "3.0.13"
+APP_VERSION = "3.0.14"
 
 FEEDBACK_RECIPIENT_DEFAULT = "ramesh.kannan14.7.2014@gmail.com"
 
@@ -1525,7 +1537,7 @@ async def list_providers():
 # ============================================================
 
 @app.post("/api/chat")
-async def chat(request: ChatRequest):
+async def chat(request: ChatRequest, http_request: Request):
 
     start_time = time.perf_counter()
 
@@ -1533,7 +1545,7 @@ async def chat(request: ChatRequest):
     # that run later in the same thread (via asyncio.to_thread).
     try:
         from github_auth import current_user as _gh_current_user
-        _user = _gh_current_user(request)
+        _user = _gh_current_user(http_request)
         if _user and _user.get("token"):
             _current_request_token.set(str(_user["token"]))
         else:
@@ -1602,7 +1614,8 @@ If the user asks for a diagram, provide a simple diagram when useful.
                 and not _looks_like_file_edit_request(request.prompt)
             ):
                 name = _extract_repo_name_from_prompt(request.prompt) or ""
-                create_result = _run_github_create_repo(
+                create_result = await asyncio.to_thread(
+                    _run_github_create_repo,
                     name=name,
                     description="",
                     private=False,
@@ -1777,7 +1790,9 @@ def generate_image(request: ImageRequest):
             },
         )
 
-    return {"status": "success", "image": image_url, "model": model, "note": note}# ============================================================
+    return {"status": "success", "image": image_url, "model": model, "note": note}
+
+# ============================================================
 # 🐙 GITHUB FILE EDIT (backend tool for the AI)
 # ============================================================
 
@@ -1788,7 +1803,7 @@ def _github_edit_url() -> str:
     return f"{base.rstrip('/')}/api/github/edit"
 
 
-def _run_github_edit(request: GitHubEditRequest) -> dict:
+def _run_github_edit(request: "GitHubEditRequest") -> dict:
     """Execute a GitHub file edit directly (no self-HTTP round-trip) and return a structured result."""
     import json as _json
     try:
@@ -1834,7 +1849,7 @@ def _run_github_edit(request: GitHubEditRequest) -> dict:
                 "changed": True,
                 "model": DEFAULT_MODEL,
             }
-        return asyncio.run(_do_edit())
+        return _run_async_safely(_do_edit())
     except Exception as error:
         return {
             "status": "error",
@@ -1895,7 +1910,7 @@ def _run_github_create_repo(
                 "license": ({"key": str(repo.get("license", {}).get("spdx_id", "")), "name": str(repo.get("license", {}).get("name", ""))} if repo.get("license") else None),
                 "created_at": str(repo.get("created_at", ""))[:10],
             }
-        return asyncio.run(_do_create())
+        return _run_async_safely(_do_create())
     except Exception as error:
         return {
             "status": "error",
