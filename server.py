@@ -1918,7 +1918,7 @@ async def chat(request: ChatRequest, http_request: Request):
     try:
         from github_auth import current_user as _gh_current_user
         _user = _gh_current_user(http_request)
-        if _user and _user.get("token"):
+        if _user and _user.get("provider") == "github" and _user.get("token"):
             _current_request_token.set(str(_user["token"]))
         else:
             _current_request_token.set("")
@@ -2205,7 +2205,7 @@ def _gh_edit_token(request: Request):
     from github_auth import current_user as _cu
     try:
         user = _cu(request)
-        if user and user.get("token"):
+        if user and user.get("provider") == "github" and user.get("token"):
             return str(user["token"])
     except Exception:
         pass
