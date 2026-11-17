@@ -1024,7 +1024,7 @@ def generate_ai_response(
                 if call_name not in ("github_edit_file", "github_create_repo", "github_list_repositories", "github_check_repository", "github_list_files", "github_write_file"):
                     continue
                 call_args = getattr(fc, "args", {}) or {}
-                if call_name in ("github_list_repositories", "github_check_repository", "github_list_files"):
+                if call_name in ("github_list_repositories", "github_check_repository", "github_list_files", "github_write_file"):
                     try:
                         if not github_token:
                             raise RuntimeError("GitHub is not connected to this chat. Reconnect GitHub and try again.")
@@ -1242,7 +1242,7 @@ def generate_ai_response(
                         data=payload,
                         headers={
                             "Content-Type": "application/json",
-                            "Authorization": "Bearer " + _gh_edit_token(request),
+                            "Authorization": "Bearer " + github_token,
                             "Accept": "application/vnd.github+json",
                             "User-Agent": "vector-ai",
                         },
@@ -1280,7 +1280,7 @@ def generate_ai_response(
                         path=path,
                         content=content,
                         message=_extract_instructions_from_prompt(prompt) or "Update file via Vector AI",
-                        token=_gh_edit_token(request),
+                        token=github_token,
                     )
                 except Exception as edit_error:
                     edit_result = {"status": "error", "message": str(edit_error)}
@@ -1528,8 +1528,8 @@ async def ask_ai(
     # providers in this app currently receive plain text only and cannot invoke
     # the authenticated GitHub tools.
     github_intent = bool(re.search(
-        r"\\b(github|repo|repository|repositories|git\\s*hub)\\b|"
-        r"\\b(upload|push|commit|browse|list|check|open|read)\\b.{0,50}\\b(file|files|project|code|repo|repository)\\b",
+        r"\b(github|repo|repository|repositories|git\s*hub)\b|"
+        r"\b(upload|push|commit|browse|list|check|open|read)\b.{0,50}\b(file|files|project|code|repo|repository)\b",
         prompt, re.IGNORECASE
     ))
     if github_intent and github_token:
