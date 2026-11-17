@@ -1197,7 +1197,12 @@ function openGitHubDrawer(){
     '</div>' +
     '<hr style="margin:18px 0;border:none;border-top:1px solid var(--border-soft)">' +
     '<div id="ghFileSection" style="display:' + (connected && repo ? 'block' : 'none') + '">' +
-      '<div style="font-size:14px;font-weight:600;margin-bottom:8px">Repo files</div>' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px">' +
+        '<div style="font-size:14px;font-weight:600">Repo files</div>' +
+        '<button class="set-btn" id="ghUploadBtn">＋ Upload file</button>' +
+      '</div>' +
+      '<input type="file" id="ghUploadInput" hidden>' +
+      '<div id="ghUploadStatus" style="font-size:12px;color:var(--text-faint);margin-bottom:8px"></div>' +
       '<div id="ghFileStatus" style="font-size:12.5px;color:var(--text-faint);margin-bottom:8px"></div>' +
       '<div id="ghFileList" style="max-height:180px;overflow:auto;border:1px solid var(--border-soft);border-radius:10px;background:var(--raise)"></div>' +
       '<div id="ghFileEditor" style="display:none;margin-top:10px">' +
@@ -1265,6 +1270,65 @@ function openGitHubDrawer(){
     loadGitHubState();
     toast('GitHub disconnected');
   };
+  // Upload a new file to the selected GitHub repository.
+  const uploadBtn = $('ghUploadBtn');
+  const uploadInput = $('ghUploadInput');
+  const uploadStatus = $('ghUploadStatus');
+  if (uploadBtn && uploadInput) {
+    uploadBtn.onclick = () => {
+      if (!(me && authProviders.github)) { toast('Connect GitHub first'); return; }
+      if (!ghStore.repo) { toast('Choose and save a GitHub repo first'); return; }
+      uploadInput.click();
+    };
+    uploadInput.onchange = async () => {
+      const file = uploadInput.files && uploadInput.files[0];
+      if (!file) return;
+      if (file.size > 8 * 1024 * 1024) {
+        toast('Files must be 8 MB or smaller');
+        uploadInput.value = '';
+        return;
+      }
+      uploadBtn.disabled = true;
+      uploadBtn.textContent = 'Uploading…';
+      if (uploadStatus) uploadStatus.textContent = 'Reading ' + file.name + '…';
+      try {
+        const dataUrl = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result || ''));
+          reader.onerror = () => reject(new Error('Could not read the selected file.'));
+          reader.readAsDataURL(file);
+        });
+        const base64Data = dataUrl.split(',')[1] || '';
+        if (!base64Data) throw new Error('The selected file could not be encoded.');
+        if (uploadStatus) uploadStatus.textContent = 'Uploading to ' + ghStore.repo + '…';
+        const response = await credFetch('/api/github/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            repo: ghStore.repo,
+            path: file.name,
+            content_base64: base64Data,
+            message: 'Upload ' + file.name + ' with Vector AI'
+          })
+        });
+        const result = await response.json().catch(() => null);
+        if (!response.ok || !result || result.status !== 'success') {
+          throw new Error((result && result.message) || 'GitHub rejected the upload.');
+        }
+        if (uploadStatus) uploadStatus.textContent = 'Uploaded ' + file.name + ' successfully.';
+        toast('File uploaded to GitHub ✅');
+        ghFileLoadList();
+      } catch (error) {
+        if (uploadStatus) uploadStatus.textContent = error.message || 'Upload failed.';
+        toast(error.message || 'Upload failed');
+      } finally {
+        uploadBtn.disabled = false;
+        uploadBtn.textContent = '＋ Upload file';
+        uploadInput.value = '';
+      }
+    };
+  }
+
   // wire file editor
   const fileSection = $('ghFileSection');
   if (fileSection && connected && repo){
