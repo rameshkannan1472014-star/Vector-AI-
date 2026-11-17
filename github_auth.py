@@ -657,6 +657,63 @@ def install(app: FastAPI, app_title: str = "Vector AI") -> None:
             "content": text,
         }
 
+    @app.post("/api/github/upload")
+    def github_upload_file(request: Request, payload: dict = Body(...)):
+        """Upload a binary or text file into the selected GitHub repository."""
+        token = github_token(request)
+        if not token:
+            return gh_needs_signin()
+        if not same_origin(request):
+            return gh_reply(403, {"status": "error", "message": "That upload did not come from this site."})
+
+        full = ""
+        path = str(payload.get("path") or payload.get("filename") or "").strip().strip("/")
+        encoded = str(payload.get("content_base64") or "").strip()
+        message = str(payload.get("message") or "").strip() or "Upload " + (path or "file") + " with Vector AI"
+
+        if not path or path.startswith("/") or any(part in ("", ".", "..") for part in path.split("/")):
+            return gh_reply(400, {"status": "error", "message": "Choose a valid file path."})
+        if not encoded:
+            return gh_reply(400, {"status": "400", "message": "The selected file is empty or could not be read."})
+        if len(encoded) > 12_000_000:
+            return gh_reply(413, {"status": "error", "message": "Files must be 8 MB or smaller."})
+
+        try:
+            raw = base64.b64decode(encoded, validate=True)
+        except (ValueError, binascii.Error):
+            return gh_reply(400, {"status": "error", "message": "The file data is invalid. Please select it again."})
+        if len(raw) > 8_000_000:
+            return gh_reply(413, {"status": "error", "message": "Files must be 8 MB or smaller."})
+
+        try:
+            full = clean_repo(str(payload.get("repo") or ""))
+            api_path = "/repos/" + full + "/contents/" + urllib.parse.quote(path, safe="/")
+            try:
+                gh_call("GET", api_path, token)
+                return gh_reply(409, {"status": "error", "message": "A file already exists at this path. Rename the upload or remove the existing file first."})
+            except GitHubError as error:
+                if error.status != 404:
+                    raise
+
+            result = gh_call("PUT", api_path, token, {
+                "message": message[:250],
+                "content": base64.b64encode(raw).decode("ascii"),
+            })
+        except GitHubError as error:
+            return gh_reply(error.status, {"status": "error", "message": error.message})
+
+        commit = result.get("commit") or {}
+        gh_cache.pop(str((current_user(request) or {}).get("login", "")), None)
+        content = result.get("content") or {}
+        return {
+            "status": "success",
+            "repo": full,
+            "path": path,
+            "size": len(raw),
+            "url": str(content.get("html_url") or commit.get("html_url") or ""),
+            "commit": str(commit.get("sha") or ""),
+        }
+
     @app.post("/api/github/save")
     def github_save(request: Request, payload: dict = Body(...)):
         token = github_token(request)
