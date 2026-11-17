@@ -1106,7 +1106,9 @@ function startSignIn(p){
   showGateStep('signin');
   paintGateNote(p);
   toast(providerLabel(p) + ' sign-in needs ' + providerLabel(p) + ' keys on the server');
-  return false;
+  // The href on the button is /auth/github which handles the actual OAuth flow.
+  // Return true so the browser follows the link.
+  return true;
 }
 
 function paintAccount(){
