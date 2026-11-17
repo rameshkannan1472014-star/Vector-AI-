@@ -1313,7 +1313,7 @@ function openGitHubDrawer(){
         });
         const result = await response.json().catch(() => null);
         if (!response.ok || !result || result.status !== 'success') {
-          throw new Error((result && result.message) || 'GitHub rejected the upload.');
+          throw new Error((result && (result.message || (result.detail && result.detail.message))) || 'GitHub rejected the upload.');
         }
         if (uploadStatus) uploadStatus.textContent = 'Uploaded ' + file.name + ' successfully.';
         toast('File uploaded to GitHub ✅');
