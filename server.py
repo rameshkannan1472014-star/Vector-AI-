@@ -774,6 +774,7 @@ def generate_ai_response(
     max_tokens: int = 1500,
     images: Optional[list[dict[str, str]]] = None,
     include_github_tool: bool = True,
+    github_token: str = "",
 ):
     contents: Any = prompt
     if images:
@@ -899,6 +900,57 @@ def generate_ai_response(
                     ]
                 )
             )
+        if include_github_tool:
+            function_tools.append(
+                types.Tool(
+                    function_declarations=[
+                        types.FunctionDeclaration(
+                            name="github_list_repositories",
+                            description=(
+                                "List repositories belonging to the signed-in user's connected GitHub account. "
+                                "Use this whenever the user asks what repos they have, asks to browse their GitHub, "
+                                "or does not specify which of their repos to use. Do not claim you cannot access GitHub "
+                                "when the connection status says connected."
+                            ),
+                            parameters=types.Schema(
+                                type="object",
+                                properties={
+                                    "visibility": types.Schema(type="string", description="all, public, or private; default all."),
+                                },
+                            ),
+                        ),
+                        types.FunctionDeclaration(
+                            name="github_check_repository",
+                            description=(
+                                "Check whether a repository exists and whether the signed-in user's GitHub token can access it. "
+                                "Use this when asked if a named repository exists."
+                            ),
+                            parameters=types.Schema(
+                                type="object",
+                                properties={
+                                    "repo": types.Schema(type="string", description="Repository in owner/name format."),
+                                },
+                                required=["repo"],
+                            ),
+                        ),
+                        types.FunctionDeclaration(
+                            name="github_list_files",
+                            description=(
+                                "List files and folders in a repository on the connected user's GitHub account. "
+                                "Use this to browse project contents before answering questions about its files."
+                            ),
+                            parameters=types.Schema(
+                                type="object",
+                                properties={
+                                    "repo": types.Schema(type="string", description="Repository in owner/name format."),
+                                    "path": types.Schema(type="string", description="Optional folder path; empty means repository root."),
+                                },
+                                required=["repo"],
+                            ),
+                        ),
+                    ]
+                )
+            )
         if function_tools:
             config_options["tools"] = function_tools
         config = types.GenerateContentConfig(**config_options)
@@ -949,9 +1001,73 @@ def generate_ai_response(
                 if fc is None:
                     continue
                 call_name = getattr(fc, "name", "") or ""
-                if call_name not in ("github_edit_file", "github_create_repo"):
+                if call_name not in ("github_edit_file", "github_create_repo", "github_list_repositories", "github_check_repository", "github_list_files"):
                     continue
                 call_args = getattr(fc, "args", {}) or {}
+                if call_name in ("github_list_repositories", "github_check_repository", "github_list_files"):
+                    try:
+                        if not github_token:
+                            raise RuntimeError("GitHub is not connected to this chat. Reconnect GitHub and try again.")
+                        if call_name == "github_list_repositories":
+                            visibility = str(call_args.get("visibility") or "all").lower()
+                            if visibility not in ("all", "public", "private"):
+                                visibility = "all"
+                            repos = _vector_github_api(
+                                "GET",
+                                "/user/repos?per_page=100&sort=updated&visibility=" + visibility,
+                                github_token,
+                            )
+                            tool_result = {
+                                "status": "success",
+                                "count": len(repos),
+                                "repositories": [
+                                    {"name": item.get("full_name"), "private": item.get("private"),
+                                     "url": item.get("html_url"), "default_branch": item.get("default_branch")}
+                                    for item in repos
+                                ],
+                            }
+                        elif call_name == "github_check_repository":
+                            repo_name = str(call_args.get("repo") or "").strip()
+                            if not re.match(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$", repo_name):
+                                raise ValueError("Repository must be in owner/name format.")
+                            item = _vector_github_api("GET", "/repos/" + repo_name, github_token)
+                            tool_result = {
+                                "status": "success", "exists": True,
+                                "name": item.get("full_name"), "private": item.get("private"),
+                                "url": item.get("html_url"), "default_branch": item.get("default_branch"),
+                            }
+                        else:
+                            repo_name = str(call_args.get("repo") or "").strip()
+                            if not re.match(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$", repo_name):
+                                raise ValueError("Repository must be in owner/name format.")
+                            folder = str(call_args.get("path") or "").strip().strip("/")
+                            info = _vector_github_api("GET", "/repos/" + repo_name, github_token)
+                            branch = info.get("default_branch") or "main"
+                            api_path = "/repos/" + repo_name + "/contents"
+                            if folder:
+                                api_path += "/" + urllib.parse.quote(folder, safe="/")
+                            entries = _vector_github_api(
+                                "GET", api_path + "?ref=" + urllib.parse.quote(branch, safe=""),
+                                github_token,
+                            )
+                            if isinstance(entries, dict):
+                                entries = [entries]
+                            tool_result = {
+                                "status": "success", "repo": repo_name, "path": folder or "/",
+                                "files": [
+                                    {"name": item.get("name"), "path": item.get("path"),
+                                     "type": item.get("type"), "size": item.get("size")}
+                                    for item in entries
+                                ],
+                            }
+                    except Exception as tool_error:
+                        tool_result = {"status": "error", "message": str(tool_error)}
+                    tool_results_parts.append(
+                        types.Part(function_response=types.FunctionResponse(
+                            name=call_name, response=tool_result
+                        ))
+                    )
+                    continue
                 if call_name == "github_create_repo":
                     try:
                         create_result = _run_github_create_repo_followup(
@@ -989,7 +1105,7 @@ def generate_ai_response(
                         language=str(call_args.get("language", "")),
                     )
                     # Commit the file change to GitHub
-                    token = _gh_edit_token(request)
+                    token = github_token
                     if not token:
                         edit_result = {
                             "status": "error",
@@ -1353,9 +1469,20 @@ async def ask_ai(
     provider: Optional[str] = "gemini",
     images: Optional[list[dict[str, str]]] = None,
     include_github_tool: bool = True,
+    github_token: str = "",
 ):
 
     provider = normalize_provider(provider)
+    # GitHub actions must run through the Gemini function-calling path. Other
+    # providers in this app currently receive plain text only and cannot invoke
+    # the authenticated GitHub tools.
+    github_intent = bool(re.search(
+        r"\\b(github|repo|repository|repositories|git\\s*hub)\\b|"
+        r"\\b(upload|push|commit|browse|list|check|open|read)\\b.{0,50}\\b(file|files|project|code|repo|repository)\\b",
+        prompt, re.IGNORECASE
+    ))
+    if github_intent and github_token:
+        provider = "gemini"
 
     if provider == "gemini":
 
@@ -1386,6 +1513,7 @@ async def ask_ai(
                 max_tokens,
                 images,
                 include_github_tool=include_github_tool,
+                github_token=github_token,
             )
         except Exception as error:
             # When every Gemini key/model is out of quota, use DeepSeek or
@@ -1784,7 +1912,8 @@ If the user asks for a diagram, provide a simple diagram when useful.
                     prompt,
                     max_tokens=1600,
                     provider=provider,
-                    images=request.images
+                    images=request.images,
+                    github_token=_current_request_token.get() or "",
                 )
 
         record_request(
