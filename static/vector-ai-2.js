@@ -808,6 +808,9 @@ function contextPayload(){
   if (rememberGh && ghStore && ghStore.summary){
     parts.push('MY GITHUB (what this person works on, use it when relevant):\n' + ghStore.summary);
   }
+  if (ghStore && ghStore.repo){
+    parts.push('CURRENT_REPO: ' + ghStore.repo + ' - use this repo when the user asks to edit files on GitHub');
+  }
   attachments.forEach(a => {
     if (a.kind === 'text') parts.push('File ' + a.name + '\n' + a.text);
   });
