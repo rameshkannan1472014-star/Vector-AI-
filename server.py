@@ -2108,6 +2108,201 @@ def _gh_commit_edit(repo, path, content, message, token):
         "commit": new_commit_sha[:8],
     }
 
+
+class GitHubUploadRequest(BaseModel):
+    repo: str = Field(default="", max_length=200)
+    path: str = Field(default="", max_length=400)
+    content_base64: str = Field(default="", max_length=12_000_000)
+    message: str = Field(default="Upload file with Vector AI", max_length=200)
+
+
+class GitHubSaveRequest(BaseModel):
+    repo: str = Field(default="", max_length=200)
+    path: str = Field(default="", max_length=400)
+    content: str = Field(default="", max_length=200000)
+    message: str = Field(default="Update with Vector AI", max_length=200)
+
+
+def _vector_github_api(method: str, path: str, token: str, payload=None):
+    """Small authenticated GitHub REST helper for the repository file drawer."""
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "User-Agent": "Vector-AI",
+        "X-GitHub-Api-Version": "2022-11-28",
+        "Authorization": "Bearer " + token,
+    }
+    data = None
+    if payload is not None:
+        data = json.dumps(payload).encode("utf-8")
+        headers["Content-Type"] = "application/json"
+    req = urllib.request.Request(
+        "https://api.github.com" + path, data=data, headers=headers, method=method
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=30) as response:
+            raw = response.read().decode("utf-8")
+            return json.loads(raw) if raw.strip() else {}
+    except urllib.error.HTTPError as error:
+        detail = error.read().decode("utf-8", errors="replace")
+        try:
+            detail = json.loads(detail).get("message", detail)
+        except Exception:
+            pass
+        raise RuntimeError("GitHub API " + str(error.code) + ": " + str(detail)[:350])
+    except Exception as error:
+        raise RuntimeError("Could not reach GitHub: " + str(error))
+
+
+def _vector_github_validate(repo: str, path: str):
+    if not re.match(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$", repo or ""):
+        raise ValueError("Repo must be owner/repo.")
+    clean = (path or "").strip().replace("\\", "/")
+    parts = clean.split("/")
+    if (not clean or clean.startswith("/") or any(p in ("", ".", "..") for p in parts)
+            or any(ord(ch) < 32 for ch in clean)):
+        raise ValueError("Choose a valid file path inside the repository.")
+    return urllib.parse.quote(clean, safe="/")
+
+
+def _vector_github_session(request: Request):
+    token = _gh_edit_token(request)
+    if not token:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=401, detail={"message": "Sign in with GitHub first."})
+    return token
+
+
+@app.post("/api/github/upload")
+async def github_upload_file(request: Request, body: GitHubUploadRequest):
+    """Upload a new binary or text file using GitHub's Contents API."""
+    from fastapi import HTTPException
+    token = _vector_github_session(request)
+    try:
+        repo = (body.repo or "").strip()
+        encoded_path = _vector_github_validate(repo, body.path)
+        if not body.content_base64:
+            raise ValueError("The selected file is empty or could not be encoded.")
+        try:
+            raw = base64.b64decode(body.content_base64, validate=True)
+        except Exception:
+            raise ValueError("The uploaded file data is invalid.")
+        if len(raw) > 8 * 1024 * 1024:
+            raise ValueError("Files must be 8 MB or smaller.")
+        # Verify repository access and use its actual default branch.
+        repo_info = _vector_github_api("GET", "/repos/" + repo, token)
+        branch = repo_info.get("default_branch") or "main"
+        file_api_path = "/repos/" + repo + "/contents/" + encoded_path
+        existing_sha = None
+        try:
+            existing = _vector_github_api(
+                "GET", file_api_path + "?ref=" + urllib.parse.quote(branch, safe="")
+                , token
+            )
+            existing_sha = existing.get("sha")
+        except RuntimeError as error:
+            if "API 404" not in str(error):
+                raise
+        payload = {
+            "message": (body.message or ("Upload " + body.path))[:200],
+            "content": base64.b64encode(raw).decode("ascii"),
+            "branch": branch,
+        }
+        if existing_sha:
+            payload["sha"] = existing_sha
+        result = _vector_github_api("PUT", file_api_path, token, payload)
+        content_info = result.get("content") or {}
+        return {
+            "status": "success",
+            "message": "Uploaded " + body.path + " to " + repo + ".",
+            "path": body.path,
+            "repo": repo,
+            "url": content_info.get("html_url") or ("https://github.com/" + repo + "/blob/" + branch + "/" + body.path),
+            "commit": (result.get("commit") or {}).get("sha", "")[:8],
+        }
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail={"message": str(error)})
+    except RuntimeError as error:
+        message = str(error)
+        code = 403 if "API 403" in message else (404 if "API 404" in message else 502)
+        raise HTTPException(status_code=code, detail={"message": message})
+
+
+@app.get("/api/github/tree")
+async def github_repo_tree(request: Request, repo: str = ""):
+    from fastapi import HTTPException
+    token = _vector_github_session(request)
+    try:
+        _vector_github_validate(repo, "placeholder.txt")
+        info = _vector_github_api("GET", "/repos/" + repo, token)
+        branch = info.get("default_branch") or "main"
+        tree = _vector_github_api(
+            "GET", "/repos/" + repo + "/git/trees/" + urllib.parse.quote(branch, safe="") + "?recursive=1",
+            token
+        )
+        files = [
+            {"path": item.get("path", ""), "size": int(item.get("size") or 0)}
+            for item in (tree.get("tree") or [])
+            if item.get("type") == "blob" and item.get("path")
+        ]
+        return {"status": "success", "files": files[:5000]}
+    except Exception as error:
+        raise HTTPException(status_code=502, detail={"message": str(error)})
+
+
+@app.get("/api/github/file")
+async def github_read_file(request: Request, repo: str = "", path: str = ""):
+    from fastapi import HTTPException
+    token = _vector_github_session(request)
+    try:
+        encoded_path = _vector_github_validate(repo, path)
+        info = _vector_github_api("GET", "/repos/" + repo, token)
+        branch = info.get("default_branch") or "main"
+        item = _vector_github_api(
+            "GET", "/repos/" + repo + "/contents/" + encoded_path + "?ref=" + urllib.parse.quote(branch, safe=""),
+            token
+        )
+        if item.get("type") != "file":
+            raise ValueError("The selected path is not a file.")
+        raw = base64.b64decode((item.get("content") or "").encode("ascii"))
+        try:
+            content = raw.decode("utf-8")
+        except UnicodeDecodeError:
+            raise ValueError("This file is binary and cannot be opened in the text editor.")
+        return {"status": "success", "content": content, "sha": item.get("sha")}
+    except Exception as error:
+        raise HTTPException(status_code=400, detail={"message": str(error)})
+
+
+@app.post("/api/github/save")
+async def github_save_file(request: Request, body: GitHubSaveRequest):
+    from fastapi import HTTPException
+    token = _vector_github_session(request)
+    try:
+        repo = (body.repo or "").strip()
+        encoded_path = _vector_github_validate(repo, body.path)
+        info = _vector_github_api("GET", "/repos/" + repo, token)
+        branch = info.get("default_branch") or "main"
+        api_path = "/repos/" + repo + "/contents/" + encoded_path
+        old = _vector_github_api(
+            "GET", api_path + "?ref=" + urllib.parse.quote(branch, safe=""), token
+        )
+        payload = {
+            "message": (body.message or ("Update " + body.path))[:200],
+            "content": base64.b64encode((body.content or "").encode("utf-8")).decode("ascii"),
+            "branch": branch,
+            "sha": old.get("sha"),
+        }
+        result = _vector_github_api("PUT", api_path, token, payload)
+        content_info = result.get("content") or {}
+        return {
+            "status": "success", "path": body.path, "repo": repo,
+            "url": content_info.get("html_url") or ("https://github.com/" + repo + "/blob/" + branch + "/" + body.path),
+            "commit": (result.get("commit") or {}).get("sha", "")[:8],
+        }
+    except Exception as error:
+        raise HTTPException(status_code=400, detail={"message": str(error)})
+
+
 class GitHubEditRequest(BaseModel):
     path: str = Field(default="", max_length=400)
     instruction: str = Field(default="", max_length=4000)
