@@ -778,7 +778,7 @@ def generate_ai_response(
     include_github_tool: bool = True,
     github_token: str = "",
 ):
-    contents: Any = prompt
+    contents: Any = [types.Content(role="user", parts=[types.Part.from_text(text=prompt)])]
     if images:
         parts = [types.Part.from_text(text=prompt)]
         for image in images:
@@ -940,6 +940,21 @@ def generate_ai_response(
                             ),
                         ),
                         types.FunctionDeclaration(
+                            name="github_read_file",
+                            description=(
+                                "Read the text contents of a file from a repository the signed-in user can access. "
+                                "Use this before answering questions about a specific source file."
+                            ),
+                            parameters=types.Schema(
+                                type="object",
+                                properties={
+                                    "repo": types.Schema(type="string", description="Repository in owner/name format."),
+                                    "path": types.Schema(type="string", description="File path inside the repository."),
+                                },
+                                required=["repo", "path"],
+                            ),
+                        ),
+                        types.FunctionDeclaration(
                             name="github_check_repository",
                             description=(
                                 "Check whether a repository exists and whether the signed-in user's GitHub token can access it. "
@@ -1021,14 +1036,35 @@ def generate_ai_response(
                 if fc is None:
                     continue
                 call_name = getattr(fc, "name", "") or ""
-                if call_name not in ("github_edit_file", "github_create_repo", "github_list_repositories", "github_check_repository", "github_list_files", "github_write_file"):
+                if call_name not in ("github_edit_file", "github_create_repo", "github_list_repositories", "github_check_repository", "github_list_files", "github_write_file", "github_read_file"):
                     continue
                 call_args = getattr(fc, "args", {}) or {}
-                if call_name in ("github_list_repositories", "github_check_repository", "github_list_files", "github_write_file"):
+                if call_name in ("github_list_repositories", "github_check_repository", "github_list_files", "github_write_file", "github_read_file"):
                     try:
                         if not github_token:
                             raise RuntimeError("GitHub is not connected to this chat. Reconnect GitHub and try again.")
-                        if call_name == "github_write_file":
+                        if call_name == "github_read_file":
+                            repo_name = str(call_args.get("repo") or "").strip()
+                            file_path = str(call_args.get("path") or "").strip()
+                            encoded_path = _vector_github_validate(repo_name, file_path)
+                            info = _vector_github_api("GET", "/repos/" + repo_name, github_token)
+                            branch_name = info.get("default_branch") or "main"
+                            item = _vector_github_api(
+                                "GET", "/repos/" + repo_name + "/contents/" + encoded_path
+                                + "?ref=" + urllib.parse.quote(branch_name, safe=""),
+                                github_token,
+                            )
+                            if item.get("type") != "file":
+                                raise ValueError("The selected path is not a file.")
+                            raw_file = base64.b64decode((item.get("content") or "").encode("ascii"))
+                            try:
+                                file_text = raw_file.decode("utf-8")
+                            except UnicodeDecodeError:
+                                raise ValueError("This is a binary file and cannot be read as text.")
+                            if len(file_text) > 50000:
+                                file_text = file_text[:50000] + "\n[File content truncated at 50,000 characters.]"
+                            tool_result = {"status": "success", "repo": repo_name, "path": file_path, "content": file_text}
+                        elif call_name == "github_write_file":
                             repo_name = str(call_args.get("repo") or "").strip()
                             file_path = str(call_args.get("path") or "").strip()
                             encoded_path = _vector_github_validate(repo_name, file_path)
@@ -1121,10 +1157,17 @@ def generate_ai_response(
                     continue
                 if call_name == "github_create_repo":
                     try:
-                        create_result = _run_github_create_repo_followup(
-                            request=request,
-                            call_args=call_args,
-                        )
+                        if not github_token:
+                            raise RuntimeError("GitHub is not connected to this chat. Reconnect GitHub and try again.")
+                        create_payload = {
+                            "name": str(call_args.get("name") or "").strip(),
+                            "description": str(call_args.get("description") or "")[:350],
+                            "private": bool(call_args.get("private", False)),
+                            "auto_init": True,
+                        }
+                        created = _vector_github_api("POST", "/user/repos", github_token, create_payload)
+                        create_result = {"status": "success", "name": created.get("name"),
+                                         "html_url": created.get("html_url")}
                         tool_results_parts.append(
                             types.Part(
                                 function_response=types.FunctionResponse(
@@ -1198,10 +1241,22 @@ def generate_ai_response(
                     parts=tool_results_parts,
                 )
             ]
+            # Gemini requires the model's function-call turn before the tool
+            # response. Preserve that turn so authenticated tools can complete.
+            model_tool_turns = []
+            for candidate in candidates:
+                candidate_content = getattr(candidate, "content", None)
+                if candidate_content and any(
+                    getattr(getattr(part, "function_call", None), "name", "") in
+                    ("github_edit_file", "github_create_repo", "github_list_repositories",
+                     "github_check_repository", "github_list_files", "github_write_file", "github_read_file")
+                    for part in (getattr(candidate_content, "parts", None) or [])
+                ):
+                    model_tool_turns.append(candidate_content)
             try:
                 response = client.models.generate_content(
                     model=model_name,
-                    contents=contents + followup_contents,
+                    contents=contents + model_tool_turns + followup_contents,
                     config=config,
                 )
             except Exception as followup_error:
