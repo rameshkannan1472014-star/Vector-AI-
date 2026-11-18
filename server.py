@@ -1013,7 +1013,7 @@ def generate_ai_response(
     # Render worker never hangs indefinitely when the Gemini API is slow.
     _gemini_timeout_seconds = 45
     with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-        future = executor.submit(generate, client)
+        future = executor.submit(run_with_gemini_failover, generate)
         try:
             result = future.result(timeout=_gemini_timeout_seconds)
             response = result
