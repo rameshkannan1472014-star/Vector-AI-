@@ -1008,6 +1008,9 @@ def generate_ai_response(
                 logger.warning("Gemini model %s failed; trying next model if any.", model_name)
         if response is None:
             raise last_error
+        # Return the exact request context so the outer GitHub tool handler can
+        # submit Gemini's function responses using the same client and config.
+        return response, client, config, model_name
 
     # Hard timeout: run the Gemini call in a thread with a strict time limit so the
     # Render worker never hangs indefinitely when the Gemini API is slow.
@@ -1016,7 +1019,7 @@ def generate_ai_response(
         future = executor.submit(run_with_gemini_failover, generate)
         try:
             result = future.result(timeout=_gemini_timeout_seconds)
-            response = result
+            response, client, config, model_name = result
         except concurrent.futures.TimeoutError:
             logger.warning("Gemini call timed out after %ss; treating as capacity error.", _gemini_timeout_seconds)
             raise RuntimeError("Gemini timed out.") from None
