@@ -272,7 +272,10 @@ HISTORY_MESSAGES = int(os.getenv("HISTORY_MESSAGES", "10"))
 HISTORY_CHARS = int(os.getenv("HISTORY_CHARS", "1200"))
 ENABLE_LIVE_SEARCH = os.getenv("ENABLE_LIVE_SEARCH", "true").strip().lower() != "false"
 GEMINI_FALLBACK_MODELS = [
-    m.strip() for m in os.getenv("GEMINI_FALLBACK_MODELS", "").split(",") if m.strip()
+    m.strip() for m in os.getenv(
+        "GEMINI_FALLBACK_MODELS",
+        "gemini-3.6-flash,gemini-3.5-flash-lite",
+    ).split(",") if m.strip()
 ]
 RATE_LIMIT_PER_MIN = int(os.getenv("RATE_LIMIT_PER_MIN", "20"))
 # Speed: Groq answers in a few seconds, so it is tried first for normal chat when
