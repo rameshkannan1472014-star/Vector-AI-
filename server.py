@@ -679,7 +679,7 @@ def run_with_gemini_failover(operation):
         try:
             client = genai.Client(
                 api_key=keys[index],
-                http_options=types.HttpOptions(timeout=45),
+                http_options=types.HttpOptions(timeout=60_000),
             )
             result = operation(client)
             with _gemini_key_lock:
@@ -715,7 +715,7 @@ def get_gemini_client():
         index = _gemini_active_key_index % len(keys)
     return genai.Client(
         api_key=keys[index],
-        http_options=types.HttpOptions(timeout=45),
+        http_options=types.HttpOptions(timeout=60_000),
     )
 
 
@@ -1014,7 +1014,7 @@ def generate_ai_response(
 
     # Hard timeout: run the Gemini call in a thread with a strict time limit so the
     # Render worker never hangs indefinitely when the Gemini API is slow.
-    _gemini_timeout_seconds = 45
+    _gemini_timeout_seconds = 65
     with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
         future = executor.submit(run_with_gemini_failover, generate)
         try:
