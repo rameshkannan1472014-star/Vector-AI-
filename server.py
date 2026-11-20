@@ -1590,8 +1590,13 @@ async def ask_ai(
         r"\b(upload|push|commit|browse|list|check|open|read)\b.{0,50}\b(file|files|project|code|repo|repository)\b",
         prompt, re.IGNORECASE
     ))
-    if github_intent and github_token:
+    if github_intent:
+        # GitHub actions require Gemini function calling and the signed-in user's
+        # OAuth token. Never route these requests through plain-text providers.
+        if not github_token:
+            raise RuntimeError("GitHub sign-in has expired. Sign in with GitHub again to reconnect.")
         provider = "gemini"
+        include_github_tool = True
 
     if provider == "gemini":
 
@@ -1625,6 +1630,16 @@ async def ask_ai(
                 github_token=github_token,
             )
         except Exception as error:
+            # A GitHub action cannot be completed by the plain-text fallback
+            # providers: they do not execute the authenticated GitHub tools.
+            # Surface the actual Gemini error instead of sending tool requests
+            # to an OpenAI-compatible provider that may reject tool_choice.
+            if github_intent:
+                logger.exception("Gemini GitHub tool request failed; fallback disabled.")
+                raise RuntimeError(
+                    "GitHub AI action failed in Gemini. Your GitHub connection is still available; "
+                    "please retry. Technical detail: " + str(error)[:300]
+                ) from error
             # When every Gemini key/model is out of quota, use DeepSeek or
             # Kimi automatically if their keys are set on the server.
             if images:
