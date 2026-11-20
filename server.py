@@ -1589,18 +1589,18 @@ async def ask_ai(
     # connected. Detect actions only in the actual user message, otherwise the
     # word "GitHub" in that note sends every chat to Gemini.
     user_message_match = re.search(
-        r"User message:\\s*\\n(.*?)\\n\\nAnswer as Engineer AI\\.",
+        r"User message:\s*\n(.*?)\n\nAnswer as Engineer AI\.",
         prompt,
         re.DOTALL,
     )
     intent_text = user_message_match.group(1).strip() if user_message_match else prompt
     # Only authenticated GitHub/repository operations need Gemini tools.
     github_intent = bool(re.search(
-        r"\\b(github|repo|repository|repositories|git\\s*hub)\\b",
+        r"\b(github|repo|repository|repositories|git\s*hub)\b",
         intent_text,
         re.IGNORECASE,
     ) and re.search(
-        r"\\b(list|show|find|check|open|read|browse|upload|push|commit|create|delete|update|edit|connect|connection|sync)\\b",
+        r"\b(list|show|find|check|open|read|browse|upload|push|commit|create|delete|update|edit|connect|connection|sync)\b",
         intent_text,
         re.IGNORECASE,
     ))
