@@ -1585,13 +1585,24 @@ async def ask_ai(
 ):
 
     provider = normalize_provider(provider)
-    # GitHub actions must run through the Gemini function-calling path. Other
-    # providers in this app currently receive plain text only and cannot invoke
-    # the authenticated GitHub tools.
+    # The chat prompt also contains a system note saying whether GitHub is
+    # connected. Detect actions only in the actual user message, otherwise the
+    # word "GitHub" in that note sends every chat to Gemini.
+    user_message_match = re.search(
+        r"User message:\\s*\\n(.*?)\\n\\nAnswer as Engineer AI\\.",
+        prompt,
+        re.DOTALL,
+    )
+    intent_text = user_message_match.group(1).strip() if user_message_match else prompt
+    # Only authenticated GitHub/repository operations need Gemini tools.
     github_intent = bool(re.search(
-        r"\b(github|repo|repository|repositories|git\s*hub)\b|"
-        r"\b(upload|push|commit|browse|list|check|open|read)\b.{0,50}\b(file|files|project|code|repo|repository)\b",
-        prompt, re.IGNORECASE
+        r"\\b(github|repo|repository|repositories|git\\s*hub)\\b",
+        intent_text,
+        re.IGNORECASE,
+    ) and re.search(
+        r"\\b(list|show|find|check|open|read|browse|upload|push|commit|create|delete|update|edit|connect|connection|sync)\\b",
+        intent_text,
+        re.IGNORECASE,
     ))
     if github_intent:
         # GitHub actions require Gemini function calling and the signed-in user's
@@ -1611,7 +1622,6 @@ async def ask_ai(
             and not images
             and os.getenv("GROQ_API_KEY", "").strip()
             and not (ENABLE_LIVE_SEARCH and looks_like_live_search(prompt))
-            and not is_coding_request(prompt)
         ):
             groq_tried = True
             try:
