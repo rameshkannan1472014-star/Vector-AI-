@@ -1274,7 +1274,8 @@ def generate_ai_response(
         # If the user asked to create a repository but Gemini did NOT call the
         # github_create_repo tool (it gave a manual guide instead), intercept and
         # call the tool ourselves. Check tool_results_parts to see if Gemini
-        # already handled it.            _repo_create_request = include_github_tool and _looks_like_repo_create_request(prompt)
+        # already handled it.
+        _repo_create_request = include_github_tool and _looks_like_repo_create_request(prompt)
         logger.info(
             "REPO CHECK: include_github_tool=%s looks_like=%s tool_parts=%s prompt=%r",
             include_github_tool,
