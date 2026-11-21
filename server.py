@@ -1612,6 +1612,18 @@ async def ask_ai(
         provider = "gemini"
         include_github_tool = True
 
+    # Make Groq the single primary text model regardless of the provider
+    # selected in the client. Keep Gemini only for image/live-search requests
+    # and GitHub tool actions, which still use its function-calling adapter.
+    if (
+        not github_intent
+        and PRIMARY_CHAT_PROVIDER == "groq"
+        and os.getenv("GROQ_API_KEY", "").strip()
+        and not images
+        and not (ENABLE_LIVE_SEARCH and looks_like_live_search(prompt))
+    ):
+        provider = "gemini"  # enters the Groq fast path below
+
     if provider == "gemini":
 
         groq_tried = False
@@ -1630,8 +1642,9 @@ async def ask_ai(
                     prompt,
                     max_tokens,
                 )
-            except Exception:
-                logger.exception("Groq fast path failed; falling back to Gemini")
+            except Exception as groq_error:
+                logger.exception("Groq primary request failed; Gemini fallback is disabled for primary text chat.")
+                raise RuntimeError("Groq request failed: " + str(groq_error)[:300]) from groq_error
 
         try:
             return await asyncio.to_thread(
