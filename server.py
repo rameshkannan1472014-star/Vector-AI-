@@ -1596,15 +1596,33 @@ async def ask_ai(
     )
     intent_text = user_message_match.group(1).strip() if user_message_match else prompt
     # Only authenticated GitHub/repository operations need Gemini tools.
-    github_intent = bool(re.search(
-        r"\b(github|repo|repository|repositories|git\s*hub)\b",
-        intent_text,
-        re.IGNORECASE,
-    ) and re.search(
-        r"\b(list|show|find|check|open|read|browse|upload|push|commit|create|delete|update|edit|connect|connection|sync)\b",
-        intent_text,
-        re.IGNORECASE,
-    ))
+    github_intent = bool(
+        (
+            re.search(
+                r"\b(github|repo|repository|repositories|git\s*hub)\b",
+                intent_text,
+                re.IGNORECASE,
+            )
+            and re.search(
+                r"\b(list|show|find|check|open|read|browse|upload|push|commit|create|delete|update|edit|connect|connection|sync)\b",
+                intent_text,
+                re.IGNORECASE,
+            )
+        )
+        # In the GitHub-connected coding app, short file actions such as
+        # "upload files" may omit the word GitHub or repository. Route these
+        # to the authenticated GitHub handler rather than sending them to Groq.
+        or re.search(
+            r"\b(upload|push|commit)\b.{0,100}\b(files?|code|changes?|[a-z0-9_.-]+\.(?:py|js|ts|html|css|json|md|txt))\b",
+            intent_text,
+            re.IGNORECASE,
+        )
+        or re.search(
+            r"\b(create|edit|update|delete)\b.{0,100}\b(file|folder)\b.{0,80}\b(repo|repository|github)\b",
+            intent_text,
+            re.IGNORECASE,
+        )
+    )
     if github_intent:
         # GitHub actions require Gemini function calling and the signed-in user's
         # OAuth token. Never route these requests through plain-text providers.
