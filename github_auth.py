@@ -435,13 +435,22 @@ def install(app: FastAPI, app_title: str = "Vector AI") -> None:
             with urllib.request.urlopen(request_object, timeout=25) as response:
                 raw = response.read().decode("utf-8")
         except urllib.error.HTTPError as error:
+            # Preserve GitHub's safe API message so upload failures can be diagnosed.
+            # Never include request headers or access tokens.
+            try:
+                error_body = json.loads(error.read().decode("utf-8", errors="replace"))
+                github_message = str(error_body.get("message") or "").strip()
+            except Exception:
+                github_message = ""
             if error.code == 401:
                 raise GitHubError(401, "GitHub sign-in has expired. Sign in again to reconnect.")
             if error.code in (403, 429):
-                raise GitHubError(403, "GitHub said no (rate limit or missing permission). Sign in again to grant file access.")
+                raise GitHubError(403, github_message or "GitHub rate limit or permission restriction.")
             if error.code == 404:
-                raise GitHubError(404, "GitHub could not find that repository or file.")
-            raise GitHubError(error.code, "GitHub returned an error (" + str(error.code) + ").")
+                raise GitHubError(404, github_message or "GitHub could not find that repository or file.")
+            if error.code == 400:
+                raise GitHubError(400, github_message or "GitHub rejected the upload request. Check the file path and request format.")
+            raise GitHubError(error.code, github_message or "GitHub returned an error (" + str(error.code) + ").")
         except Exception:
             raise GitHubError(502, "Could not reach GitHub. Try again in a moment.")
         if not raw.strip():
