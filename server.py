@@ -1644,8 +1644,27 @@ async def ask_ai(
                     max_tokens,
                 )
             except Exception as groq_error:
+                error_text = str(groq_error)
+                # Some Groq models may emit a tool-call response even though
+                # ordinary Groq chat is intentionally sent without tools.
+                # GitHub actions must be handled by Gemini's authenticated
+                # function-calling adapter, never by surfacing this Groq 400.
+                if (
+                    github_token
+                    and "tool choice is none" in error_text.lower()
+                    and "called a tool" in error_text.lower()
+                ):
+                    logger.warning("Groq attempted a tool call; rerouting this request to the GitHub tool handler.")
+                    return await asyncio.to_thread(
+                        generate_ai_response,
+                        prompt,
+                        max_tokens,
+                        images,
+                        include_github_tool=True,
+                        github_token=github_token,
+                    )
                 logger.exception("Groq primary request failed; Gemini fallback is disabled for primary text chat.")
-                raise RuntimeError("Groq request failed: " + str(groq_error)[:300]) from groq_error
+                raise RuntimeError("Groq request failed: " + error_text[:300]) from groq_error
 
         try:
             return await asyncio.to_thread(
