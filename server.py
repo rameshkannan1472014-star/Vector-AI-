@@ -2019,6 +2019,42 @@ If the user asks for a diagram, provide a simple diagram when useful.
         if not request.images:
             answer = solve_simple_arithmetic(request.prompt)
 
+        # Fetch repository metadata directly from GitHub, then use Groq to
+        # formulate the answer. This avoids a slow Gemini function-call roundtrip
+        # for the common "show/list my repositories" request.
+        repo_list_request = bool(
+            re.search(r"\\b(github|git\\s*hub|my\\s+repos?|repositories|repo list)\\b", request.prompt, re.IGNORECASE)
+            and re.search(
+                r"\\b(list|show|what\\s+(?:are|is)|which|display|browse)\\b",
+                request.prompt,
+                re.IGNORECASE,
+            )
+            and re.search(r"\\b(repo|repository|repositories)\\b", request.prompt, re.IGNORECASE)
+        )
+        if answer is None and repo_list_request and not request.images:
+            github_token = _current_request_token.get() or ""
+            if not github_token:
+                raise RuntimeError("GitHub is not connected. Sign in with GitHub and try again.")
+            repo_data = await asyncio.to_thread(
+                _vector_github_api,
+                "GET",
+                "/user/repos?per_page=100&sort=updated&visibility=all",
+                github_token,
+            )
+            repo_lines = [
+                f"- {item.get('full_name', item.get('name', 'Unnamed'))} "
+                f"({'private' if item.get('private') else 'public'}): {item.get('html_url', '')}"
+                for item in repo_data
+            ]
+            groq_prompt = (
+                prompt
+                + "\\n\\nVERIFIED GITHUB REPOSITORY DATA (from the connected user's GitHub account):\\n"
+                + ("\\n".join(repo_lines) if repo_lines else "No repositories were returned.")
+                + "\\nUse only this data. Clearly list the repository names and links; do not invent repositories."
+            )
+            answer = await asyncio.to_thread(generate_groq_coding_response, groq_prompt, 1600)
+            provider = "groq"
+
         if answer is None:
             # If the user asked to create a GitHub repository, handle it directly
             # instead of sending it to Gemini (which often ignores the tool and
@@ -2064,7 +2100,7 @@ If the user asks for a diagram, provide a simple diagram when useful.
             "output": answer,
             "message": answer,
             "provider": provider,
-            "model": DEFAULT_MODEL
+            "model": (os.getenv("GROQ_MODEL", "openai/gpt-oss-120b") if provider == "groq" else DEFAULT_MODEL)
         }
 
     except Exception as error:
