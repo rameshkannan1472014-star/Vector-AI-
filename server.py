@@ -2023,13 +2023,13 @@ If the user asks for a diagram, provide a simple diagram when useful.
         # formulate the answer. This avoids a slow Gemini function-call roundtrip
         # for the common "show/list my repositories" request.
         repo_list_request = bool(
-            re.search(r"\\b(github|git\\s*hub|my\\s+repos?|repositories|repo list)\\b", request.prompt, re.IGNORECASE)
+            re.search(r"\b(github|git\s*hub|my\s+repos?|repositories|repo list)\b", request.prompt, re.IGNORECASE)
             and re.search(
-                r"\\b(list|show|what\\s+(?:are|is)|which|display|browse)\\b",
+                r"\b(list|show|what\s+(?:are|is)|which|display|browse)\b",
                 request.prompt,
                 re.IGNORECASE,
             )
-            and re.search(r"\\b(repo|repository|repositories)\\b", request.prompt, re.IGNORECASE)
+            and re.search(r"\b(repo|repository|repositories)\b", request.prompt, re.IGNORECASE)
         )
         if answer is None and repo_list_request and not request.images:
             github_token = _current_request_token.get() or ""
@@ -2048,9 +2048,9 @@ If the user asks for a diagram, provide a simple diagram when useful.
             ]
             groq_prompt = (
                 prompt
-                + "\\n\\nVERIFIED GITHUB REPOSITORY DATA (from the connected user's GitHub account):\\n"
-                + ("\\n".join(repo_lines) if repo_lines else "No repositories were returned.")
-                + "\\nUse only this data. Clearly list the repository names and links; do not invent repositories."
+                + "\n\nVERIFIED GITHUB REPOSITORY DATA (from the connected user's GitHub account):\n"
+                + ("\n".join(repo_lines) if repo_lines else "No repositories were returned.")
+                + "\nUse only this data. Clearly list the repository names and links; do not invent repositories."
             )
             answer = await asyncio.to_thread(generate_groq_coding_response, groq_prompt, 1600)
             provider = "groq"
