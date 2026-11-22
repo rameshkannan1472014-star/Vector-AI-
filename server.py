@@ -1075,7 +1075,9 @@ def generate_ai_response(
                                 file_text = file_text[:50000] + "\n[File content truncated at 50,000 characters.]"
                             tool_result = {"status": "success", "repo": repo_name, "path": file_path, "content": file_text}
                         elif call_name == "github_write_file":
-                            repo_name = str(call_args.get("repo") or "").strip()
+                            repo_name = _vector_github_resolve_repo(
+                                str(call_args.get("repo") or "").strip(), github_token
+                            )
                             file_path = str(call_args.get("path") or "").strip()
                             encoded_path = _vector_github_validate(repo_name, file_path)
                             info = _vector_github_api("GET", "/repos/" + repo_name, github_token)
@@ -1333,7 +1335,14 @@ def generate_ai_response(
             # returns no final prose. Report the real tool result instead of
             # misleading the user with an empty-response error.
             tool_summaries = []
-            for tool_part in tool_results_parts:
+            # If the model made a second-step write call, report that actual
+            # write result instead of the earlier repository-list result.
+            write_result_parts = [
+                part for part in second_tool_parts
+                if getattr(getattr(part, "function_response", None), "name", "") == "github_write_file"
+            ]
+            fallback_parts = write_result_parts or tool_results_parts
+            for tool_part in fallback_parts:
                 function_response = getattr(tool_part, "function_response", None)
                 result_data = getattr(function_response, "response", None) or {}
                 if not isinstance(result_data, dict):
