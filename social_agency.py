@@ -212,7 +212,9 @@ async def social_callback(platform: str, request: Request, code: str = "", state
         form["code_verifier"] = row["verifier"]
     tokens = _json_request(cfg["token"], urllib.parse.urlencode(form).encode(),
                             {"Content-Type":"application/x-www-form-urlencoded"}, "POST")
-    access = tokens.get("access_token") or tokens.get("data",{}).get("access_token")
+    if platform == "tiktok" and isinstance(tokens.get("data"), dict):
+        tokens = {**tokens, **tokens["data"]}
+    access = tokens.get("access_token")
     if not access:
         raise HTTPException(502, "Provider did not return an access token.")
     profile = {}
@@ -308,11 +310,17 @@ async def agency_publish_youtube(request: Request, video: UploadFile = File(...)
     access = _refresh_google(account)
     metadata = json.dumps({"snippet":{"title":title[:100],"description":description[:5000],
                        "categoryId":"28"},"status":{"privacyStatus":privacy}}).encode()
-    init = _json_request("https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status",
-        metadata, {"Authorization":"Bearer "+access,"Content-Type":"application/json; charset=UTF-8",
-                   "X-Upload-Content-Type":video.content_type or "video/mp4",
-                   "X-Upload-Content-Length":str(len(content))}, "POST")
-    upload_url = init.get("uploadUrl")
+    init_req = urllib.request.Request(
+        "https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status",
+        data=metadata,
+        headers={"Authorization":"Bearer "+access,"Content-Type":"application/json; charset=UTF-8",
+                "X-Upload-Content-Type":video.content_type or "video/mp4",
+                "X-Upload-Content-Length":str(len(content))}, method="POST")
+    try:
+        with urllib.request.urlopen(init_req, timeout=30) as init_response:
+            upload_url = init_response.headers.get("Location")
+    except urllib.error.HTTPError as exc:
+        raise HTTPException(exc.code,"YouTube upload initialization failed: "+exc.read().decode(errors="replace")[:1000])
     if not upload_url:
         raise HTTPException(502, "YouTube did not return a resumable upload URL.")
     req = urllib.request.Request(upload_url,data=content,headers={"Content-Type":video.content_type or "video/mp4",
