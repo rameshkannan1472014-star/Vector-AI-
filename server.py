@@ -1268,6 +1268,59 @@ def generate_ai_response(
             except Exception as followup_error:
                 logger.exception("Gemini follow-up after tool call failed")
                 raise followup_error
+            # Some GitHub tasks need two tool steps: list repos, then write.
+            # Execute the model\'s next github_write_file call instead of
+            # returning a misleading repository-count summary.
+            second_tool_parts = []
+            second_tool_turns = []
+            for followup_candidate in getattr(response, "candidates", None) or []:
+                followup_content = getattr(followup_candidate, "content", None)
+                if not followup_content:
+                    continue
+                for followup_part in getattr(followup_content, "parts", None) or []:
+                    followup_call = getattr(followup_part, "function_call", None)
+                    if not followup_call or getattr(followup_call, "name", "") != "github_write_file":
+                        continue
+                    second_tool_turns.append(followup_content)
+                    args = getattr(followup_call, "args", {}) or {}
+                    try:
+                        if not github_token:
+                            raise RuntimeError("GitHub is not connected to this chat.")
+                        repo_name = str(args.get("repo") or "").strip()
+                        file_path = str(args.get("path") or "").strip()
+                        encoded_path = _vector_github_validate(repo_name, file_path)
+                        repo_info = _vector_github_api("GET", "/repos/" + repo_name, github_token)
+                        branch_name = repo_info.get("default_branch") or "main"
+                        api_path = "/repos/" + repo_name + "/contents/" + encoded_path
+                        existing_sha = None
+                        try:
+                            existing_file = _vector_github_api("GET", api_path + "?ref=" + urllib.parse.quote(branch_name, safe=""), github_token)
+                            existing_sha = existing_file.get("sha")
+                        except RuntimeError as lookup_error:
+                            if "API 404" not in str(lookup_error):
+                                raise
+                        payload = {
+                            "message": str(args.get("message") or ("Add " + file_path))[:200],
+                            "content": base64.b64encode(str(args.get("content") or "").encode("utf-8")).decode("ascii"),
+                            "branch": branch_name,
+                        }
+                        if existing_sha:
+                            payload["sha"] = existing_sha
+                        written = _vector_github_api("PUT", api_path, github_token, payload)
+                        written_file = written.get("content") or {}
+                        tool_result = {"status": "success", "repo": repo_name, "path": file_path,
+                            "url": written_file.get("html_url") or ("https://github.com/" + repo_name + "/blob/" + branch_name + "/" + file_path),
+                            "commit": (written.get("commit") or {}).get("sha", "")[:8]}
+                    except Exception as write_error:
+                        tool_result = {"status": "error", "message": str(write_error)}
+                    second_tool_parts.append(types.Part(function_response=types.FunctionResponse(name="github_write_file", response=tool_result)))
+            if second_tool_parts:
+                # Preserve the model function-call turn before its results.
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=contents + second_tool_turns + [types.Content(role="user", parts=second_tool_parts)],
+                    config=config,
+                )
         text = getattr(response, "text", None)
         if not text and tool_results_parts:
             # The GitHub operation may already have succeeded even if Gemini
