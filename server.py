@@ -305,6 +305,10 @@ app = FastAPI(
     description="Engineering AI backend"
 )
 
+# Growth Agency social publishing routes (LinkedIn, YouTube, TikTok).
+from social_agency import router as social_agency_router
+app.include_router(social_agency_router)
+
 
 # ============================================================
 # CORS
