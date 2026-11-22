@@ -2424,136 +2424,99 @@ def _gh_edit_token(request: Request):
 
 
 def _gh_commit_edit(repo, path, content, message, token):
-    """Commit content to a GitHub repo file. Returns a dict result."""
-    import urllib.request
+    """Create or update a text file through GitHub's Contents API.
 
-    def call(method, url, payload=None):
-        data = None
-        headers = {
-            "Accept": "application/vnd.github+json",
-            "User-Agent": "vector-ai",
-            "X-GitHub-Api-Version": "2022-11-28",
-            "Authorization": "Bearer " + token,
-        }
-        if payload is not None:
-            data = json.dumps(payload).encode("utf-8")
-            headers["Content-Type"] = "application/json"
-        req = urllib.request.Request(url, data=data, headers=headers, method=method)
-        try:
-            with urllib.request.urlopen(req, timeout=25) as response:
-                raw = response.read().decode("utf-8")
-        except urllib.error.HTTPError as error:
-            body = error.read().decode("utf-8", errors="replace")[:300]
-            raise RuntimeError(
-                "GitHub " + method + " " + url + " HTTP " + str(error.code) + ": " + body
-            )
-        except Exception as error:
-            raise RuntimeError("GitHub " + method + " " + url + " failed: " + str(error))
-        if not raw.strip():
-            return {}
-        try:
-            return json.loads(raw)
-        except ValueError:
-            raise RuntimeError("GitHub returned unreadable JSON")
+    The previous implementation manually built Git blobs/trees/commits and
+    attempted to PATCH the branches endpoint. That used a file blob SHA as a
+    tree/commit SHA and encoded path slashes, which can cause GitHub API 404s.
+    Contents API handles create/update safely using the current file SHA.
+    """
+    repo = (repo or "").strip()
+    if not re.match(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$", repo):
+        raise RuntimeError("Repository must be in owner/name format.")
 
-    owner, _, repo_name = repo.partition("/")
-    if not owner or not repo_name:
-        raise RuntimeError("Invalid repo '" + repo + "' (need owner/repo)")
+    clean_path = (path or "").strip().replace("\\", "/")
+    parts = clean_path.split("/")
+    if (not clean_path or clean_path.startswith("/") or
+            any(part in ("", ".", "..") for part in parts) or
+            any(ord(ch) < 32 for ch in clean_path)):
+        raise RuntimeError("Choose a valid file path inside the repository.")
 
-    encoded_path = path.replace("/", "%2F")
-    file_url = "https://api.github.com/repos/" + repo + "/contents/" + encoded_path
-
-    existing = call("GET", file_url)
-    sha = existing.get("sha") if isinstance(existing, dict) else None
-    default_branch = existing.get("default_branch") if isinstance(existing, dict) else None
-    if default_branch is None:
-        default_branch = "main"
-
-    new_blob = None
-    if sha:
-        old_b64 = existing.get("content") or ""
-        try:
-            old_content = base64.b64decode(old_b64).decode("utf-8")
-        except Exception:
-            old_content = ""
-        if old_content == content:
-            return {
-                "status": "success",
-                "message": "No changes. The file already matches.",
-                "url": file_url,
-                "committed": False,
-            }
-        blob = call(
-            "PUT",
-            "https://api.github.com/repos/" + repo + "/git/blobs",
-            {
-                "content": base64.b64encode(content.encode("utf-8")).decode("ascii"),
-                "encoding": "utf-8",
-            },
-        )
-        new_blob = blob.get("sha")
-    else:
-        blob = call(
-            "PUT",
-            "https://api.github.com/repos/" + repo + "/git/blobs",
-            {
-                "content": base64.b64encode(content.encode("utf-8")).decode("ascii"),
-                "encoding": "utf-8",
-            },
-        )
-        new_blob = blob.get("sha")
-
-    if not new_blob:
-        raise RuntimeError("GitHub did not return a blob sha")
-
-    encoded_tree_path = path.replace("/", "%2F")
-    tree_url = "https://api.github.com/repos/" + repo + "/git/trees"
-    tree = call(
-        "POST",
-        tree_url,
-        {
-            "base_tree": (sha or default_branch),
-            "tree": [
-                {
-                    "path": encoded_tree_path,
-                    "mode": "100644",
-                    "type": "blob",
-                    "sha": new_blob,
-                }
-            ],
-        },
-    )
-    new_tree = tree.get("sha")
-    if not new_tree:
-        raise RuntimeError("GitHub did not return a tree sha")
-
-    commit = call(
-        "POST",
-        "https://api.github.com/repos/" + repo + "/git/commits",
-        {
-            "message": message,
-            "tree": new_tree,
-            "parents": ([sha] if sha else []),
-        },
-    )
-    new_commit_sha = commit.get("sha")
-    if not new_commit_sha:
-        raise RuntimeError("GitHub did not return a commit sha")
-
-    call(
-        "PATCH",
-        "https://api.github.com/repos/" + repo + "/branches/main",
-        {"sha": new_commit_sha, "force": False},
-    )
-
-    return {
-        "status": "success",
-        "message": "Committed " + str(len(content)) + " bytes to " + repo + "/" + path,
-        "url": "https://github.com/" + repo + "/blob/" + new_commit_sha[:8] + "/" + path,
-        "committed": True,
-        "commit": new_commit_sha[:8],
+    encoded_path = urllib.parse.quote(clean_path, safe="/")
+    api_root = "https://api.github.com/repos/" + repo
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "User-Agent": "Vector-AI",
+        "X-GitHub-Api-Version": "2022-11-28",
+        "Authorization": "Bearer " + str(token or "").strip(),
     }
 
+    def call(method, endpoint, payload=None):
+        data = json.dumps(payload).encode("utf-8") if payload is not None else None
+        request_headers = dict(headers)
+        if data is not None:
+            request_headers["Content-Type"] = "application/json"
+        req = urllib.request.Request(
+            "https://api.github.com" + endpoint,
+            data=data,
+            headers=request_headers,
+            method=method,
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=30) as response:
+                raw = response.read().decode("utf-8")
+                return json.loads(raw) if raw.strip() else {}
+        except urllib.error.HTTPError as error:
+            body = error.read().decode("utf-8", errors="replace")
+            try:
+                body = json.loads(body).get("message", body)
+            except Exception:
+                pass
+            raise RuntimeError(
+                "GitHub API " + method + " " + endpoint + " returned HTTP "
+                + str(error.code) + ": " + str(body)[:250]
+            ) from error
+        except Exception as error:
+            raise RuntimeError(
+                "GitHub API " + method + " " + endpoint + " failed: "
+                + str(error)[:250]
+            ) from error
+
+    # Confirm the repository first and use its actual default branch.
+    repo_info = call("GET", "/repos/" + repo)
+    branch = repo_info.get("default_branch") or "main"
+    contents_endpoint = "/repos/" + repo + "/contents/" + encoded_path
+    existing_sha = None
+    try:
+        existing = call(
+            "GET",
+            contents_endpoint + "?ref=" + urllib.parse.quote(branch, safe=""),
+        )
+        existing_sha = existing.get("sha")
+    except RuntimeError as lookup_error:
+        if "returned HTTP 404" not in str(lookup_error):
+            raise
+
+    payload = {
+        "message": (message or ("Update " + clean_path))[:200],
+        "content": base64.b64encode(str(content or "").encode("utf-8")).decode("ascii"),
+        "branch": branch,
+    }
+    if existing_sha:
+        payload["sha"] = existing_sha
+
+    result = call("PUT", contents_endpoint, payload)
+    file_info = result.get("content") or {}
+    commit_info = result.get("commit") or {}
+    return {
+        "status": "success",
+        "message": ("Updated " if existing_sha else "Created ")
+            + repo + "/" + clean_path,
+        "url": file_info.get("html_url")
+            or ("https://github.com/" + repo + "/blob/" + branch + "/" + clean_path),
+        "committed": True,
+        "commit": str(commit_info.get("sha") or "")[:8],
+    }
 
 class GitHubUploadRequest(BaseModel):
     repo: str = Field(default="", max_length=200)
