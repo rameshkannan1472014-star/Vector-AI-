@@ -105,7 +105,7 @@ PROVIDER_CONFIGS = {
     },
 }
 
-SUPPORTED_PROVIDERS = ["gemini", "deepseek", "kimi"]
+SUPPORTED_PROVIDERS = ["groq", "gemini", "deepseek", "kimi"]
 
 MAX_PROMPT_CHARS = 24000
 
@@ -455,7 +455,7 @@ class ChatRequest(BaseModel):
         max_length=MAX_CHAT_PROMPT_CHARS
     )
 
-    provider: Optional[str] = "gemini"
+    provider: Optional[str] = "groq"
 
     history: list[dict[str, str]] = Field(
         default_factory=list,
@@ -1520,7 +1520,7 @@ def generate_openai_compatible_response(
 
 def normalize_provider(provider: Optional[str]) -> str:
 
-    provider = (provider or "gemini").strip().lower()
+    provider = (provider or "groq").strip().lower()
 
     if provider not in SUPPORTED_PROVIDERS:
 
@@ -1670,6 +1670,101 @@ def solve_simple_arithmetic(prompt: str) -> Optional[str]:
     return answer
 
 
+
+def generate_groq_github_response(prompt: str, github_token: str, max_tokens: int = 1800) -> str:
+    """Use Groq tool-calling for connected GitHub actions; no Gemini dependency."""
+    api_key = os.getenv("GROQ_API_KEY", "").strip()
+    if not api_key:
+        raise RuntimeError("GROQ_API_KEY is not configured on Render.")
+    if not github_token:
+        raise RuntimeError("GitHub is not connected. Sign in with GitHub and try again.")
+    client = OpenAICompatibleClient(
+        api_key=api_key,
+        base_url="https://api.groq.com/openai/v1",
+        timeout=60,
+        max_retries=0,
+    )
+    model = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b").strip()
+    tools = [
+        {"type":"function","function":{"name":"github_list_repositories","description":"List the signed-in user's GitHub repositories. Call this when asked to list or choose a repository.","parameters":{"type":"object","properties":{"visibility":{"type":"string","enum":["all","public","private"]}}}}},
+        {"type":"function","function":{"name":"github_write_file","description":"Actually create or upload/replace a text file in the user's GitHub repository. You MUST call this to perform an upload, never just provide code in chat. Resolve a short repo name using the list tool first.","parameters":{"type":"object","properties":{"repo":{"type":"string","description":"Repository name or owner/name"},"path":{"type":"string","description":"Destination path including filename"},"content":{"type":"string","description":"Complete file content"},"message":{"type":"string","description":"Commit message"}},"required":["repo","path","content"]}}},
+        {"type":"function","function":{"name":"github_read_file","description":"Read a text file from a repository.","parameters":{"type":"object","properties":{"repo":{"type":"string"},"path":{"type":"string"}},"required":["repo","path"]}}},
+        {"type":"function","function":{"name":"github_check_repository","description":"Check whether a repository exists and is accessible.","parameters":{"type":"object","properties":{"repo":{"type":"string"}},"required":["repo"]}}},
+        {"type":"function","function":{"name":"github_list_files","description":"List files in a repository or folder.","parameters":{"type":"object","properties":{"repo":{"type":"string"},"path":{"type":"string"}},"required":["repo"]}}},
+        {"type":"function","function":{"name":"github_create_repo","description":"Create a GitHub repository for the signed-in user.","parameters":{"type":"object","properties":{"name":{"type":"string"},"description":{"type":"string"},"private":{"type":"boolean"}},"required":["name"]}}},
+    ]
+    messages = [
+        {"role":"system","content":SYSTEM_INSTRUCTION + "\nFor GitHub requests, use the provided tools to perform the action. Never claim an operation succeeded unless its tool result says status success. For file upload, list repositories first if only a short repository name is given, then call github_write_file. Use the exact intended repository."},
+        {"role":"user","content":prompt},
+    ]
+    for _ in range(6):
+        extra = {"max_completion_tokens":max_tokens} if "gpt-oss" in model else {"max_tokens":max_tokens}
+        response = client.chat.completions.create(
+            model=model, messages=messages, tools=tools, tool_choice="auto",
+            temperature=0.1, **extra
+        )
+        message = response.choices[0].message
+        calls = message.tool_calls or []
+        if not calls:
+            return (message.content or "").strip() or "Groq returned no text."
+        messages.append(message.model_dump(exclude_none=True))
+        for call in calls:
+            name = call.function.name
+            try:
+                args = json.loads(call.function.arguments or "{}")
+                if name == "github_list_repositories":
+                    visibility = args.get("visibility") or "all"
+                    suffix = "" if visibility == "all" else "&visibility=" + urllib.parse.quote(visibility)
+                    data = _vector_github_api("GET", "/user/repos?per_page=100&sort=updated" + suffix, github_token)
+                    result = {"status":"success","repositories":[{"name":x.get("name"),"full_name":x.get("full_name"),"private":x.get("private"),"html_url":x.get("html_url")} for x in data]}
+                elif name in ("github_write_file","github_read_file","github_check_repository","github_list_files"):
+                    repo_name = _vector_github_resolve_repo(str(args.get("repo") or ""), github_token)
+                    if name == "github_check_repository":
+                        info = _vector_github_api("GET","/repos/"+repo_name,github_token)
+                        result = {"status":"success","repository":info.get("full_name"),"private":info.get("private"),"html_url":info.get("html_url")}
+                    elif name == "github_write_file":
+                        path = str(args.get("path") or "").strip()
+                        encoded = _vector_github_validate(repo_name,path)
+                        info = _vector_github_api("GET","/repos/"+repo_name,github_token)
+                        branch = info.get("default_branch") or "main"
+                        api_path = "/repos/"+repo_name+"/contents/"+encoded
+                        old_sha = None
+                        try:
+                            old = _vector_github_api("GET",api_path+"?ref="+urllib.parse.quote(branch,safe=""),github_token)
+                            old_sha = old.get("sha")
+                        except RuntimeError as lookup_error:
+                            if "API 404" not in str(lookup_error): raise
+                        payload = {"message":str(args.get("message") or ("Add "+path))[:200],"content":base64.b64encode(str(args.get("content") or "").encode("utf-8")).decode("ascii"),"branch":branch}
+                        if old_sha: payload["sha"] = old_sha
+                        written = _vector_github_api("PUT",api_path,github_token,payload)
+                        item = written.get("content") or {}
+                        result = {"status":"success","repo":repo_name,"path":path,"url":item.get("html_url"),"commit":(written.get("commit") or {}).get("sha","")[:8]}
+                    elif name == "github_read_file":
+                        path = str(args.get("path") or "").strip()
+                        encoded = _vector_github_validate(repo_name,path)
+                        info = _vector_github_api("GET","/repos/"+repo_name,github_token)
+                        branch = info.get("default_branch") or "main"
+                        item = _vector_github_api("GET","/repos/"+repo_name+"/contents/"+encoded+"?ref="+urllib.parse.quote(branch,safe=""),github_token)
+                        raw = base64.b64decode((item.get("content") or "").encode("ascii"))
+                        result = {"status":"success","repo":repo_name,"path":path,"content":raw.decode("utf-8")[:30000]}
+                    else:
+                        folder = str(args.get("path") or "").strip()
+                        info = _vector_github_api("GET","/repos/"+repo_name,github_token)
+                        branch = info.get("default_branch") or "main"
+                        api_path = "/repos/"+repo_name+"/contents"+("/"+urllib.parse.quote(folder,safe="/") if folder else "")
+                        items = _vector_github_api("GET",api_path+"?ref="+urllib.parse.quote(branch,safe=""),github_token)
+                        if isinstance(items,dict): items=[items]
+                        result = {"status":"success","repo":repo_name,"path":folder or "/","files":[{"name":x.get("name"),"path":x.get("path"),"type":x.get("type")} for x in items]}
+                elif name == "github_create_repo":
+                    created = _vector_github_api("POST","/user/repos",github_token,{"name":str(args.get("name") or "").strip(),"description":str(args.get("description") or "")[:350],"private":bool(args.get("private",False)),"auto_init":True})
+                    result = {"status":"success","name":created.get("name"),"html_url":created.get("html_url")}
+                else:
+                    result = {"status":"error","message":"Unsupported GitHub tool: "+name}
+            except Exception as tool_error:
+                result = {"status":"error","message":str(tool_error)[:500]}
+            messages.append({"role":"tool","tool_call_id":call.id,"content":json.dumps(result,ensure_ascii=False)})
+    raise RuntimeError("Groq GitHub tool loop exceeded its 6-step limit.")
+
 async def ask_ai(
     prompt: str,
     max_tokens: int = 1500,
@@ -1718,12 +1813,13 @@ async def ask_ai(
         )
     )
     if github_intent:
-        # GitHub actions require Gemini function calling and the signed-in user's
-        # OAuth token. Never route these requests through plain-text providers.
+        # Connected GitHub actions use Groq's OpenAI-compatible tool calling.
+        # This keeps repo listing, file writes, reads and repo creation off Gemini.
         if not github_token:
             raise RuntimeError("GitHub sign-in has expired. Sign in with GitHub again to reconnect.")
-        provider = "gemini"
-        include_github_tool = True
+        return await asyncio.to_thread(
+            generate_groq_github_response, prompt, github_token, max_tokens
+        )
 
     # Make Groq the single primary text model regardless of the provider
     # selected in the client. Keep Gemini only for image/live-search requests
