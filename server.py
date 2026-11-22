@@ -1707,8 +1707,22 @@ async def ask_ai(
                         include_github_tool=True,
                         github_token=github_token,
                     )
-                logger.exception("Groq primary request failed; Gemini fallback is disabled for primary text chat.")
-                raise RuntimeError("Groq request failed: " + error_text[:300]) from groq_error
+                logger.warning("Groq primary request failed; trying Gemini fallback: %s", error_text[:300])
+                try:
+                    return await asyncio.to_thread(
+                        generate_ai_response,
+                        prompt,
+                        max_tokens,
+                        images,
+                        include_github_tool=False,
+                        github_token=github_token,
+                    )
+                except Exception as gemini_error:
+                    logger.exception("Gemini fallback also failed after Groq error.")
+                    raise RuntimeError(
+                        "Both primary Groq and fallback Gemini failed. "
+                        "Groq: " + error_text[:180] + " | Gemini: " + str(gemini_error)[:180]
+                    ) from gemini_error
 
         try:
             return await asyncio.to_thread(
@@ -1745,8 +1759,8 @@ async def ask_ai(
             if not gemini_unavailable:
                 raise
             groq_key = os.getenv("GROQ_API_KEY", "").strip()
-            if groq_key and not groq_tried and is_coding_request(prompt):
-                logger.warning("Gemini unavailable for a coding request; switching to Groq.")
+            if groq_key and not groq_tried:
+                logger.warning("Gemini unavailable or busy; switching to primary Groq for text response.")
                 try:
                     return await asyncio.to_thread(
                         generate_groq_coding_response,
