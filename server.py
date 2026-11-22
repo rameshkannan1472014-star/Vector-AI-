@@ -1821,6 +1821,15 @@ async def ask_ai(
             generate_groq_github_response, prompt, github_token, max_tokens
         )
 
+    # Groq is the only text provider for all chat/coding/project tasks.
+    # Do not silently fall back to exhausted Gemini projects or another provider.
+    if PRIMARY_CHAT_PROVIDER == "groq":
+        if images:
+            raise RuntimeError("Image understanding needs a Groq vision model; text and GitHub tasks are routed to Groq.")
+        return await asyncio.to_thread(
+            generate_groq_coding_response, prompt, max_tokens
+        )
+
     # Make Groq the single primary text model regardless of the provider
     # selected in the client. Keep Gemini only for image/live-search requests
     # and GitHub tool actions, which still use its function-calling adapter.
