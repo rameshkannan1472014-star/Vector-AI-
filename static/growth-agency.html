@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#080d1a"><title>Vector Growth Agency</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:#080d1a;color:#edf3ff}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 10% 0,#172a4d 0,transparent 42%),#080d1a}
+main{max-width:900px;margin:auto;padding:24px 16px 60px}.top{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.brand{display:flex;gap:12px;align-items:center}.mark{display:grid;place-items:center;width:42px;height:42px;border-radius:14px;background:linear-gradient(135deg,#00c6ff,#7c4dff);font-weight:900;font-size:24px;color:white}
+h1{font-size:clamp(24px,5vw,36px);margin:0}.muted{color:#9fb0cc}.btn{border:1px solid #314666;background:#14213a;color:#f3f7ff;border-radius:12px;padding:11px 14px;font-weight:650;cursor:pointer;text-decoration:none;display:inline-block}.primary{background:linear-gradient(100deg,#007aff,#7454ff);border:0}
+.panel{background:rgba(15,25,44,.92);border:1px solid #243653;border-radius:18px;padding:18px;margin-top:16px}.platforms{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}.platform{border:1px solid #263954;background:#0d1729;border-radius:15px;padding:14px}.platform h3{margin:0 0 8px}.status{font-size:13px;color:#9fb0cc;min-height:20px;margin:8px 0}.fields{display:grid;gap:10px}input,textarea,select{width:100%;border:1px solid #2a3c59;border-radius:11px;background:#080f1e;color:#f3f7ff;padding:12px;font:inherit}textarea{min-height:100px;resize:vertical}.drafts{white-space:pre-wrap;overflow-wrap:anywhere;background:#080f1e;border:1px solid #263954;border-radius:12px;padding:12px;margin-top:10px}.row{display:flex;gap:10px;flex-wrap:wrap}.row>*{flex:1}.notice{font-size:13px;color:#a8b8d1;line-height:1.55}.back{color:#b5c9ea;text-decoration:none}.hide{display:none}
+</style>
+</head>
+<body><main>
+<div class="top"><div class="brand"><div class="mark">V</div><div><h1>Growth Agency</h1><div class="muted">Build · Publish · Promote · Grow</div></div></div><a class="back" href="/">← Back to Vector</a></div>
+<section class="panel"><h2>Connect your platforms</h2><p class="muted">Connect your own accounts. Review posts before publishing.</p>
+<div class="platforms">
+<div class="platform"><h3>LinkedIn</h3><div class="status" id="linkedinStatus">Not connected</div><a class="btn primary" href="/api/social/connect/linkedin">Connect LinkedIn</a></div>
+<div class="platform"><h3>YouTube</h3><div class="status" id="youtubeStatus">Not connected</div><a class="btn primary" href="/api/social/connect/youtube">Connect YouTube</a></div>
+<div class="platform"><h3>TikTok</h3><div class="status" id="tiktokStatus">Not connected</div><a class="btn primary" href="/api/social/connect/tiktok">Connect TikTok</a></div>
+</div><p class="notice">Provider app credentials and the exact callback URLs must be configured in Render. TikTok and YouTube may require app review/audit for public publishing. Tokens stay on the backend.</section>
+<section class="panel"><h2>Campaign draft generator</h2><p class="muted">Create platform-specific draft copy. Nothing is published automatically.</p>
+<div class="fields"><input id="project" placeholder="Project name"><input id="url" placeholder="Project URL (optional)"><textarea id="summary" placeholder="What does your project do?"></textarea><button class="btn primary" onclick="makeDrafts()">Generate campaign drafts</button></div><div id="draftOutput"></div></section>
+<section class="panel"><h2>Publish a LinkedIn post</h2><div class="fields"><textarea id="liText" placeholder="Approved LinkedIn post text"></textarea><input id="liUrl" placeholder="Project URL (optional)"><button class="btn primary" onclick="publishLinkedIn()">Publish LinkedIn post</button><div id="liResult" class="status"></div></div></section>
+<section class="panel"><h2>Publish a TikTok video</h2><div class="fields"><input id="ttVideo" placeholder="Public video URL on a verified domain"><textarea id="ttCaption" placeholder="Caption"></textarea><select id="ttPrivacy"><option value="SELF_ONLY">Private (test)</option><option value="PUBLIC_TO_EVERYONE">Public (requires approved app)</option></select><button class="btn primary" onclick="publishTikTok()">Submit video to TikTok</button><div id="ttResult" class="status"></div></div></section>
+<section class="panel"><h2>Upload to YouTube</h2><div class="fields"><input id="ytTitle" placeholder="Video title"><textarea id="ytDescription" placeholder="Video description"></textarea><select id="ytPrivacy"><option value="private">Private (recommended for first test)</option><option value="unlisted">Unlisted</option><option value="public">Public</option></select><input id="ytFile" type="file" accept="video/*"><button class="btn primary" onclick="uploadYouTube()">Upload video</button><div id="ytResult" class="status"></div></div></section>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+async function api(path,opts={}){const r=await fetch(path,{credentials:'same-origin',...opts});let d={};try{d=await r.json()}catch{}if(!r.ok)throw Error(d.detail||d.message||('HTTP '+r.status));return d}
+async function loadAccounts(){try{const d=await api('/api/social/accounts');for(const a of d.accounts||[]){const p=a.platform;$ (p+'Status').textContent='Connected'+(a.profile?.name?' · '+a.profile.name:a.profile?.localizedFirstName?' · '+a.profile.localizedFirstName:'');}}catch(e){console.warn(e)}}
+async function makeDrafts(){const out=$('draftOutput');out.textContent='Creating drafts…';try{const d=await api('/api/agency/draft',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({project_name:$('project').value,project_url:$('url').value,summary:$('summary').value})});out.innerHTML='';for(const [platform,text] of Object.entries(d.drafts)){const box=document.createElement('div');box.className='drafts';box.textContent=platform.toUpperCase()+'\n\n'+text;out.appendChild(box)}}catch(e){out.textContent=e.message}}
+async function publishLinkedIn(){const el=$('liResult');el.textContent='Publishing…';try{const d=await api('/api/agency/publish/linkedin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:$('liText').value,project_url:$('liUrl').value})});el.textContent='Published. '+JSON.stringify(d.result)}catch(e){el.textContent=e.message}}
+async function publishTikTok(){const el=$('ttResult');el.textContent='Submitting…';try{const d=await api('/api/agency/publish/tiktok',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({video_url:$('ttVideo').value,caption:$('ttCaption').value,privacy_level:$('ttPrivacy').value})});el.textContent='TikTok response: '+JSON.stringify(d.result)}catch(e){el.textContent=e.message}}
+async function uploadYouTube(){const el=$('ytResult'),file=$('ytFile').files[0];if(!file){el.textContent='Choose a video file first.';return}if(file.size>64*1024*1024){el.textContent='This first version accepts videos up to 64 MB.';return}el.textContent='Uploading…';try{const fd=new FormData();fd.append('video',file);fd.append('title',$('ytTitle').value);fd.append('description',$('ytDescription').value);fd.append('privacy',$('ytPrivacy').value);const d=await api('/api/agency/publish/youtube',{method:'POST',body:fd});el.textContent='Uploaded: '+d.url}catch(e){el.textContent=e.message}}
+const params=new URLSearchParams(location.search);if(params.has('connected'))history.replaceState({},'',location.pathname);loadAccounts();
+</script></body></html>
