@@ -929,12 +929,14 @@ def generate_ai_response(
                             description=(
                                 "Create a new file or upload/replace a text file in the signed-in user's GitHub repository. "
                                 "Use this when the user asks you to create, add, upload, or save generated code/files to GitHub. "
-                                "You must call this tool to actually write the file; do not merely provide code in chat."
+                                "You must call this tool to actually write the file; do not merely provide code in chat. "
+                                "If the user gives only a repository name, resolve it to the exact full_name owner/name from their repository list. "
+                                "Never guess an owner or use a different repository."
                             ),
                             parameters=types.Schema(
                                 type="object",
                                 properties={
-                                    "repo": types.Schema(type="string", description="Repository in owner/name format."),
+                                    "repo": types.Schema(type="string", description="Repository full_name owner/name. If user only gives repo name, first find exact full_name from their repositories."),
                                     "path": types.Schema(type="string", description="Destination file path, including filename."),
                                     "content": types.Schema(type="string", description="Complete text content to write."),
                                     "message": types.Schema(type="string", description="Short commit message."),
@@ -1050,7 +1052,9 @@ def generate_ai_response(
                         if not github_token:
                             raise RuntimeError("GitHub is not connected to this chat. Reconnect GitHub and try again.")
                         if call_name == "github_read_file":
-                            repo_name = str(call_args.get("repo") or "").strip()
+                            repo_name = _vector_github_resolve_repo(
+                                str(call_args.get("repo") or "").strip(), github_token
+                            )
                             file_path = str(call_args.get("path") or "").strip()
                             encoded_path = _vector_github_validate(repo_name, file_path)
                             info = _vector_github_api("GET", "/repos/" + repo_name, github_token)
@@ -1286,7 +1290,9 @@ def generate_ai_response(
                     try:
                         if not github_token:
                             raise RuntimeError("GitHub is not connected to this chat.")
-                        repo_name = str(args.get("repo") or "").strip()
+                        repo_name = _vector_github_resolve_repo(
+                            str(args.get("repo") or "").strip(), github_token
+                        )
                         file_path = str(args.get("path") or "").strip()
                         encoded_path = _vector_github_validate(repo_name, file_path)
                         repo_info = _vector_github_api("GET", "/repos/" + repo_name, github_token)
@@ -2581,6 +2587,44 @@ def _vector_github_api(method: str, path: str, token: str, payload=None):
     if last_error:
         raise last_error
     raise RuntimeError("GitHub authentication failed.")
+
+def _vector_github_resolve_repo(repo: str, token: str) -> str:
+    """Resolve a repo shorthand (e.g. 'short') to the user's exact owner/name.
+
+    GitHub REST endpoints require owner/repo. Models sometimes pass only the
+    repository name after the user specifies it conversationally.
+    """
+    repo = (repo or "").strip().strip("/")
+    if "/" in repo:
+        if not re.match(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$", repo):
+            raise ValueError("Repo must be owner/repo.")
+        return repo
+    if not re.match(r"^[A-Za-z0-9_.-]+$", repo):
+        raise ValueError("Repo must be a repository name or owner/repo.")
+    matches = []
+    for page in range(1, 6):
+        repos = _vector_github_api(
+            "GET", "/user/repos?per_page=100&page=" + str(page) + "&sort=updated",
+            token,
+        )
+        if not isinstance(repos, list):
+            break
+        matches.extend(item for item in repos
+                      if str(item.get("name") or "").casefold() == repo.casefold())
+        if len(repos) < 100:
+            break
+    if not matches:
+        raise RuntimeError(
+            "Repository '" + repo + "' was not found in the signed-in GitHub account. "
+            "Use the exact repository owner/name."
+        )
+    if len(matches) > 1:
+        names = ", ".join(str(item.get("full_name") or "") for item in matches[:5])
+        raise RuntimeError(
+            "More than one repository is named '" + repo + "'. Specify owner/name: " + names
+        )
+    return str(matches[0].get("full_name") or "")
+
 
 def _vector_github_validate(repo: str, path: str):
     if not re.match(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$", repo or ""):
