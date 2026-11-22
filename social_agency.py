@@ -170,6 +170,7 @@ async def social_connect(platform: str, request: Request):
     params = {"client_id":client_id, "redirect_uri":callback, "response_type":"code",
               "scope":cfg["scopes"], "state":state}
     if platform == "tiktok":
+        params.pop("client_id", None)
         params["client_key"] = client_id
         params["redirect_uri"] = callback
         params["code_challenge"] = challenge
