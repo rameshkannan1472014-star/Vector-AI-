@@ -1269,8 +1269,34 @@ def generate_ai_response(
                 logger.exception("Gemini follow-up after tool call failed")
                 raise followup_error
         text = getattr(response, "text", None)
+        if not text and tool_results_parts:
+            # The GitHub operation may already have succeeded even if Gemini
+            # returns no final prose. Report the real tool result instead of
+            # misleading the user with an empty-response error.
+            tool_summaries = []
+            for tool_part in tool_results_parts:
+                function_response = getattr(tool_part, "function_response", None)
+                result_data = getattr(function_response, "response", None) or {}
+                if not isinstance(result_data, dict):
+                    continue
+                if result_data.get("status") == "error" or result_data.get("error"):
+                    tool_message = result_data.get("message") or result_data.get("error") or "GitHub action failed."
+                    tool_summaries.append("GitHub action failed: " + str(tool_message))
+                elif result_data.get("status") == "success":
+                    if result_data.get("url") and result_data.get("path"):
+                        tool_summaries.append("GitHub file operation completed: " + str(result_data.get("path")) + " — " + str(result_data.get("url")))
+                    elif result_data.get("html_url"):
+                        tool_summaries.append("GitHub repository created: " + str(result_data.get("html_url")))
+                    elif result_data.get("repositories") is not None:
+                        tool_summaries.append("GitHub returned " + str(result_data.get("count", len(result_data.get("repositories") or []))) + " repositories.")
+                    elif result_data.get("files") is not None:
+                        tool_summaries.append("GitHub returned " + str(len(result_data.get("files") or [])) + " items in " + str(result_data.get("path") or "/") + ".")
+                    else:
+                        tool_summaries.append("GitHub action completed successfully.")
+            if tool_summaries:
+                text = "\n".join(tool_summaries)
         if not text:
-            raise RuntimeError("AI returned an empty response.")
+            raise RuntimeError("The AI model returned no text. The GitHub action result could not be confirmed.");
         # If the user asked to create a repository but Gemini did NOT call the
         # github_create_repo tool (it gave a manual guide instead), intercept and
         # call the tool ourselves. Check tool_results_parts to see if Gemini
