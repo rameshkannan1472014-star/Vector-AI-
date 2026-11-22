@@ -2517,34 +2517,54 @@ class GitHubSaveRequest(BaseModel):
 
 
 def _vector_github_api(method: str, path: str, token: str, payload=None):
-    """Small authenticated GitHub REST helper for the repository file drawer."""
-    headers = {
-        "Accept": "application/vnd.github+json",
-        "User-Agent": "Vector-AI",
-        "X-GitHub-Api-Version": "2022-11-28",
-        "Authorization": "Bearer " + token,
-    }
+    """Authenticated GitHub REST helper with OAuth/PAT auth-scheme fallback.
+
+    GitHub accepts OAuth access tokens with either the Bearer or token scheme.
+    Try Bearer first, then token on 401; this avoids treating an auth-scheme
+    compatibility failure as a permanently broken sign-in. Never log the token.
+    """
     data = None
     if payload is not None:
         data = json.dumps(payload).encode("utf-8")
-        headers["Content-Type"] = "application/json"
-    req = urllib.request.Request(
-        "https://api.github.com" + path, data=data, headers=headers, method=method
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=30) as response:
-            raw = response.read().decode("utf-8")
-            return json.loads(raw) if raw.strip() else {}
-    except urllib.error.HTTPError as error:
-        detail = error.read().decode("utf-8", errors="replace")
-        try:
-            detail = json.loads(detail).get("message", detail)
-        except Exception:
-            pass
-        raise RuntimeError("GitHub API " + str(error.code) + ": " + str(detail)[:350])
-    except Exception as error:
-        raise RuntimeError("Could not reach GitHub: " + str(error))
 
+    last_error = None
+    for auth_scheme in ("Bearer", "token"):
+        headers = {
+            "Accept": "application/vnd.github+json",
+            "User-Agent": "Vector-AI",
+            "X-GitHub-Api-Version": "2022-11-28",
+            "Authorization": auth_scheme + " " + token.strip(),
+        }
+        if data is not None:
+            headers["Content-Type"] = "application/json"
+        req = urllib.request.Request(
+            "https://api.github.com" + path,
+            data=data,
+            headers=headers,
+            method=method,
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=30) as response:
+                raw = response.read().decode("utf-8")
+                return json.loads(raw) if raw.strip() else {}
+        except urllib.error.HTTPError as error:
+            detail = error.read().decode("utf-8", errors="replace")
+            try:
+                detail = json.loads(detail).get("message", detail)
+            except Exception:
+                pass
+            last_error = RuntimeError(
+                "GitHub API " + str(error.code) + ": " + str(detail)[:350]
+            )
+            if error.code == 401 and auth_scheme == "Bearer":
+                continue
+            raise last_error
+        except Exception as error:
+            raise RuntimeError("Could not reach GitHub: " + str(error))
+
+    if last_error:
+        raise last_error
+    raise RuntimeError("GitHub authentication failed.")
 
 def _vector_github_validate(repo: str, path: str):
     if not re.match(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$", repo or ""):
