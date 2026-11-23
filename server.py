@@ -309,6 +309,9 @@ app = FastAPI(
 from social_agency import router as social_agency_router
 app.include_router(social_agency_router)
 
+from bundle_social import router as bundle_social_router
+app.include_router(bundle_social_router)
+
 
 # ============================================================
 # CORS
