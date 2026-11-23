@@ -110,7 +110,7 @@ def _team_id(request):
     query = urllib.parse.urlencode({
         "limit": 100, "offset": 0, "search": team_name
     })
-    teams = _api("GET", "/team/?" + query)
+    teams = _api("GET", "/team?" + query)
     items = teams.get("items", []) if isinstance(teams, dict) else []
     found = next(
         (item for item in items
@@ -120,7 +120,7 @@ def _team_id(request):
     team_id = str(found.get("id") or "") if found else ""
 
     if not team_id:
-        created = _api("POST", "/team/", {"name": team_name})
+        created = _api("POST", "/team", {"name": team_name})
         team_id = str(
             created.get("id") or
             (created.get("team") or {}).get("id") or ""
