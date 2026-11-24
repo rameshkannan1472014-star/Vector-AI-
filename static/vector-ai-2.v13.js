@@ -2094,12 +2094,22 @@ function settingsTemplate(){
     '<nav class="settings-nav" id="setNav">' +
       SET_SECTIONS.map(s => '<button data-set-id="' + s.id + '">' + s.label + '</button>').join('') +
     '</nav>' +
-    '<div class="settings-main" id="setMain"></div>' +
+    '<div class="settings-main" id="setMain"><div class="set-note">Loading your settings…</div></div>' +
   '</div>';
 }
 
 function paintSettings(){
-  bindSetRows();
+  const nav = $('setNav');
+  const main = $('setMain');
+  if (!nav || !main) throw new Error('Settings navigation or content area is missing.');
+  nav.onclick = (e) => {
+    const button = e.target.closest('[data-set-id]');
+    if (button) selectSection(button.getAttribute('data-set-id'));
+  };
+  const saved = readLS('vector.settings.v1', {});
+  const initial = SET_SECTIONS.some(section => section.id === saved.section) ? saved.section : 'General';
+  selectSection(initial);
+  if (!main.innerHTML.trim()) selectSection('General');
 }
 
 let currentSetSection = null;
