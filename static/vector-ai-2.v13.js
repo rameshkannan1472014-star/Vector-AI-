@@ -2236,3 +2236,78 @@ function boot(){
 }
 
 boot();
+
+
+/* ------------------------------------------------------------------ */
+/* YouTube video upload from the Vector chat composer                  */
+/* ------------------------------------------------------------------ */
+let vectorYouTubeVideo = null;
+
+function pickYouTubeVideo(){
+  const picker = $('youtubeChatFile');
+  if (picker) picker.click();
+}
+
+function onYouTubeVideoSelected(event){
+  const file = event.target.files && event.target.files[0];
+  event.target.value = '';
+  if (!file) return;
+  if (!file.type || file.type.indexOf('video/') !== 0){
+    toast('Choose a video file.');
+    return;
+  }
+  if (file.size > 64 * 1024 * 1024){
+    toast('This first upload version supports videos up to 64 MB.');
+    return;
+  }
+  vectorYouTubeVideo = file;
+  $('ytUploadFileName').textContent = file.name + ' · ' + (file.size / (1024 * 1024)).toFixed(1) + ' MB';
+  const base = file.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim();
+  $('ytUploadTitle').value = base.slice(0, 100);
+  $('ytUploadDescription').value = '';
+  $('ytUploadTags').value = '';
+  $('ytUploadPrivacy').value = 'private';
+  $('ytUploadStatus').textContent = '';
+  $('ytUploadSubmit').disabled = false;
+  $('ytUploadSubmit').textContent = 'Upload to YouTube';
+  $('ytUploadModal').classList.add('open');
+}
+
+function closeYouTubeUpload(){
+  const modal = $('ytUploadModal');
+  if (modal) modal.classList.remove('open');
+  const submit = $('ytUploadSubmit');
+  if (submit) submit.disabled = false;
+}
+
+async function publishYouTubeFromChat(){
+  if (!vectorYouTubeVideo){ toast('Choose a video first.'); return; }
+  const title = ($('ytUploadTitle').value || '').trim();
+  if (!title){ $('ytUploadStatus').textContent = 'Add a video title first.'; return; }
+  const submit = $('ytUploadSubmit');
+  const status = $('ytUploadStatus');
+  submit.disabled = true;
+  status.textContent = 'Uploading video to YouTube… Keep Vector open until the upload finishes.';
+  const form = new FormData();
+  form.append('video', vectorYouTubeVideo, vectorYouTubeVideo.name);
+  form.append('title', title);
+  form.append('description', $('ytUploadDescription').value || '');
+  form.append('tags', $('ytUploadTags').value || '');
+  form.append('privacy', $('ytUploadPrivacy').value || 'private');
+  try{
+    const response = await credFetch('/api/agency/publish/youtube', {method:'POST', body:form});
+    let data = {};
+    try{ data = await response.json(); }catch(e){}
+    if (!response.ok){
+      const detail = data.detail || data.message || ('YouTube returned HTTP ' + response.status);
+      throw new Error(typeof detail === 'string' ? detail : JSON.stringify(detail));
+    }
+    const url = data.url || ('https://youtube.com/watch?v=' + data.video_id);
+    status.innerHTML = 'YouTube accepted the upload. <a href="' + escapeAttr(url) + '" target="_blank" rel="noopener noreferrer" style="color:#fff;text-decoration:underline">Open video</a>. It may take time to finish processing.';
+    vectorYouTubeVideo = null;
+    submit.textContent = 'Uploaded';
+  }catch(error){
+    status.textContent = 'Upload failed: ' + (error && error.message ? error.message : 'Unknown error');
+    submit.disabled = false;
+  }
+}
