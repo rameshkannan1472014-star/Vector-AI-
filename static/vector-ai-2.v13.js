@@ -2029,6 +2029,27 @@ function bindSettingsButton(){
   });
 }
 
+function showVectorSettings(){
+  const menu = document.getElementById('acctMenu');
+  const title = document.getElementById('drawerTitle');
+  const body = document.getElementById('drawerBody');
+  const drawer = document.getElementById('drawer');
+  const scrim = document.getElementById('scrim');
+  if (menu) menu.classList.remove('open');
+  if (title) title.textContent = 'Settings';
+  if (drawer) drawer.classList.add('open');
+  if (scrim) scrim.classList.add('open');
+  if (!body) return;
+  try {
+    body.dataset.setOpen = '1';
+    body.innerHTML = settingsTemplate();
+    paintSettings();
+  } catch (error) {
+    console.error('Settings panel error:', error);
+    body.innerHTML = '<p class="hint">Settings panel could not load. Please reload Vector and try again.</p>';
+  }
+}
+
 function openSettings(){
   closeAcctMenu();
   const title = $('drawerTitle');
