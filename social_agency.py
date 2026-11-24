@@ -299,46 +299,13 @@ async def agency_publish_tiktok(body: TikTokPublish, request: Request):
 async def agency_publish_youtube(request: Request, video: UploadFile = File(...),
                                 title: str = Form(...), description: str = Form(""),
                                 tags: str = Form(""), privacy: str = Form("private")):
-    session = request.cookies.get(COOKIE, "")
-    account = _account(session, "youtube")
-    if privacy not in {"private","unlisted","public"}:
-        raise HTTPException(400, "privacy must be private, unlisted, or public")
-    content = await video.read(64*1024*1024 + 1)
-    if len(content) > 64*1024*1024:
-        raise HTTPException(413, "Video exceeds the 64 MB initial upload limit")
-    if not content:
-        raise HTTPException(400, "Empty video file")
-    access = _refresh_google(account)
-    tag_list = [item.strip() for item in (tags or "").split(",") if item.strip()]
-    tag_list = tag_list[:30]
-    if sum(len(item) for item in tag_list) > 500:
-        raise HTTPException(400, "YouTube tags must total 500 characters or fewer.")
-    snippet = {"title":title[:100],"description":description[:5000],"categoryId":"28"}
-    if tag_list:
-        snippet["tags"] = tag_list
-    metadata = json.dumps({"snippet":snippet,"status":{"privacyStatus":privacy}}).encode()
-    init_req = urllib.request.Request(
-        "https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status",
-        data=metadata,
-        headers={"Authorization":"Bearer "+access,"Content-Type":"application/json; charset=UTF-8",
-                "X-Upload-Content-Type":video.content_type or "video/mp4",
-                "X-Upload-Content-Length":str(len(content))}, method="POST")
-    try:
-        with urllib.request.urlopen(init_req, timeout=30) as init_response:
-            upload_url = init_response.headers.get("Location")
-    except urllib.error.HTTPError as exc:
-        raise HTTPException(exc.code,"YouTube upload initialization failed: "+exc.read().decode(errors="replace")[:1000])
-    if not upload_url:
-        raise HTTPException(502, "YouTube did not return a resumable upload URL.")
-    req = urllib.request.Request(upload_url,data=content,headers={"Content-Type":video.content_type or "video/mp4",
-        "Content-Length":str(len(content))},method="PUT")
-    try:
-        with urllib.request.urlopen(req,timeout=120) as response:
-            result=json.loads(response.read().decode())
-    except urllib.error.HTTPError as exc:
-        raise HTTPException(exc.code,"YouTube upload failed: "+exc.read().decode(errors="replace")[:1000])
-    return {"published":True,"platform":"youtube","video_id":result.get("id"),
-            "url":"https://youtube.com/watch?v="+result.get("id",""),"result":result}
+    # Backward-compatible alias: older mobile clients may still call this path.
+    # Always route YouTube uploads through the user's Bundle.social connection.
+    from bundle_social import agency_publish_youtube_bundle
+    return await agency_publish_youtube_bundle(
+        request=request, video=video, title=title, description=description,
+        tags=tags, privacy=privacy
+    )
 
 
 # Chat publishing: a post is staged first and only published after the user
