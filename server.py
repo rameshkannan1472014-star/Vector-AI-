@@ -2314,7 +2314,7 @@ If the user asks for a diagram, provide a simple diagram when useful.
             r"\\b(upload|publish|post)\\b.{0,80}\\byoutube\\b|\\byoutube\\b.{0,80}\\b(upload|publish|post)\\b",
             request.prompt or "", re.IGNORECASE | re.DOTALL
         ))
-        if _yt_publish_intent and not request.images:
+        if _yt_publish_intent:
             answer = (
                 "I can upload the actual video, but I need the video file first. "
                 "Tap the video-shaped YouTube button beside the chat message box, "
