@@ -2264,7 +2264,7 @@ async def chat(request: ChatRequest, http_request: Request):
                 _bundle_status_line = (
                     "Bundle: CONNECTED social accounts verified for this signed-in user: "
                     + "; ".join(str(x)[:160] for x in _bundle_accounts[:30])
-                    + ". Account linking is verified. Vector chat can stage LinkedIn text posts through its native publisher; it must show the exact draft and wait for the user to reply APPROVE POST before publishing. Bundle connection itself does not publish. YouTube channel lookup is read-only; video uploads and TikTok video publishing remain in the Growth Agency page and may require provider review."
+                    + ". Account linking is verified. Vector chat can prepare and submit text posts through Bundle.social to connected text-capable platforms, but it must show the exact draft and wait for the user's APPROVE POST confirmation. Media-required platforms are excluded from this text-only chat flow and must be handled in the Growth Agency media composer. YouTube channel lookup remains read-only."
                 )
         except Exception as _bundle_exc:
             _bundle_status_line = "Bundle: connection status could not be verified during this request. Do not guess whether an account is connected."
@@ -2328,24 +2328,24 @@ If the user asks for a diagram, provide a simple diagram when useful.
             provider = "social-tool"
         elif not request.images:
             _publish_match = re.match(
-                r"^(?:publish|post)\\s+(?:(?:this\\s+)?post\\s+)?(?:to\\s+)?(?:all\\s+(?:my\\s+)?connected\\s+platforms|all\\s+socials|everywhere|across\\s+(?:my\\s+)?socials)\\s*[:\\-]\\s*(.+)$",
+                r"^(?:publish|post)\s+(?:(?:this\s+)?post\s+)?(?:to\s+)?(?:all\s+(?:my\s+)?connected\s+platforms|all\s+socials|everywhere|across\s+(?:my\s+)?socials)\s*[:\-]\s*(.+)$",
                 _chat_text, re.IGNORECASE | re.DOTALL
             )
             if _publish_match:
-                _post_text = _publish_match.group(1).strip().strip('\\u201c\\u201d"')
+                _post_text = _publish_match.group(1).strip().strip('\u201c\u201d"')
                 try:
                     from bundle_social import stage_chat_bundle_post as _stage_bundle_post
                     _staged = await asyncio.to_thread(_stage_bundle_post, http_request, _post_text)
                     answer = (
-                        "Multi-platform draft prepared. Nothing has been published yet.\\n\\n"
+                        "Multi-platform draft prepared. Nothing has been published yet.\n\n"
                         + _staged["text"]
-                        + "\\n\\nSelected connected text-post platforms: "
+                        + "\n\nSelected connected text-post platforms: "
                         + ", ".join(_staged["targets"])
-                        + ".\\n\\n"
+                        + ".\n\n"
                     )
                     _skipped = _staged.get("skipped_media_platforms") or []
                     if _skipped:
-                        answer += "Connected platforms not included because they require media: " + ", ".join(_skipped) + ".\\n\\n"
+                        answer += "Connected platforms not included because they require media: " + ", ".join(_skipped) + ".\n\n"
                     answer += "Review the exact text above, then reply exactly **APPROVE POST** to submit it to the selected connected platforms."
                 except Exception as _stage_error:
                     answer = "I couldn't prepare the multi-platform post: " + str(_stage_error)[:500]
