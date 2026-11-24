@@ -2403,7 +2403,7 @@ async function onImagePostSelected(event){
       checkbox.style.cssText = 'width:auto;margin:0;accent-color:#fff';
       label.appendChild(checkbox);
       const span = document.createElement('span');
-      span.textContent = account.platform.replaceAll('_',' ') + (account.name && account.name !== account.platform ? ' · ' + account.name : '');
+      span.textContent = account.platform.replace(/_/g,' ') + (account.name && account.name !== account.platform ? ' · ' + account.name : '');
       label.appendChild(span);
       wrap.appendChild(label);
     });
