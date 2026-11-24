@@ -584,3 +584,119 @@ async def image_post_confirm(request: Request):
         con.execute("DELETE FROM bundle_image_pending_posts WHERE owner_key=?", (owner_key,))
         con.commit()
     return {"submitted":True,"targets":targets,"result":result}
+
+
+# YouTube video publishing through Bundle.social (single unified integration).
+@router.post("/api/agency/publish/youtube-bundle")
+async def agency_publish_youtube_bundle(
+    request: Request,
+    video: UploadFile = File(...),
+    title: str = Form(...),
+    description: str = Form(""),
+    tags: str = Form(""),
+    privacy: str = Form("private"),
+):
+    owner_key, _team_name = _user(request)
+    team_id = _team_id(request)
+    if privacy not in {"private", "unlisted", "public"}:
+        raise HTTPException(400, "Choose private, unlisted, or public visibility.")
+    content_type = (video.content_type or "").lower()
+    if content_type not in {"video/mp4", "video/quicktime", "video/webm", "video/mpeg"}:
+        raise HTTPException(415, "Choose an MP4, MOV, WebM, or MPEG video.")
+    content = await video.read(64 * 1024 * 1024 + 1)
+    if not content:
+        raise HTTPException(400, "The selected video is empty.")
+    if len(content) > 64 * 1024 * 1024:
+        raise HTTPException(413, "Video exceeds Vector's 64 MB upload limit.")
+    title = (title or "").strip()
+    if not title:
+        raise HTTPException(400, "Add a YouTube video title.")
+    if len(title) > 100:
+        raise HTTPException(400, "YouTube titles must be 100 characters or fewer.")
+    if len(description or "") > 5000:
+        raise HTTPException(400, "Description must be 5,000 characters or fewer.")
+    tag_list = [x.strip() for x in (tags or "").split(",") if x.strip()][:30]
+    if sum(len(x) for x in tag_list) > 500:
+        raise HTTPException(400, "YouTube tags must total 500 characters or fewer.")
+
+    team = _api("GET", "/team/" + urllib.parse.quote(team_id, safe=""))
+    accounts = team.get("socialAccounts", []) if isinstance(team, dict) else []
+    youtube_connected = any(
+        isinstance(a, dict) and str(
+            a.get("type") or a.get("socialAccountType") or a.get("platform") or ""
+        ).upper() == "YOUTUBE"
+        for a in accounts
+    )
+    if not youtube_connected:
+        raise HTTPException(
+            400,
+            "YouTube is not connected to this Vector user's Bundle team. "
+            "Open Growth Agency > Connect accounts and verify YouTube is connected to this same team."
+        )
+
+    boundary = "----VectorBundleVideo" + str(int(time.time() * 1000))
+    filename = os.path.basename(video.filename or "vector-video.mp4").replace('"', "")
+    body = (
+        ("--" + boundary + "\r\n").encode()
+        + b'Content-Disposition: form-data; name="teamId"\r\n\r\n'
+        + team_id.encode() + b"\r\n"
+        + ("--" + boundary + "\r\n").encode()
+        + ('Content-Disposition: form-data; name="file"; filename="' + filename + '"\r\n').encode()
+        + ("Content-Type: " + content_type + "\r\n\r\n").encode()
+        + content + b"\r\n"
+        + ("--" + boundary + "--\r\n").encode()
+    )
+    key = (os.getenv("BUNDLE_SOCIAL_API_KEY") or os.getenv("BUNDLE_API_KEY") or "").strip()
+    if not key:
+        raise HTTPException(503, "Bundle.social API key is not configured on Vector.")
+    upload_req = urllib.request.Request(
+        BUNDLE_BASE + "/upload", data=body,
+        headers={
+            "x-api-key": key, "Accept": "application/json",
+            "User-Agent": "Vector-AI-GrowthAgency/1.0 (+https://vector-ai-izgf.onrender.com)",
+            "Content-Type": "multipart/form-data; boundary=" + boundary,
+        }, method="POST"
+    )
+    try:
+        with urllib.request.urlopen(upload_req, timeout=120) as response:
+            upload_result = json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")[:1200]
+        raise HTTPException(exc.code, "Bundle video upload failed: " + detail)
+    except Exception as exc:
+        raise HTTPException(502, "Bundle video upload failed: " + str(exc)[:300])
+
+    upload_id = str(upload_result.get("uploadId") or upload_result.get("id") or "")
+    if not upload_id:
+        raise HTTPException(502, "Bundle accepted the video but did not return an upload ID.")
+
+    youtube_data = {
+        "type": "VIDEO",
+        "title": title,
+        "text": title,
+        "description": description or "",
+        "uploadIds": [upload_id],
+        "privacy": privacy.upper(),
+        "madeForKids": False,
+    }
+    if tag_list:
+        youtube_data["tags"] = tag_list
+    post_payload = {
+        "teamId": team_id,
+        "title": title,
+        "postDate": time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime()),
+        "status": "SCHEDULED",
+        "socialAccountTypes": ["YOUTUBE"],
+        "data": {"YOUTUBE": youtube_data},
+    }
+    post_result = _api("POST", "/post", post_payload)
+    post_id = str(post_result.get("id") or post_result.get("postId") or "")
+    return {
+        "submitted": True,
+        "platform": "YOUTUBE",
+        "postId": post_id,
+        "uploadId": upload_id,
+        "status": post_result.get("status") or "submitted_to_bundle",
+        "result": post_result,
+        "note": "Bundle.social accepted the post request. Check its post status for final YouTube processing and publication."
+    }
