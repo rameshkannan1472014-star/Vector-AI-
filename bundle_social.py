@@ -37,7 +37,13 @@ def _api(method, path, payload=None):
             503, "Add BUNDLE_SOCIAL_API_KEY to Vector's Render environment."
         )
     body = json.dumps(payload).encode("utf-8") if payload is not None else None
-    headers = {"x-api-key": key, "Accept": "application/json"}
+    headers = {
+        "x-api-key": key,
+        "Accept": "application/json",
+        # Identify Vector as an API client rather than urllib's default
+        # Python-urllib/X user-agent, which can trigger Cloudflare Error 1010.
+        "User-Agent": "Vector-AI-GrowthAgency/1.0 (+https://vector-ai-izgf.onrender.com)",
+    }
     if body is not None:
         headers["Content-Type"] = "application/json"
     req = urllib.request.Request(
