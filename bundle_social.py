@@ -169,15 +169,22 @@ async def bundle_connect(request: Request):
 
 @router.get("/api/bundle/accounts")
 async def bundle_accounts(request: Request):
-    owner_key, _team_name = _user(request)
-    with _db() as con:
-        row = con.execute(
-            "SELECT team_id FROM bundle_user_teams WHERE owner_key=?",
-            (owner_key,),
-        ).fetchone()
-    if not row:
-        return []
-    team_id = row["team_id"]
+    # Single-team mode is only for the owner's private integration test.
+    # It lets the chat inspect the same team as a manually generated portal.
+    if os.getenv("BUNDLE_SINGLE_TEAM_MODE", "").strip().lower() == "true":
+        team_id = os.getenv("BUNDLE_SOCIAL_TEAM_ID", "").strip()
+        if not team_id:
+            return []
+    else:
+        owner_key, _team_name = _user(request)
+        with _db() as con:
+            row = con.execute(
+                "SELECT team_id FROM bundle_user_teams WHERE owner_key=?",
+                (owner_key,),
+            ).fetchone()
+        if not row:
+            return []
+        team_id = row["team_id"]
     path = "/team/" + urllib.parse.quote(team_id, safe="")
     result = _api("GET", path)
     accounts = result.get("socialAccounts", [])
