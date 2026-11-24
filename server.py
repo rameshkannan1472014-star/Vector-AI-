@@ -2312,8 +2312,8 @@ If the user asks for a diagram, provide a simple diagram when useful.
         # Read-only YouTube channel lookup for natural-language channel requests.
         # This runs only when the user asks about their own connected channel.
         _youtube_channel_request = bool(re.search(
-            r"\\b(my\\s+)?youtube\\s+(channel|account|stats|statistics|subscribers|views)\\b|"
-            r"\\b(my\\s+channel|channel\\s+(?:info|details|stats|statistics|subscribers))\\b",
+            r"\b(my\s+)?youtube\s+(channel|account|stats|statistics|subscribers|views)\b|"
+            r"\b(my\s+channel|channel\s+(?:info|details|stats|statistics|subscribers))\b",
             request.prompt,
             re.IGNORECASE,
         ))
@@ -2327,9 +2327,9 @@ If the user asks for a diagram, provide a simple diagram when useful.
             if _youtube_data.get("status") == "success":
                 _youtube_prompt = (
                     prompt
-                    + "\\n\\nVERIFIED YOUTUBE CHANNEL DATA retrieved from the user's connected Bundle team (read-only):\\n"
+                    + "\n\nVERIFIED YOUTUBE CHANNEL DATA retrieved from the user's connected Bundle team (read-only):\n"
                     + json.dumps(_youtube_data, ensure_ascii=False)[:18000]
-                    + "\\nUse only the returned data. Do not invent channel names, subscriber counts, video details, or metrics. "
+                    + "\nUse only the returned data. Do not invent channel names, subscriber counts, video details, or metrics. "
                     + "If a field is absent, say it was not returned. Distinguish account metadata from analytics."
                 )
                 answer = await asyncio.to_thread(
