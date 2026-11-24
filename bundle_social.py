@@ -223,3 +223,85 @@ def chat_connection_context(request):
         name = str(account.get("name") or account.get("accountName") or account.get("username") or "").strip()
         lines.append(platform + (" — " + name if name else ""))
     return lines
+
+
+def youtube_channel_context(request):
+    """Fetch verified YouTube account metadata and available channel analytics.
+
+    This is a read-only chat tool. It uses the user's existing Bundle team
+    mapping (or the explicitly configured single-owner test team) and never
+    creates a team as a side effect.
+    """
+    if os.getenv("BUNDLE_SINGLE_TEAM_MODE", "").strip().lower() == "true":
+        team_id = os.getenv("BUNDLE_SOCIAL_TEAM_ID", "").strip()
+    else:
+        owner_key, _team_name = _user(request)
+        with _db() as con:
+            row = con.execute(
+                "SELECT team_id FROM bundle_user_teams WHERE owner_key=?",
+                (owner_key,),
+            ).fetchone()
+        team_id = str(row["team_id"]) if row else ""
+
+    if not team_id:
+        return {"status": "not_connected", "message": "No existing Bundle team is linked to this Vector user."}
+
+    try:
+        team = _api("GET", "/team/" + urllib.parse.quote(team_id, safe=""))
+        accounts = team.get("socialAccounts", []) if isinstance(team, dict) else []
+        youtube = [
+            item for item in accounts
+            if isinstance(item, dict) and str(
+                item.get("type") or item.get("socialAccountType") or item.get("platform") or ""
+            ).upper() == "YOUTUBE"
+        ]
+        if not youtube:
+            return {"status": "not_connected", "message": "No YouTube account was found on the connected Bundle team."}
+
+        account = youtube[0]
+        safe_account = {
+            key: account.get(key)
+            for key in ("id", "name", "accountName", "username", "handle", "url", "profileUrl", "type")
+            if account.get(key) is not None
+        }
+        result = {
+            "status": "success",
+            "platform": "YouTube",
+            "account": safe_account,
+            "analytics_available": False,
+        }
+        # Bundle's documented raw account analytics endpoint may return
+        # channel-level YouTube metrics, subject to plan and granted scopes.
+        query = urllib.parse.urlencode({
+            "teamId": team_id,
+            "platformType": "YOUTUBE",
+        })
+        try:
+            raw = _api("GET", "/analytics/social-account/raw?" + query)
+            raw_account = raw.get("socialAccount") if isinstance(raw, dict) else None
+            if isinstance(raw_account, dict):
+                result["account"].update({
+                    key: raw_account.get(key)
+                    for key in ("name", "accountName", "username", "handle", "url", "profileUrl")
+                    if raw_account.get(key) is not None
+                })
+            snapshots = raw.get("items", []) if isinstance(raw, dict) else []
+            if isinstance(snapshots, list) and snapshots:
+                latest = snapshots[-1] if isinstance(snapshots[-1], dict) else {}
+                raw_metrics = latest.get("raw") if isinstance(latest, dict) else {}
+                if isinstance(raw_metrics, dict):
+                    # Pass back the provider's raw snapshot so the model can
+                    # explain fields without inventing missing values.
+                    result["channel_analytics"] = raw_metrics
+                    result["analytics_available"] = True
+        except HTTPException as analytics_error:
+            # Account connection is still verified even if analytics is
+            # unavailable (e.g. plan permissions or Cloudflare/API access).
+            result["analytics_error_code"] = int(analytics_error.status_code)
+        return result
+    except HTTPException as error:
+        return {
+            "status": "lookup_failed",
+            "http_status": int(error.status_code),
+            "message": "Bundle could not verify channel details during this request.",
+        }
