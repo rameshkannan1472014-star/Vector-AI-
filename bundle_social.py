@@ -186,3 +186,25 @@ async def bundle_accounts(request: Request):
                     account.get("username") or "",
         })
     return {"accounts": safe_accounts}
+
+
+def chat_connection_context(request):
+    """Return non-sensitive Bundle account connection metadata for Vector chat.
+
+    This confirms account linking only; it does not grant chat tools access to
+    channel content, analytics, or publishing actions.
+    """
+    team_id = _team_id(request)
+    path = "/team/" + urllib.parse.quote(team_id, safe="")
+    result = _api("GET", path)
+    accounts = result.get("socialAccounts", []) if isinstance(result, dict) else []
+    if not isinstance(accounts, list):
+        accounts = []
+    lines = []
+    for account in accounts:
+        if not isinstance(account, dict):
+            continue
+        platform = str(account.get("type") or account.get("socialAccountType") or account.get("platform") or "Social platform")
+        name = str(account.get("name") or account.get("accountName") or account.get("username") or "").strip()
+        lines.append(platform + (" — " + name if name else ""))
+    return lines
