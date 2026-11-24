@@ -326,3 +326,91 @@ def youtube_channel_context(request):
             "http_status": int(error.status_code),
             "message": "Bundle could not verify channel details during this request.",
         }
+
+# Universal chat publishing through Bundle.social. Every draft is staged and
+# requires the user's exact approval before the API is called.
+TEXT_ONLY_TYPES = {
+    "FACEBOOK", "TWITTER", "LINKEDIN", "REDDIT", "THREADS",
+    "BLUESKY", "MASTODON", "DISCORD", "SLACK", "GOOGLE_BUSINESS",
+}
+MEDIA_REQUIRED_TYPES = {
+    "INSTAGRAM", "TIKTOK", "YOUTUBE", "PINTEREST", "SNAPCHAT",
+}
+
+
+def stage_chat_bundle_post(request, text):
+    text = (text or "").strip()
+    if not text:
+        raise HTTPException(400, "Write the post text first.")
+    if len(text) > 5000:
+        raise HTTPException(400, "Post text is too long (maximum 5,000 characters).")
+    owner_key, _team_name = _user(request)
+    team_id = _team_id(request)
+    team = _api("GET", "/team/" + urllib.parse.quote(team_id, safe=""))
+    accounts = team.get("socialAccounts", []) if isinstance(team, dict) else []
+    connected = []
+    for account in accounts if isinstance(accounts, list) else []:
+        if not isinstance(account, dict):
+            continue
+        kind = str(account.get("type") or account.get("socialAccountType") or account.get("platform") or "").upper()
+        if kind == "X":
+            kind = "TWITTER"
+        if kind in SOCIAL_TYPES and kind not in connected:
+            connected.append(kind)
+    if not connected:
+        raise HTTPException(400, "No connected Bundle.social accounts were found for this Vector user.")
+    targets = [kind for kind in connected if kind in TEXT_ONLY_TYPES]
+    skipped = [kind for kind in connected if kind in MEDIA_REQUIRED_TYPES]
+    if not targets:
+        raise HTTPException(400, "Your connected accounts need image/video media to publish. Add media in Growth Agency first.")
+    with _db() as con:
+        con.execute("""CREATE TABLE IF NOT EXISTS bundle_chat_pending_posts(
+            owner_key TEXT PRIMARY KEY, team_id TEXT NOT NULL, post_text TEXT NOT NULL,
+            targets_json TEXT NOT NULL, skipped_json TEXT NOT NULL, created REAL NOT NULL)""")
+        con.execute("""INSERT INTO bundle_chat_pending_posts
+            (owner_key,team_id,post_text,targets_json,skipped_json,created)
+            VALUES(?,?,?,?,?,?) ON CONFLICT(owner_key) DO UPDATE SET
+            team_id=excluded.team_id,post_text=excluded.post_text,
+            targets_json=excluded.targets_json,skipped_json=excluded.skipped_json,
+            created=excluded.created""",
+            (owner_key, team_id, text, json.dumps(targets), json.dumps(skipped), time.time()))
+        con.commit()
+    return {"status":"pending_approval","targets":targets,"skipped_media_platforms":skipped,"text":text}
+
+
+def confirm_chat_bundle_post(request):
+    owner_key, _team_name = _user(request)
+    current_team_id = _team_id(request)
+    with _db() as con:
+        con.execute("""CREATE TABLE IF NOT EXISTS bundle_chat_pending_posts(
+            owner_key TEXT PRIMARY KEY, team_id TEXT NOT NULL, post_text TEXT NOT NULL,
+            targets_json TEXT NOT NULL, skipped_json TEXT NOT NULL, created REAL NOT NULL)""")
+        row = con.execute("SELECT * FROM bundle_chat_pending_posts WHERE owner_key=?",
+                          (owner_key,)).fetchone()
+        if not row:
+            raise HTTPException(404, "No multi-platform post is awaiting approval.")
+        if time.time() - float(row["created"]) > 86400:
+            con.execute("DELETE FROM bundle_chat_pending_posts WHERE owner_key=?", (owner_key,))
+            con.commit()
+            raise HTTPException(410, "The post draft expired. Ask Vector to prepare it again.")
+        if str(row["team_id"]) != str(current_team_id):
+            raise HTTPException(403, "Your connected social team changed. Prepare the draft again.")
+        text = row["post_text"]
+        targets = json.loads(row["targets_json"])
+        skipped = json.loads(row["skipped_json"])
+    if not targets:
+        raise HTTPException(400, "No eligible connected platforms in this draft.")
+    now = time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime())
+    payload = {
+        "teamId": current_team_id,
+        "title": text[:120],
+        "postDate": now,
+        "status": "SCHEDULED",
+        "socialAccountTypes": targets,
+        "data": {kind: {"text": text} for kind in targets},
+    }
+    result = _api("POST", "/post", payload)
+    with _db() as con:
+        con.execute("DELETE FROM bundle_chat_pending_posts WHERE owner_key=?", (owner_key,))
+        con.commit()
+    return {"submitted":True,"targets":targets,"skipped_media_platforms":skipped,"result":result}
