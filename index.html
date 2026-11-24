@@ -292,7 +292,7 @@
   <button onclick="closeAcctMenu();openMemory()">Memory</button>
   <button onclick="closeAcctMenu();openProjects()">Projects</button>
   <button onclick="closeAcctMenu();openLive()">Live voice</button>
-  <button type="button" id="acctSettingsBtn" onclick="showVectorSettings()">Settings</button>
+  <button type="button" id="acctSettingsBtn" onclick="document.getElementById('acctMenu').classList.remove('open');document.getElementById('drawerTitle').textContent='Settings';document.getElementById('drawer').classList.add('open');document.getElementById('scrim').classList.add('open');if(typeof showVectorSettings==='function'){try{showVectorSettings()}catch(e){console.error(e)}}">Settings</button>
   <hr>
   <button onclick="closeAcctMenu();openGate()">Sign in with Google</button>
   <button id="authAction" onclick="authAction()">Sign in</button>
@@ -300,6 +300,6 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="/static/vector-ai-2.v13.js?v=vector-settings-menu-handler-20261124b"></script>
+<script src="/static/vector-ai-2.v13.js?v=settings-inline-dom-open-20261124"></script>
 </body>
 </html>
