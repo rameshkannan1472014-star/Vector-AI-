@@ -834,18 +834,9 @@ async function send(){
     turns.push({role:'user', content:text});
     addUser(text);
     const reply = addAI();
-    const directConnected = await credFetch('/api/social/accounts')
-      .then(r => r.ok ? r.json() : Promise.reject(new Error('account lookup failed')))
-      .then(d => (d.accounts || []).some(a => a.platform === 'youtube' && a.connected))
-      .catch(() => false);
-    if (!directConnected) {
-      reply.innerHTML = plainRender('To upload from Vector chat, connect YouTube directly first: open Growth Agency → YouTube → Connect YouTube. A Bundle connection by itself does not grant this upload permission. Then ask me to upload again.');
-      turns.push({role:'assistant', content:'To upload from Vector chat, connect YouTube directly first: open Growth Agency → YouTube → Connect YouTube. A Bundle connection by itself does not grant this upload permission. Then ask me to upload again.'});
-    } else {
-      reply.innerHTML = plainRender('Choose the video file to upload. I will open the review screen; nothing is published until you confirm Upload to YouTube.');
-      turns.push({role:'assistant', content:'Choose the video file to upload. I will open the review screen; nothing is published until you confirm Upload to YouTube.'});
-      pickYouTubeVideo();
-    }
+    reply.innerHTML = plainRender('Choose your video file. Vector will verify the YouTube account connected through Bundle.social when you submit it. Review the details before confirming the upload.');
+    turns.push({role:'assistant', content:'Choose your video file. Vector will verify the YouTube account connected through Bundle.social when you submit it. Review the details before confirming the upload.'});
+    pickYouTubeVideo();
     syncChat();
     busy = false;
     autogrow();
