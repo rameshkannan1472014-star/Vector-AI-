@@ -209,7 +209,18 @@ def chat_connection_context(request):
     This confirms account linking only; it does not grant chat tools access to
     channel content, analytics, or publishing actions.
     """
-    team_id = _team_id(request)
+    if os.getenv("BUNDLE_SINGLE_TEAM_MODE", "").strip().lower() == "true":
+        team_id = os.getenv("BUNDLE_SOCIAL_TEAM_ID", "").strip()
+    else:
+        owner_key, _team_name = _user(request)
+        with _db() as con:
+            row = con.execute(
+                "SELECT team_id FROM bundle_user_teams WHERE owner_key=?",
+                (owner_key,),
+            ).fetchone()
+        team_id = str(row["team_id"]) if row else ""
+    if not team_id:
+        return []
     path = "/team/" + urllib.parse.quote(team_id, safe="")
     result = _api("GET", path)
     accounts = result.get("socialAccounts", []) if isinstance(result, dict) else []
@@ -290,10 +301,20 @@ def youtube_channel_context(request):
                 latest = snapshots[-1] if isinstance(snapshots[-1], dict) else {}
                 raw_metrics = latest.get("raw") if isinstance(latest, dict) else {}
                 if isinstance(raw_metrics, dict):
-                    # Pass back the provider's raw snapshot so the model can
-                    # explain fields without inventing missing values.
-                    result["channel_analytics"] = raw_metrics
-                    result["analytics_available"] = True
+                    # Only forward aggregate channel metrics, not audience
+                    # demographics or other raw analytics fields to the model.
+                    allowed_metrics = {
+                        "subscribers", "subscriberCount", "views", "viewCount",
+                        "watchTime", "watchTimeMinutes", "averageViewDuration",
+                        "likes", "comments", "shares", "impressions",
+                    }
+                    metrics = {
+                        key: value for key, value in raw_metrics.items()
+                        if key in allowed_metrics and isinstance(value, (str, int, float))
+                    }
+                    if metrics:
+                        result["channel_analytics"] = metrics
+                        result["analytics_available"] = True
         except HTTPException as analytics_error:
             # Account connection is still verified even if analytics is
             # unavailable (e.g. plan permissions or Cloudflare/API access).
