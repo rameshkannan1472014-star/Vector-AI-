@@ -333,3 +333,78 @@ async def agency_publish_youtube(request: Request, video: UploadFile = File(...)
         raise HTTPException(exc.code,"YouTube upload failed: "+exc.read().decode(errors="replace")[:1000])
     return {"published":True,"platform":"youtube","video_id":result.get("id"),
             "url":"https://youtube.com/watch?v="+result.get("id",""),"result":result}
+
+
+# Chat publishing: a post is staged first and only published after the user
+# explicitly replies "APPROVE POST" in the same signed browser session.
+def stage_chat_linkedin_post(session, text, project_url=""):
+    if not session:
+        raise HTTPException(401, "Open Vector in the same browser and connect LinkedIn first.")
+    text = (text or "").strip()
+    project_url = (project_url or "").strip()
+    if not text:
+        raise HTTPException(400, "Post text is required.")
+    if len(text) > 3000:
+        raise HTTPException(400, "LinkedIn post text must be 3,000 characters or fewer.")
+    if project_url:
+        text += "\\n" + project_url[:500]
+    with _db() as con:
+        con.execute("""CREATE TABLE IF NOT EXISTS chat_pending_posts(
+            session_id TEXT PRIMARY KEY, platform TEXT NOT NULL,
+            post_text TEXT NOT NULL, created REAL NOT NULL)""")
+        con.execute("""INSERT INTO chat_pending_posts(session_id,platform,post_text,created)
+            VALUES(?,?,?,?) ON CONFLICT(session_id) DO UPDATE SET
+            platform=excluded.platform,post_text=excluded.post_text,created=excluded.created""",
+            (session, "linkedin", text, time.time()))
+        con.commit()
+    return {"status":"pending_approval","platform":"linkedin","text":text}
+
+
+def confirm_chat_linkedin_post(session):
+    if not session:
+        raise HTTPException(401, "Your Vector social session is missing. Reopen Growth Agency.")
+    with _db() as con:
+        con.execute("""CREATE TABLE IF NOT EXISTS chat_pending_posts(
+            session_id TEXT PRIMARY KEY, platform TEXT NOT NULL,
+            post_text TEXT NOT NULL, created REAL NOT NULL)""")
+        row = con.execute("SELECT * FROM chat_pending_posts WHERE session_id=?",
+                          (session,)).fetchone()
+        if not row:
+            raise HTTPException(404, "No post is waiting for approval.")
+        if time.time() - float(row["created"]) > 86400:
+            con.execute("DELETE FROM chat_pending_posts WHERE session_id=?", (session,))
+            con.commit()
+            raise HTTPException(410, "The draft expired. Ask Vector to prepare it again.")
+        post_text = row["post_text"]
+    account = _account(session, "linkedin")
+    urn = account["profile"].get("sub")
+    if not urn:
+        raise HTTPException(400, "LinkedIn profile ID unavailable. Reconnect LinkedIn.")
+    post = {"author":"urn:li:person:"+urn,"commentary":post_text,
+            "visibility":"PUBLIC","distribution":{"feedDistribution":"MAIN_FEED",
+            "targetEntities":[],"thirdPartyDistributionChannels":[]},
+            "lifecycleState":"PUBLISHED","isReshareDisabledByAuthor":False}
+    result = _json_request("https://api.linkedin.com/rest/posts", post,
+        {"Authorization":"Bearer "+account["access_token"],"LinkedIn-Version":"202601",
+         "X-Restli-Protocol-Version":"2.0.0"})
+    with _db() as con:
+        con.execute("DELETE FROM chat_pending_posts WHERE session_id=?", (session,))
+        con.commit()
+    return {"published":True,"platform":"linkedin","result":result,"text":post_text}
+
+
+class ChatPublishStage(BaseModel):
+    text: str = Field(min_length=1, max_length=3000)
+    project_url: str = Field(default="", max_length=500)
+
+
+@router.post("/api/agency/chat-publish/stage")
+async def chat_publish_stage(body: ChatPublishStage, request: Request):
+    session = request.cookies.get(COOKIE, "")
+    return stage_chat_linkedin_post(session, body.text, body.project_url)
+
+
+@router.post("/api/agency/chat-publish/confirm")
+async def chat_publish_confirm(request: Request):
+    session = request.cookies.get(COOKIE, "")
+    return confirm_chat_linkedin_post(session)
