@@ -2286,7 +2286,6 @@ document.addEventListener('keydown', e => {
 });
 
 function boot(){
-  bindSettingsButton();
   loadState();
   paintAttachments();
   paintProject();
