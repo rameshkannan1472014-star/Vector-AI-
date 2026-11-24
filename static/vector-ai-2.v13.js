@@ -2038,6 +2038,7 @@ const SET_SECTIONS = [
   { id:'General', label:'General' },
   { id:'Personalization', label:'Personalization' },
   { id:'Apps', label:'Apps & connectors' },
+  { id:'GrowthAgency', label:'Growth Agency' },
   { id:'Data', label:'Data controls' },
   { id:'Security', label:'Security' },
   { id:'Account', label:'Account' },
@@ -2124,6 +2125,12 @@ function selectSection(id){
         '<label class="switch"><input type="checkbox" id="stGhRemember" ' + (ghStore && ghStore.remember ? 'checked' : '') + '><i></i></label></div></div>' +
     '</div>' +
     '<div class="set-note">GitHub and Google are used only to sign you in and make the features you choose work.</div>',
+    'GrowthAgency': () => '<div class="set-group">' +
+      '<div class="set-row set-wide"><div><div class="lbl">Automatic bug-fix policy</div><span class="sub">Choose how Vector handles bugs in projects linked to your account.</span></div>' +
+        '<select id="stBugFixMode" disabled><option value="approval" selected>Ask for approval (default)</option><option value="automatic">Automatic fixes</option></select></div></div>' +
+      '<div class="set-note" id="stBugFixStatus">Loading your saved Growth Agency preference…</div>' +
+      '<button class="set-btn" id="stBugFixSave" disabled onclick="saveGrowthAgencyAutomationSettings()">Save automation setting</button>' +
+      '<div class="set-note">Approval mode lets Vector diagnose issues and prepare/test a fix, then asks before deployment. Automatic mode is a preference for future automation; production deployments must still pass safety checks.</div>',
     'Data': () => '<div class="set-group">' +
       '<div class="set-row set-wide"><div><div class="lbl">Clear chat history</div><span class="sub">Start fresh. This cannot be undone.</span></div>' +
         '<button class="set-btn danger" onclick="clearChatHistory()">Clear history</button></div></div>' +
@@ -2169,6 +2176,7 @@ function selectSection(id){
   main.innerHTML = render();
   // wire accent re-paint after render
   if (id === 'Personalization'){ stAccentsPick(item.accent || '#ffffff'); }
+  if (id === 'GrowthAgency') loadGrowthAgencyAutomationSettings();
   // wire GitHub connect button
   const ghBtn = $('ghConnectBtn');
   if (ghBtn){
@@ -2177,6 +2185,53 @@ function selectSection(id){
   const glBtn = $('glConnectBtn');
   if (glBtn){
     glBtn.onclick = () => { if (me && authProviders.google){ toast('Google is already connected'); } else { openGate(); showGateStep('signin'); paintGateNote('google'); toast('Connect Google to use this feature'); } };
+  }
+}
+
+async function loadGrowthAgencyAutomationSettings(){
+  const select = $('stBugFixMode');
+  const status = $('stBugFixStatus');
+  const save = $('stBugFixSave');
+  if (!select || !status || !save) return;
+  try {
+    const response = await credFetch('/api/growth-agency/automation-settings');
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.detail || 'Sign in to load this setting.');
+    select.value = data.bug_fix_mode === 'automatic' ? 'automatic' : 'approval';
+    select.disabled = false;
+    save.disabled = false;
+    status.textContent = 'Saved for your signed-in account. Current mode: ' +
+      (select.value === 'automatic' ? 'Automatic fixes' : 'Ask for approval') + '.';
+  } catch (error) {
+    select.disabled = true;
+    save.disabled = true;
+    status.textContent = error.message || 'Could not load your saved setting.';
+  }
+}
+
+async function saveGrowthAgencyAutomationSettings(){
+  const select = $('stBugFixMode');
+  const status = $('stBugFixStatus');
+  const save = $('stBugFixSave');
+  if (!select || !status || !save) return;
+  save.disabled = true;
+  status.textContent = 'Saving your preference…';
+  try {
+    const response = await credFetch('/api/growth-agency/automation-settings', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bug_fix_mode: select.value })
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.detail || 'Could not save your setting.');
+    status.textContent = 'Saved to your account. Vector will use ' +
+      (data.bug_fix_mode === 'automatic' ? 'Automatic fixes' : 'Ask for approval') +
+      ' as the default policy for your projects.';
+    toast('Growth Agency setting saved');
+  } catch (error) {
+    status.textContent = error.message || 'Could not save your setting.';
+  } finally {
+    save.disabled = false;
   }
 }
 
