@@ -2328,7 +2328,7 @@ async function publishYouTubeFromChat(){
   form.append('tags', $('ytUploadTags').value || '');
   form.append('privacy', $('ytUploadPrivacy').value || 'private');
   try{
-    const response = await credFetch('/api/agency/publish/youtube', {method:'POST', body:form});
+    const response = await credFetch('/api/agency/publish/youtube-bundle', {method:'POST', body:form});
     let data = {};
     try{ data = await response.json(); }catch(e){}
     if (!response.ok){
