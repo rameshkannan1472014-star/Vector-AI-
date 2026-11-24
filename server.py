@@ -421,6 +421,16 @@ def init_database():
         """
     )
 
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS growth_agency_user_settings (
+            owner_key TEXT PRIMARY KEY,
+            bug_fix_mode TEXT NOT NULL DEFAULT 'approval',
+            updated_at TEXT NOT NULL
+        )
+        """
+    )
+
     connection.commit()
     connection.close()
 
@@ -491,6 +501,10 @@ class FeedbackRequest(BaseModel):
     rating: int = Field(..., ge=1, le=5)
 
     message: str = Field(..., min_length=3, max_length=4000)
+
+
+class GrowthAgencyAutomationSettingsRequest(BaseModel):
+    bug_fix_mode: str = Field(default="approval", min_length=1, max_length=20)
 
 
 class CodeReviewRequest(BaseModel):
@@ -2032,6 +2046,71 @@ async def health():
             len(get_gemini_api_keys()),
         "providers": provider_status()
     }
+
+
+def _growth_agency_owner_key(request: Request) -> str:
+    """Return a stable, authenticated per-user key for Growth Agency settings."""
+    try:
+        from github_auth import current_user
+        person = current_user(request)
+    except Exception:
+        person = None
+    if not person:
+        raise HTTPException(status_code=401, detail="Sign in to Vector to save Growth Agency settings.")
+    provider = str(person.get("provider") or "vector").strip().lower()
+    login = str(person.get("login") or "").strip().lower()
+    if not login:
+        raise HTTPException(status_code=401, detail="Your sign-in profile is missing a user ID.")
+    return provider + ":" + login
+
+
+def get_growth_agency_bug_fix_mode(owner_key: str) -> str:
+    """Read a user's saved bug-fix policy. Approval is the safe default."""
+    connection = get_db()
+    try:
+        row = connection.execute(
+            "SELECT bug_fix_mode FROM growth_agency_user_settings WHERE owner_key=?",
+            (owner_key,),
+        ).fetchone()
+        return row["bug_fix_mode"] if row and row["bug_fix_mode"] in {"approval", "automatic"} else "approval"
+    finally:
+        connection.close()
+
+
+@app.get("/api/growth-agency/automation-settings")
+async def get_growth_agency_automation_settings(request: Request):
+    owner_key = _growth_agency_owner_key(request)
+    return {
+        "status": "success",
+        "bug_fix_mode": get_growth_agency_bug_fix_mode(owner_key),
+        "available_modes": ["approval", "automatic"],
+    }
+
+
+@app.put("/api/growth-agency/automation-settings")
+async def save_growth_agency_automation_settings(
+    request: Request,
+    settings: GrowthAgencyAutomationSettingsRequest,
+):
+    owner_key = _growth_agency_owner_key(request)
+    mode = settings.bug_fix_mode.strip().lower()
+    if mode not in {"approval", "automatic"}:
+        raise HTTPException(status_code=422, detail="Choose approval or automatic mode.")
+    updated_at = datetime.now(timezone.utc).isoformat()
+    connection = get_db()
+    try:
+        connection.execute(
+            """INSERT INTO growth_agency_user_settings(owner_key, bug_fix_mode, updated_at)
+               VALUES(?,?,?)
+               ON CONFLICT(owner_key) DO UPDATE SET
+               bug_fix_mode=excluded.bug_fix_mode,
+               updated_at=excluded.updated_at""",
+            (owner_key, mode, updated_at),
+        )
+        connection.commit()
+    finally:
+        connection.close()
+    return {"status": "success", "bug_fix_mode": mode, "updated_at": updated_at}
 
 
 @app.post("/api/feedback")
