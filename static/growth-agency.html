@@ -2,18 +2,33 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#080d1a"><title>Vector Growth Agency</title>
+<meta name="theme-color" content="#000000"><title>Vector Growth Agency</title>
 <style>
-:root{color-scheme:dark;font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:#080d1a;color:#edf3ff}
-*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 10% 0,#172a4d 0,transparent 42%),#080d1a}
-main{max-width:900px;margin:auto;padding:24px 16px 60px}.top{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
-.brand{display:flex;gap:12px;align-items:center}.mark{display:grid;place-items:center;width:42px;height:42px;border-radius:14px;background:linear-gradient(135deg,#00c6ff,#7c4dff);font-weight:900;font-size:24px;color:white}
-h1{font-size:clamp(24px,5vw,36px);margin:0}.muted{color:#9fb0cc}.btn{border:1px solid #314666;background:#14213a;color:#f3f7ff;border-radius:12px;padding:11px 14px;font-weight:650;cursor:pointer;text-decoration:none;display:inline-block}.primary{background:linear-gradient(100deg,#007aff,#7454ff);border:0}
-.panel{background:rgba(15,25,44,.92);border:1px solid #243653;border-radius:18px;padding:18px;margin-top:16px}.platforms{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}.platform{border:1px solid #263954;background:#0d1729;border-radius:15px;padding:14px}.platform h3{margin:0 0 8px}.status{font-size:13px;color:#9fb0cc;min-height:20px;margin:8px 0}.fields{display:grid;gap:10px}input,textarea,select{width:100%;border:1px solid #2a3c59;border-radius:11px;background:#080f1e;color:#f3f7ff;padding:12px;font:inherit}textarea{min-height:100px;resize:vertical}.drafts{white-space:pre-wrap;overflow-wrap:anywhere;background:#080f1e;border:1px solid #263954;border-radius:12px;padding:12px;margin-top:10px}.row{display:flex;gap:10px;flex-wrap:wrap}.row>*{flex:1}.notice{font-size:13px;color:#a8b8d1;line-height:1.55}.back{color:#b5c9ea;text-decoration:none}.hide{display:none}
+:root{color-scheme:dark;--bg:#000;--panel:#000;--raise:#101010;--raise2:#161616;--border:#222;--soft:#1a1a1a;--text:#f7f7f7;--dim:#a6a6a6;--faint:#6e6e6e;font-family:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text)}
+*{box-sizing:border-box}html,body{min-height:100%;margin:0}body{background:var(--bg);color:var(--text);font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased}::selection{background:#3a3a3a;color:#fff}
+main{max-width:808px;margin:0 auto;padding:0 24px 52px}
+.top{height:52px;display:flex;gap:10px;align-items:center;justify-content:space-between;border-bottom:1px solid var(--soft);margin:0 -24px 20px;padding:0 18px}
+.brand{display:flex;gap:9px;align-items:center;min-width:0}.mark{display:grid;place-items:center;width:22px;height:22px;border-radius:6px;background:#fff;color:#000;font-weight:800;font-size:12px;flex:0 0 22px}
+h1{font-size:15px;font-weight:600;letter-spacing:-.01em;margin:0}.muted{color:var(--faint);font-size:13px}.brand .muted{display:none}
+.back{color:var(--dim);text-decoration:none;font-size:12.5px;border:1px solid var(--border);background:var(--raise);border-radius:99px;padding:5px 11px;white-space:nowrap}.back:hover{background:var(--raise2);color:var(--text)}
+h2{font-size:15px;font-weight:600;letter-spacing:-.01em;margin:0 0 5px}h3{font-size:14px;font-weight:600;margin:0 0 8px}
+.panel{background:transparent;border:0;border-top:1px solid var(--soft);border-radius:0;padding:20px 0;margin:0}.panel>p{margin:0 0 14px}
+.platforms{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin:16px 0}
+.platform{border:1px solid var(--border);background:var(--raise);border-radius:14px;padding:14px;min-width:0}.platform h3{margin:0 0 7px}
+.status{font-size:12.5px;color:var(--dim);min-height:18px;margin:8px 0;overflow-wrap:anywhere}
+.btn{border:1px solid var(--border);background:var(--raise2);color:var(--text);border-radius:11px;padding:9px 13px;font-family:inherit;font-size:13px;font-weight:550;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:7px}.btn:hover{background:#202020}
+.primary{background:#fff;color:#000;border:1px solid #fff}.primary:hover{background:#e8e8e8;color:#000}
+.fields{display:grid;gap:10px;margin-top:14px}
+input,textarea,select{width:100%;border:1px solid var(--border);border-radius:11px;background:var(--raise);color:var(--text);padding:11px 13px;font:inherit;font-size:14px;outline:none}
+input:focus,textarea:focus,select:focus{border-color:#3a3a3a;background:#131313}input::placeholder,textarea::placeholder{color:#6b6b6b}
+textarea{min-height:92px;resize:vertical;line-height:1.55}input[type=file]{font-size:12.5px;color:var(--dim)}
+.drafts{white-space:pre-wrap;overflow-wrap:anywhere;background:var(--raise);border:1px solid var(--border);border-radius:12px;padding:13px;margin-top:10px;font-size:14px;line-height:1.65}
+.row{display:flex;gap:10px;flex-wrap:wrap}.row>*{flex:1}.notice{font-size:12px;color:var(--faint);line-height:1.55;margin-top:12px}.hide{display:none}
+@media(max-width:560px){main{padding:0 16px 36px}.top{margin:0 -16px 16px;padding:0 12px}.platforms{grid-template-columns:1fr}.panel{padding:17px 0}.back{font-size:11.5px;padding:5px 9px}}
 </style>
 </head>
 <body><main>
-<div class="top"><div class="brand"><div class="mark">V</div><div><h1>Growth Agency</h1><div class="muted">Build · Publish · Promote · Grow</div></div></div><a class="back" href="/">← Back to Vector</a></div>
+<div class="top"><div class="brand"><div class="mark">V</div><h1>Growth Agency</h1></div><a class="back" href="/">← Back to Vector</a></div>
 <section class="panel"><h2>Connect your platforms</h2><p class="muted">Connect your own accounts. Review posts before publishing.</p>
 <div class="platforms">
 <div class="platform"><h3>Bundle Social</h3><div class="status" id="bundleStatus">Connect multiple social platforms</div><a class="btn primary" href="/api/bundle/connect">Connect with Bundle</a><div class="status" id="bundleAccounts"></div><p class="notice">Sign in to Vector first. Bundle opens a temporary connection portal; Vector creates a fresh link when you tap this button.</p></div>
