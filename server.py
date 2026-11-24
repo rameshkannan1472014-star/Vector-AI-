@@ -2264,8 +2264,7 @@ async def chat(request: ChatRequest, http_request: Request):
                 _bundle_status_line = (
                     "Bundle: CONNECTED social accounts verified for this signed-in user: "
                     + "; ".join(str(x)[:160] for x in _bundle_accounts[:30])
-                    + ". Account linking is verified. Chat has a read-only YouTube channel metadata/aggregate-stat lookup when the user asks about their channel, but no tool to list private videos or publish/manage posts. "
-                    + "When asked about connection status, report it accurately; do not claim video-list or publishing access."
+                    + ". Account linking is verified. Vector chat can stage LinkedIn text posts through its native publisher; it must show the exact draft and wait for the user to reply APPROVE POST before publishing. Bundle connection itself does not publish. YouTube channel lookup is read-only; video uploads and TikTok video publishing remain in the Growth Agency page and may require provider review."
                 )
         except Exception as _bundle_exc:
             _bundle_status_line = "Bundle: connection status could not be verified during this request. Do not guess whether an account is connected."
