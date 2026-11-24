@@ -438,7 +438,7 @@ def _bundle_upload_image(team_id, filename, content_type, content):
         chunks.append(str(value).encode("utf-8"))
         chunks.append(b"\r\n")
     field("teamId", team_id)
-    safe_name = (filename or "vector-image").replace('"', "")
+    safe_name = os.path.basename(filename or "vector-image").replace('"', "").replace("\\r", "").replace("\\n", "")
     chunks.append(("--" + boundary + "\r\n").encode())
     chunks.append(('Content-Disposition: form-data; name="file"; filename="' + safe_name + '"\r\n').encode())
     chunks.append(("Content-Type: " + content_type + "\r\n\r\n").encode())
