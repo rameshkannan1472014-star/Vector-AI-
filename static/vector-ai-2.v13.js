@@ -2020,11 +2020,11 @@ function setVoice(value){
 
 function openSettings(){
   closeAcctMenu();
-  closeDrawer();
   $('drawerTitle').textContent = 'Settings';
   $('drawerBody').innerHTML = settingsTemplate();
   paintSettings();
   $('drawerBody').dataset.setOpen = '1';
+  openDrawer();
 }
 
 function closeSettings(){
