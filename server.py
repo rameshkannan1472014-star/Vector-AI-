@@ -2309,6 +2309,38 @@ If the user asks for a diagram, provide a simple diagram when useful.
         if not request.images:
             answer = solve_simple_arithmetic(request.prompt)
 
+        # Read-only YouTube channel lookup for natural-language channel requests.
+        # This runs only when the user asks about their own connected channel.
+        _youtube_channel_request = bool(re.search(
+            r"\\b(my\\s+)?youtube\\s+(channel|account|stats|statistics|subscribers|views)\\b|"
+            r"\\b(my\\s+channel|channel\\s+(?:info|details|stats|statistics|subscribers))\\b",
+            request.prompt,
+            re.IGNORECASE,
+        ))
+        if answer is None and _youtube_channel_request and not request.images:
+            try:
+                from bundle_social import youtube_channel_context as _youtube_context
+                _youtube_data = await asyncio.to_thread(_youtube_context, http_request)
+            except Exception:
+                logger.exception("YouTube channel context lookup failed")
+                _youtube_data = {"status": "lookup_failed"}
+            if _youtube_data.get("status") == "success":
+                _youtube_prompt = (
+                    prompt
+                    + "\\n\\nVERIFIED YOUTUBE CHANNEL DATA retrieved from the user's connected Bundle team (read-only):\\n"
+                    + json.dumps(_youtube_data, ensure_ascii=False)[:18000]
+                    + "\\nUse only the returned data. Do not invent channel names, subscriber counts, video details, or metrics. "
+                    + "If a field is absent, say it was not returned. Distinguish account metadata from analytics."
+                )
+                answer = await asyncio.to_thread(
+                    generate_groq_coding_response, _youtube_prompt, 1200
+                )
+                provider = "groq"
+            elif _youtube_data.get("status") == "not_connected":
+                answer = "I couldn't find a YouTube account linked to this Vector user's Bundle team. Please connect YouTube from Growth Agency, then ask again."
+            else:
+                answer = "Your YouTube account may be linked, but Vector couldn't retrieve its channel details from Bundle right now. The connection can be recognized without channel data; the API lookup may be blocked or analytics permissions may be unavailable. Please try again later or contact Bundle support if this continues."
+
         # Fetch repository metadata directly from GitHub, then use Groq to
         # formulate the answer. This avoids a slow Gemini function-call roundtrip
         # for the common "show/list my repositories" request.
