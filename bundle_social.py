@@ -13,7 +13,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, UploadFile, File, Form
 from fastapi.responses import RedirectResponse
 
 router = APIRouter()
@@ -414,3 +414,173 @@ def confirm_chat_bundle_post(request):
         con.execute("DELETE FROM bundle_chat_pending_posts WHERE owner_key=?", (owner_key,))
         con.commit()
     return {"submitted":True,"targets":targets,"skipped_media_platforms":skipped,"result":result}
+
+
+# Image-post workflow: upload media to Bundle, review connected targets,
+# then publish only after the user presses the explicit approval button.
+IMAGE_POST_TYPES = {
+    "FACEBOOK", "INSTAGRAM", "TWITTER", "LINKEDIN", "REDDIT",
+    "THREADS", "BLUESKY", "MASTODON", "GOOGLE_BUSINESS",
+}
+IMAGE_MAX_BYTES = 10 * 1024 * 1024
+
+
+def _bundle_upload_image(team_id, filename, content_type, content):
+    key = (os.getenv("BUNDLE_SOCIAL_API_KEY") or
+           os.getenv("BUNDLE_API_KEY") or "").strip()
+    if not key:
+        raise HTTPException(503, "Bundle.social API key is not configured on Vector.")
+    boundary = "----VectorImageUpload" + str(int(time.time() * 1000))
+    chunks = []
+    def field(name, value):
+        chunks.append(("--" + boundary + "\r\n").encode())
+        chunks.append(('Content-Disposition: form-data; name="' + name + '"\r\n\r\n').encode())
+        chunks.append(str(value).encode("utf-8"))
+        chunks.append(b"\r\n")
+    field("teamId", team_id)
+    safe_name = (filename or "vector-image").replace('"', "")
+    chunks.append(("--" + boundary + "\r\n").encode())
+    chunks.append(('Content-Disposition: form-data; name="file"; filename="' + safe_name + '"\r\n').encode())
+    chunks.append(("Content-Type: " + content_type + "\r\n\r\n").encode())
+    chunks.append(content)
+    chunks.append(b"\r\n--" + boundary.encode() + b"--\r\n")
+    req = urllib.request.Request(
+        BUNDLE_BASE + "/upload", data=b"".join(chunks),
+        headers={
+            "x-api-key": key, "Accept": "application/json",
+            "User-Agent": "Vector-AI-GrowthAgency/1.0 (+https://vector-ai-izgf.onrender.com)",
+            "Content-Type": "multipart/form-data; boundary=" + boundary,
+        }, method="POST"
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=60) as response:
+            raw = response.read()
+            return json.loads(raw.decode("utf-8")) if raw else {}
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")[:1000]
+        raise HTTPException(exc.code, "Bundle image upload failed: " + detail)
+    except Exception as exc:
+        raise HTTPException(502, "Bundle image upload failed: " + str(exc)[:250])
+
+
+@router.get("/api/agency/image-post/accounts")
+async def image_post_accounts(request: Request):
+    _owner_key, _team_name = _user(request)
+    team_id = _team_id(request)
+    team = _api("GET", "/team/" + urllib.parse.quote(team_id, safe=""))
+    accounts = team.get("socialAccounts", []) if isinstance(team, dict) else []
+    result = []
+    seen = set()
+    for account in accounts if isinstance(accounts, list) else []:
+        if not isinstance(account, dict):
+            continue
+        kind = str(account.get("type") or account.get("socialAccountType") or account.get("platform") or "").upper()
+        if kind == "X":
+            kind = "TWITTER"
+        if kind in IMAGE_POST_TYPES and kind not in seen:
+            seen.add(kind)
+            result.append({
+                "platform": kind,
+                "name": str(account.get("name") or account.get("accountName") or account.get("username") or kind)
+            })
+    return {"accounts": result}
+
+
+@router.post("/api/agency/image-post/prepare")
+async def image_post_prepare(
+    request: Request,
+    image: UploadFile = File(...),
+    caption: str = Form(""),
+    platforms: str = Form("[]"),
+):
+    owner_key, _team_name = _user(request)
+    team_id = _team_id(request)
+    content_type = (image.content_type or "").lower()
+    if content_type not in {"image/jpeg", "image/png", "image/webp"}:
+        raise HTTPException(415, "Choose a JPG, PNG, or WebP image.")
+    content = await image.read(IMAGE_MAX_BYTES + 1)
+    if not content:
+        raise HTTPException(400, "The selected image is empty.")
+    if len(content) > IMAGE_MAX_BYTES:
+        raise HTTPException(413, "Images must be 10 MB or smaller.")
+    caption = (caption or "").strip()
+    if len(caption) > 5000:
+        raise HTTPException(400, "Caption is too long (maximum 5,000 characters).")
+    try:
+        requested = json.loads(platforms or "[]")
+    except Exception:
+        raise HTTPException(400, "Invalid platform selection.")
+    if not isinstance(requested, list) or not requested:
+        raise HTTPException(400, "Select at least one connected platform.")
+    requested = list(dict.fromkeys(str(item).upper() for item in requested))
+    if any(item not in IMAGE_POST_TYPES for item in requested):
+        raise HTTPException(400, "One or more selected platforms do not support this image workflow.")
+    team = _api("GET", "/team/" + urllib.parse.quote(team_id, safe=""))
+    connected = set()
+    for account in (team.get("socialAccounts", []) if isinstance(team, dict) else []):
+        if isinstance(account, dict):
+            kind = str(account.get("type") or account.get("socialAccountType") or account.get("platform") or "").upper()
+            connected.add("TWITTER" if kind == "X" else kind)
+    targets = [item for item in requested if item in connected]
+    if not targets:
+        raise HTTPException(400, "None of the selected platforms are connected to this Vector account.")
+    uploaded = _bundle_upload_image(team_id, image.filename or "vector-image", content_type, content)
+    upload_id = str(uploaded.get("uploadId") or uploaded.get("id") or (uploaded.get("upload") or {}).get("id") or "")
+    if not upload_id:
+        raise HTTPException(502, "Bundle accepted the image but did not return an upload ID.")
+    with _db() as con:
+        con.execute("""CREATE TABLE IF NOT EXISTS bundle_image_pending_posts(
+            owner_key TEXT PRIMARY KEY, team_id TEXT NOT NULL, caption TEXT NOT NULL,
+            upload_id TEXT NOT NULL, targets_json TEXT NOT NULL, filename TEXT NOT NULL,
+            created REAL NOT NULL)""")
+        con.execute("""INSERT INTO bundle_image_pending_posts
+            (owner_key,team_id,caption,upload_id,targets_json,filename,created)
+            VALUES(?,?,?,?,?,?,?) ON CONFLICT(owner_key) DO UPDATE SET
+            team_id=excluded.team_id,caption=excluded.caption,upload_id=excluded.upload_id,
+            targets_json=excluded.targets_json,filename=excluded.filename,created=excluded.created""",
+            (owner_key, team_id, caption, upload_id, json.dumps(targets),
+             image.filename or "image", time.time()))
+        con.commit()
+    return {"status":"pending_approval","filename":image.filename or "image",
+            "targets":targets,"caption":caption}
+
+
+@router.post("/api/agency/image-post/confirm")
+async def image_post_confirm(request: Request):
+    owner_key, _team_name = _user(request)
+    team_id = _team_id(request)
+    with _db() as con:
+        con.execute("""CREATE TABLE IF NOT EXISTS bundle_image_pending_posts(
+            owner_key TEXT PRIMARY KEY, team_id TEXT NOT NULL, caption TEXT NOT NULL,
+            upload_id TEXT NOT NULL, targets_json TEXT NOT NULL, filename TEXT NOT NULL,
+            created REAL NOT NULL)""")
+        row = con.execute("SELECT * FROM bundle_image_pending_posts WHERE owner_key=?",
+                          (owner_key,)).fetchone()
+        if not row:
+            raise HTTPException(404, "No image post is awaiting approval. Prepare it again.")
+        if time.time() - float(row["created"]) > 86400:
+            con.execute("DELETE FROM bundle_image_pending_posts WHERE owner_key=?", (owner_key,))
+            con.commit()
+            raise HTTPException(410, "The image-post draft expired. Prepare it again.")
+        if str(row["team_id"]) != str(team_id):
+            raise HTTPException(403, "Your connected social team changed. Prepare the image post again.")
+        caption = row["caption"]
+        upload_id = row["upload_id"]
+        targets = json.loads(row["targets_json"])
+    now = time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime())
+    data = {}
+    for kind in targets:
+        item = {"text": caption, "uploadIds": [upload_id]}
+        if kind == "INSTAGRAM":
+            item["type"] = "POST"
+        data[kind] = item
+    payload = {
+        "teamId": team_id, "title": (caption or "Image post")[:120],
+        "postDate": now, "status": "SCHEDULED",
+        "socialAccountTypes": targets, "data": data,
+    }
+    result = _api("POST", "/post", payload)
+    with _db() as con:
+        con.execute("DELETE FROM bundle_image_pending_posts WHERE owner_key=?", (owner_key,))
+        con.commit()
+    return {"submitted":True,"targets":targets,"result":result}
