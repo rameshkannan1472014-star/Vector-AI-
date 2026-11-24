@@ -2306,6 +2306,24 @@ If the user asks for a diagram, provide a simple diagram when useful.
 
         answer = None
 
+        # YouTube video publishing requires an actual video binary. The chat
+        # text endpoint cannot publish a video from a title/checklist prompt.
+        # Give a deterministic UI instruction instead of letting the model
+        # pretend that a draft or checklist is ready to publish.
+        _yt_publish_intent = bool(re.search(
+            r"\\b(upload|publish|post)\\b.{0,80}\\byoutube\\b|\\byoutube\\b.{0,80}\\b(upload|publish|post)\\b",
+            request.prompt or "", re.IGNORECASE | re.DOTALL
+        ))
+        if _yt_publish_intent and not request.images:
+            answer = (
+                "I can upload the actual video, but I need the video file first. "
+                "Tap the video-shaped YouTube button beside the chat message box, "
+                "choose your video, review the title, description, tags and visibility, "
+                "then tap Upload to YouTube. A text prompt or checklist alone cannot upload a video. "
+                "If the upload fails, show me the exact error displayed in the upload window."
+            )
+            provider = "youtube-upload-guide"
+
         # Universal chat-to-social publishing through the user's Bundle team.
         # Draft first; publish only after the exact explicit approval phrase.
         _chat_text = (request.prompt or "").strip()
