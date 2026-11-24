@@ -2264,7 +2264,7 @@ async def chat(request: ChatRequest, http_request: Request):
                 _bundle_status_line = (
                     "Bundle: CONNECTED social accounts verified for this signed-in user: "
                     + "; ".join(str(x)[:160] for x in _bundle_accounts[:30])
-                    + ". Account linking is verified. Vector chat can prepare and submit text posts through Bundle.social to connected text-capable platforms, but it must show the exact draft and wait for the user's APPROVE POST confirmation. Media-required platforms are excluded from this text-only chat flow and must be handled in the Growth Agency media composer. YouTube channel lookup remains read-only."
+                    + ". Account linking is verified. Vector chat can prepare and submit text posts through Bundle.social to connected text-capable platforms, but it must show the exact draft and wait for the user's APPROVE POST confirmation. Media-required platforms are excluded from this text-only chat flow and must be handled in the Growth Agency media composer. YouTube channel lookup remains read-only through Bundle. A separate direct YouTube upload flow is available from the video-upload button in the Vector chat composer after the user connects YouTube directly in Growth Agency. Never claim a video was uploaded unless the upload endpoint returns a successful video ID and URL."
                 )
         except Exception as _bundle_exc:
             _bundle_status_line = "Bundle: connection status could not be verified during this request. Do not guess whether an account is connected."
