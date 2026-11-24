@@ -347,7 +347,7 @@ def stage_chat_linkedin_post(session, text, project_url=""):
     if len(text) > 3000:
         raise HTTPException(400, "LinkedIn post text must be 3,000 characters or fewer.")
     if project_url:
-        text += "\\n" + project_url[:500]
+        text += "\n" + project_url[:500]
     with _db() as con:
         con.execute("""CREATE TABLE IF NOT EXISTS chat_pending_posts(
             session_id TEXT PRIMARY KEY, platform TEXT NOT NULL,
