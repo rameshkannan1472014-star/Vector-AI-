@@ -2306,36 +2306,49 @@ If the user asks for a diagram, provide a simple diagram when useful.
 
         answer = None
 
-        # Chat-to-LinkedIn publishing: stage exact user-provided text first.
-        # Publishing requires the separate exact "APPROVE POST" confirmation.
-        _social_session = http_request.cookies.get("vector_social_sid", "")
+        # Universal chat-to-social publishing through the user's Bundle team.
+        # Draft first; publish only after the exact explicit approval phrase.
         _chat_text = (request.prompt or "").strip()
         if not request.images and re.fullmatch(r"APPROVE POST[.!]?", _chat_text, re.IGNORECASE):
             try:
-                from social_agency import confirm_chat_linkedin_post as _confirm_chat_post
-                _published = await asyncio.to_thread(_confirm_chat_post, _social_session)
-                _post_id = (_published.get("result") or {}).get("id") or ""
-                answer = "Published to LinkedIn successfully." + ((" Post ID: " + str(_post_id)) if _post_id else "")
+                from bundle_social import confirm_chat_bundle_post as _confirm_bundle_post
+                _submitted = await asyncio.to_thread(_confirm_bundle_post, http_request)
+                _targets = ", ".join(_submitted.get("targets") or [])
+                _post_result = _submitted.get("result") or {}
+                _post_id = _post_result.get("id") or _post_result.get("postId") or ""
+                answer = "Submitted your approved post to Bundle.social for " + _targets + "."
+                if _post_id:
+                    answer += " Post ID: " + str(_post_id) + "."
+                answer += " Check the post status in Growth Agency; accepted does not always mean every platform has finished publishing."
+                _skipped = _submitted.get("skipped_media_platforms") or []
+                if _skipped:
+                    answer += " These connected platforms were not included because they need media-specific publishing: " + ", ".join(_skipped) + "."
             except Exception as _publish_error:
-                answer = "I couldn't publish the approved LinkedIn post: " + str(_publish_error)[:500]
+                answer = "I couldn't submit the approved multi-platform post: " + str(_publish_error)[:500]
             provider = "social-tool"
         elif not request.images:
             _publish_match = re.match(
-                r"^(?:publish|post)\s+(?:this\s+)?(?:post\s+)?(?:to\s+)?linkedin\s*[:\-]\s*(.+)$",
+                r"^(?:publish|post)\\s+(?:(?:this\\s+)?post\\s+)?(?:to\\s+)?(?:all\\s+(?:my\\s+)?connected\\s+platforms|all\\s+socials|everywhere|across\\s+(?:my\\s+)?socials)\\s*[:\\-]\\s*(.+)$",
                 _chat_text, re.IGNORECASE | re.DOTALL
             )
             if _publish_match:
-                _post_text = _publish_match.group(1).strip().strip('\u201c\u201d"')
+                _post_text = _publish_match.group(1).strip().strip('\\u201c\\u201d"')
                 try:
-                    from social_agency import stage_chat_linkedin_post as _stage_chat_post
-                    _staged = await asyncio.to_thread(_stage_chat_post, _social_session, _post_text, "")
+                    from bundle_social import stage_chat_bundle_post as _stage_bundle_post
+                    _staged = await asyncio.to_thread(_stage_bundle_post, http_request, _post_text)
                     answer = (
-                        "LinkedIn draft prepared. Nothing has been published yet.\n\n"
+                        "Multi-platform draft prepared. Nothing has been published yet.\\n\\n"
                         + _staged["text"]
-                        + "\n\nReview it, then reply exactly **APPROVE POST** to publish it to your connected LinkedIn account."
+                        + "\\n\\nSelected connected text-post platforms: "
+                        + ", ".join(_staged["targets"])
+                        + ".\\n\\n"
                     )
+                    _skipped = _staged.get("skipped_media_platforms") or []
+                    if _skipped:
+                        answer += "Connected platforms not included because they require media: " + ", ".join(_skipped) + ".\\n\\n"
+                    answer += "Review the exact text above, then reply exactly **APPROVE POST** to submit it to the selected connected platforms."
                 except Exception as _stage_error:
-                    answer = "I couldn't prepare the LinkedIn post: " + str(_stage_error)[:500]
+                    answer = "I couldn't prepare the multi-platform post: " + str(_stage_error)[:500]
                 provider = "social-tool"
 
         if answer is None and not request.images:
