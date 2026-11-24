@@ -169,7 +169,15 @@ async def bundle_connect(request: Request):
 
 @router.get("/api/bundle/accounts")
 async def bundle_accounts(request: Request):
-    team_id = _team_id(request)
+    owner_key, _team_name = _user(request)
+    with _db() as con:
+        row = con.execute(
+            "SELECT team_id FROM bundle_user_teams WHERE owner_key=?",
+            (owner_key,),
+        ).fetchone()
+    if not row:
+        return []
+    team_id = row["team_id"]
     path = "/team/" + urllib.parse.quote(team_id, safe="")
     result = _api("GET", path)
     accounts = result.get("socialAccounts", [])
