@@ -298,7 +298,7 @@ async def agency_publish_tiktok(body: TikTokPublish, request: Request):
 @router.post("/api/agency/publish/youtube")
 async def agency_publish_youtube(request: Request, video: UploadFile = File(...),
                                 title: str = Form(...), description: str = Form(""),
-                                privacy: str = Form("private")):
+                                tags: str = Form(""), privacy: str = Form("private")):
     session = request.cookies.get(COOKIE, "")
     account = _account(session, "youtube")
     if privacy not in {"private","unlisted","public"}:
@@ -309,8 +309,14 @@ async def agency_publish_youtube(request: Request, video: UploadFile = File(...)
     if not content:
         raise HTTPException(400, "Empty video file")
     access = _refresh_google(account)
-    metadata = json.dumps({"snippet":{"title":title[:100],"description":description[:5000],
-                       "categoryId":"28"},"status":{"privacyStatus":privacy}}).encode()
+    tag_list = [item.strip() for item in (tags or "").split(",") if item.strip()]
+    tag_list = tag_list[:30]
+    if sum(len(item) for item in tag_list) > 500:
+        raise HTTPException(400, "YouTube tags must total 500 characters or fewer.")
+    snippet = {"title":title[:100],"description":description[:5000],"categoryId":"28"}
+    if tag_list:
+        snippet["tags"] = tag_list
+    metadata = json.dumps({"snippet":snippet,"status":{"privacyStatus":privacy}}).encode()
     init_req = urllib.request.Request(
         "https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status",
         data=metadata,
