@@ -2254,6 +2254,22 @@ async def chat(request: ChatRequest, http_request: Request):
         except Exception:
             pass
 
+        # Bundle social-account status for this signed-in Vector user.
+        # This only confirms connection metadata; chat has no Bundle publishing/read tools.
+        _bundle_status_line = "Bundle: no connected social accounts are verified for this user in this chat."
+        try:
+            from bundle_social import chat_connection_context as _bundle_chat_connections
+            _bundle_accounts = await asyncio.to_thread(_bundle_chat_connections, http_request)
+            if _bundle_accounts:
+                _bundle_status_line = (
+                    "Bundle: CONNECTED social accounts verified for this signed-in user: "
+                    + "; ".join(str(x)[:160] for x in _bundle_accounts[:30])
+                    + ". This confirms account linking only. The chat currently has no direct Bundle tools to read channel content/analytics or publish/manage posts. "
+                    + "When asked about account connection, report the verified connection accurately; do not claim access to private videos, channel data, or actions."
+                )
+        except Exception as _bundle_exc:
+            _bundle_status_line = "Bundle: connection status could not be verified during this request. Do not guess whether an account is connected."
+
         prompt = f"""
 User message:
 
@@ -2263,6 +2279,9 @@ Answer as Engineer AI.
 
 GITHUB CONNECTION STATUS FOR THIS USER (trust this for the current session):
 {_gh_status_line}
+
+BUNDLE SOCIAL CONNECTION STATUS FOR THIS USER (trust this server-verified status):
+{_bundle_status_line}
 
 USER MEMORY (user-editable; use only when relevant):
 {memory_context or "(No saved user memory.)"}
