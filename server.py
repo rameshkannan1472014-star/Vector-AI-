@@ -2322,18 +2322,18 @@ If the user asks for a diagram, provide a simple diagram when useful.
             provider = "social-tool"
         elif not request.images:
             _publish_match = re.match(
-                r"^(?:publish|post)\\s+(?:this\\s+)?(?:post\\s+)?(?:to\\s+)?linkedin\\s*[:\\-]\\s*(.+)$",
+                r"^(?:publish|post)\s+(?:this\s+)?(?:post\s+)?(?:to\s+)?linkedin\s*[:\-]\s*(.+)$",
                 _chat_text, re.IGNORECASE | re.DOTALL
             )
             if _publish_match:
-                _post_text = _publish_match.group(1).strip().strip('\\u201c\\u201d"')
+                _post_text = _publish_match.group(1).strip().strip('\u201c\u201d"')
                 try:
                     from social_agency import stage_chat_linkedin_post as _stage_chat_post
                     _staged = await asyncio.to_thread(_stage_chat_post, _social_session, _post_text, "")
                     answer = (
-                        "LinkedIn draft prepared. Nothing has been published yet.\\n\\n"
+                        "LinkedIn draft prepared. Nothing has been published yet.\n\n"
                         + _staged["text"]
-                        + "\\n\\nReview it, then reply exactly **APPROVE POST** to publish it to your connected LinkedIn account."
+                        + "\n\nReview it, then reply exactly **APPROVE POST** to publish it to your connected LinkedIn account."
                     )
                 except Exception as _stage_error:
                     answer = "I couldn't prepare the LinkedIn post: " + str(_stage_error)[:500]
