@@ -534,3 +534,39 @@ html[data-theme="light"] ::selection{background:#d8e6ff}
 .set-btn:hover{background:var(--raise-2)}
 .set-btn.danger{color:#ff6b6b;border-color:#3a1d1d}
 .set-pill{font-size:11px;color:var(--text-faint);border:1px solid var(--border);border-radius:999px;padding:3px 9px}
+
+
+/* Settings is rendered inside the right-side drawer, not as a full-screen modal. */
+#drawerBody .settings-card{
+  position:relative;
+  inset:auto;
+  margin:0;
+  width:100%;
+  height:auto;
+  min-height:100%;
+  background:transparent;
+  border:0;
+  border-radius:0;
+  display:block;
+  overflow:visible;
+  box-shadow:none;
+}
+#drawerBody .settings-nav{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  width:100%;
+  padding:0 0 12px;
+  border-right:0;
+  border-bottom:1px solid var(--border-soft);
+  overflow:visible;
+}
+#drawerBody .settings-nav button{
+  width:auto;
+  flex:0 0 auto;
+}
+#drawerBody .settings-main{
+  width:100%;
+  padding:18px 0 32px;
+  overflow:visible;
+}
