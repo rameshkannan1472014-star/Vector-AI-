@@ -821,6 +821,39 @@ async function send(){
   const text = input.value.trim();
   if (!text || busy) return;
 
+  // Route explicit YouTube publishing requests to the real upload UI.
+  // The language model must never substitute a checklist for the upload action.
+  const wantsYouTubeUpload = /\\b(?:youtube|yt)\\b/i.test(text) &&
+    /\\b(?:upload|publish|post|put\\s+(?:this|it)\\s+on|share)\\b/i.test(text);
+  if (wantsYouTubeUpload) {
+    input.value = '';
+    autogrow();
+    ensureChat(text);
+    hero.style.display = 'none';
+    messagesEl.style.display = 'block';
+    turns.push({role:'user', content:text});
+    addUser(text);
+    const reply = addAI();
+    const directConnected = await credFetch('/api/social/accounts')
+      .then(r => r.ok ? r.json() : Promise.reject(new Error('account lookup failed')))
+      .then(d => (d.accounts || []).some(a => a.platform === 'youtube' && a.connected))
+      .catch(() => false);
+    if (!directConnected) {
+      reply.innerHTML = plainRender('To upload from Vector chat, connect YouTube directly first: open Growth Agency → YouTube → Connect YouTube. A Bundle connection by itself does not grant this upload permission. Then ask me to upload again.');
+      turns.push({role:'assistant', content:'To upload from Vector chat, connect YouTube directly first: open Growth Agency → YouTube → Connect YouTube. A Bundle connection by itself does not grant this upload permission. Then ask me to upload again.'});
+    } else {
+      reply.innerHTML = plainRender('Choose the video file to upload. I will open the review screen; nothing is published until you confirm Upload to YouTube.');
+      turns.push({role:'assistant', content:'Choose the video file to upload. I will open the review screen; nothing is published until you confirm Upload to YouTube.'});
+      pickYouTubeVideo();
+    }
+    syncChat();
+    busy = false;
+    autogrow();
+    scrollBottom();
+    input.focus();
+    return;
+  }
+
   busy = true;
   input.value = '';
   autogrow();
