@@ -2306,7 +2306,40 @@ If the user asks for a diagram, provide a simple diagram when useful.
         )
 
         answer = None
-        if not request.images:
+
+        # Chat-to-LinkedIn publishing: stage exact user-provided text first.
+        # Publishing requires the separate exact "APPROVE POST" confirmation.
+        _social_session = http_request.cookies.get("vector_social_sid", "")
+        _chat_text = (request.prompt or "").strip()
+        if not request.images and re.fullmatch(r"APPROVE POST[.!]?", _chat_text, re.IGNORECASE):
+            try:
+                from social_agency import confirm_chat_linkedin_post as _confirm_chat_post
+                _published = await asyncio.to_thread(_confirm_chat_post, _social_session)
+                _post_id = (_published.get("result") or {}).get("id") or ""
+                answer = "Published to LinkedIn successfully." + ((" Post ID: " + str(_post_id)) if _post_id else "")
+            except Exception as _publish_error:
+                answer = "I couldn't publish the approved LinkedIn post: " + str(_publish_error)[:500]
+            provider = "social-tool"
+        elif not request.images:
+            _publish_match = re.match(
+                r"^(?:publish|post)\\s+(?:this\\s+)?(?:post\\s+)?(?:to\\s+)?linkedin\\s*[:\\-]\\s*(.+)$",
+                _chat_text, re.IGNORECASE | re.DOTALL
+            )
+            if _publish_match:
+                _post_text = _publish_match.group(1).strip().strip('\\u201c\\u201d"')
+                try:
+                    from social_agency import stage_chat_linkedin_post as _stage_chat_post
+                    _staged = await asyncio.to_thread(_stage_chat_post, _social_session, _post_text, "")
+                    answer = (
+                        "LinkedIn draft prepared. Nothing has been published yet.\\n\\n"
+                        + _staged["text"]
+                        + "\\n\\nReview it, then reply exactly **APPROVE POST** to publish it to your connected LinkedIn account."
+                    )
+                except Exception as _stage_error:
+                    answer = "I couldn't prepare the LinkedIn post: " + str(_stage_error)[:500]
+                provider = "social-tool"
+
+        if answer is None and not request.images:
             answer = solve_simple_arithmetic(request.prompt)
 
         # Read-only YouTube channel lookup for natural-language channel requests.
