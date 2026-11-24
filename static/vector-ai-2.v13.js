@@ -2344,3 +2344,127 @@ async function publishYouTubeFromChat(){
     submit.disabled = false;
   }
 }
+
+
+/* ------------------------------------------------------------------ */
+/* Image post workflow: choose image, select channels, review, approve */
+/* ------------------------------------------------------------------ */
+let vectorImagePostFile = null;
+let vectorImagePostPrepared = false;
+let vectorImagePostTargets = [];
+
+function pickImagePost(){
+  const picker = $('imagePostFile');
+  if (picker) picker.click();
+}
+
+async function onImagePostSelected(event){
+  const file = event.target.files && event.target.files[0];
+  event.target.value = '';
+  if (!file) return;
+  if (!['image/jpeg','image/png','image/webp'].includes((file.type || '').toLowerCase())){
+    toast('Choose a JPG, PNG, or WebP image.');
+    return;
+  }
+  if (file.size > 10 * 1024 * 1024){
+    toast('Images must be 10 MB or smaller.');
+    return;
+  }
+  vectorImagePostFile = file;
+  vectorImagePostPrepared = false;
+  vectorImagePostTargets = [];
+  $('imagePostFileName').textContent = file.name + ' · ' + (file.size / (1024 * 1024)).toFixed(2) + ' MB';
+  $('imagePostPreview').src = URL.createObjectURL(file);
+  $('imagePostPreviewWrap').style.display = 'block';
+  $('imagePostStatus').textContent = 'Loading your connected platforms…';
+  $('imagePostAction').disabled = true;
+  $('imagePostAction').textContent = 'Prepare post';
+  $('imagePostPlatforms').textContent = 'Loading connected accounts…';
+  $('imagePostModal').classList.add('open');
+  try{
+    const response = await credFetch('/api/agency/image-post/accounts');
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.detail || 'Could not load connected accounts.');
+    const accounts = data.accounts || [];
+    const wrap = $('imagePostPlatforms');
+    wrap.innerHTML = '';
+    if (!accounts.length){
+      wrap.textContent = 'No image-capable connected accounts found. Connect accounts in Growth Agency.';
+      $('imagePostStatus').textContent = '';
+      return;
+    }
+    accounts.forEach(account => {
+      const label = document.createElement('label');
+      label.style.cssText = 'display:flex;align-items:center;gap:7px;margin:0;padding:8px;border:1px solid #303030;border-radius:9px';
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.value = account.platform;
+      checkbox.checked = true;
+      checkbox.style.cssText = 'width:auto;margin:0;accent-color:#fff';
+      label.appendChild(checkbox);
+      const span = document.createElement('span');
+      span.textContent = account.platform.replaceAll('_',' ') + (account.name && account.name !== account.platform ? ' · ' + account.name : '');
+      label.appendChild(span);
+      wrap.appendChild(label);
+    });
+    $('imagePostStatus').textContent = 'Review the image, caption and selected channels before preparing.';
+    $('imagePostAction').disabled = false;
+  }catch(error){
+    $('imagePostStatus').textContent = 'Could not load platforms: ' + (error.message || 'Unknown error');
+    $('imagePostPlatforms').textContent = 'Try again after checking your connection.';
+  }
+}
+
+function closeImagePost(){
+  const modal = $('imagePostModal');
+  if (modal) modal.classList.remove('open');
+  if (!vectorImagePostPrepared){
+    vectorImagePostFile = null;
+    if ($('imagePostPreview')) $('imagePostPreview').removeAttribute('src');
+  }
+}
+
+async function handleImagePostAction(){
+  const button = $('imagePostAction');
+  const status = $('imagePostStatus');
+  button.disabled = true;
+  if (!vectorImagePostPrepared){
+    if (!vectorImagePostFile){ status.textContent = 'Choose an image first.'; button.disabled = false; return; }
+    const selected = Array.from($('imagePostPlatforms').querySelectorAll('input[type="checkbox"]:checked')).map(x => x.value);
+    if (!selected.length){ status.textContent = 'Select at least one platform.'; button.disabled = false; return; }
+    const form = new FormData();
+    form.append('image', vectorImagePostFile, vectorImagePostFile.name);
+    form.append('caption', $('imagePostCaption').value || '');
+    form.append('platforms', JSON.stringify(selected));
+    status.textContent = 'Uploading image and preparing your post…';
+    try{
+      const response = await credFetch('/api/agency/image-post/prepare', {method:'POST', body:form});
+      let data = {};
+      try{ data = await response.json(); }catch(e){}
+      if (!response.ok) throw new Error(data.detail || ('Vector returned HTTP ' + response.status));
+      vectorImagePostTargets = data.targets || [];
+      vectorImagePostPrepared = true;
+      status.textContent = 'Image uploaded. Ready to publish to: ' + vectorImagePostTargets.join(', ') + '. Tap Approve & publish to continue.';
+      button.textContent = 'Approve & publish';
+      button.disabled = false;
+    }catch(error){
+      status.textContent = 'Could not prepare image post: ' + (error.message || 'Unknown error');
+      button.disabled = false;
+    }
+    return;
+  }
+  status.textContent = 'Submitting your approved image post…';
+  try{
+    const response = await credFetch('/api/agency/image-post/confirm', {method:'POST'});
+    let data = {};
+    try{ data = await response.json(); }catch(e){}
+    if (!response.ok) throw new Error(data.detail || ('Vector returned HTTP ' + response.status));
+    status.textContent = 'Submitted to ' + (data.targets || vectorImagePostTargets).join(', ') + '. Check Growth Agency for each platform’s final publishing status.';
+    button.textContent = 'Submitted';
+    vectorImagePostPrepared = false;
+    vectorImagePostFile = null;
+  }catch(error){
+    status.textContent = 'Publishing failed: ' + (error.message || 'Unknown error');
+    button.disabled = false;
+  }
+}
