@@ -2018,6 +2018,17 @@ function setVoice(value){
   toast('Voice: ' + value);
 }
 
+function bindSettingsButton(){
+  const button = $('acctSettingsBtn');
+  if (!button || button.dataset.bound === '1') return;
+  button.dataset.bound = '1';
+  button.addEventListener('click', function(event){
+    event.preventDefault();
+    event.stopPropagation();
+    openSettings();
+  });
+}
+
 function openSettings(){
   closeAcctMenu();
   $('drawerTitle').textContent = 'Settings';
@@ -2266,6 +2277,7 @@ document.addEventListener('keydown', e => {
 });
 
 function boot(){
+  bindSettingsButton();
   loadState();
   paintAttachments();
   paintProject();
