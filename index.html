@@ -154,6 +154,9 @@
               <button class="tool" onclick="pickFile()" title="Attach file">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21 11.5 12.5 20a5.5 5.5 0 0 1-7.8-7.8l8-8a3.7 3.7 0 0 1 5.2 5.2l-8 8a1.9 1.9 0 0 1-2.6-2.6l7.1-7.1"/></svg>
               </button>
+              <button class="tool" onclick="pickImagePost()" title="Create an image post" aria-label="Create an image post">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+              </button>
               <button class="tool" onclick="pickYouTubeVideo()" title="Upload a video to YouTube" aria-label="Upload a video to YouTube">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="m10 9 5 3-5 3z"/></svg>
               </button>
@@ -178,6 +181,19 @@
 </div>
 
 <input type="file" id="fileInput" multiple hidden onchange="onFiles(event)">
+<input type="file" id="imagePostFile" accept="image/jpeg,image/png,image/webp" hidden onchange="onImagePostSelected(event)">
+<div class="yt-upload-overlay" id="imagePostModal" role="dialog" aria-modal="true" aria-labelledby="imagePostHeading">
+  <div class="yt-upload-card">
+    <div class="yt-upload-head"><h2 id="imagePostHeading">Create image post</h2><button type="button" onclick="closeImagePost()" aria-label="Close">×</button></div>
+    <div id="imagePostPreviewWrap" style="display:none;margin:10px 0"><img id="imagePostPreview" alt="Selected post image" style="display:block;max-width:100%;max-height:230px;object-fit:contain;border-radius:12px;margin:auto"></div>
+    <p class="yt-upload-file" id="imagePostFileName">Choose a JPG, PNG, or WebP image (up to 10 MB).</p>
+    <label>Caption<textarea id="imagePostCaption" maxlength="5000" rows="4" placeholder="Write your post caption…"></textarea></label>
+    <div class="yt-upload-note">Choose the connected platforms for this image post.</div>
+    <div id="imagePostPlatforms" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px;color:#eee">Loading connected accounts…</div>
+    <p class="yt-upload-note" id="imagePostStatus" role="status" aria-live="polite"></p>
+    <div class="yt-upload-actions"><button type="button" class="yt-upload-cancel" onclick="closeImagePost()">Cancel</button><button type="button" id="imagePostAction" class="yt-upload-submit" onclick="handleImagePostAction()" disabled>Prepare post</button></div>
+  </div>
+</div>
 <input type="file" id="youtubeChatFile" accept="video/*" hidden onchange="onYouTubeVideoSelected(event)">
 <div class="yt-upload-overlay" id="ytUploadModal" role="dialog" aria-modal="true" aria-labelledby="ytUploadHeading">
   <div class="yt-upload-card">
