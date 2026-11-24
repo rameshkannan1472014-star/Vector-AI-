@@ -2031,11 +2031,20 @@ function bindSettingsButton(){
 
 function openSettings(){
   closeAcctMenu();
-  $('drawerTitle').textContent = 'Settings';
-  $('drawerBody').innerHTML = settingsTemplate();
-  paintSettings();
-  $('drawerBody').dataset.setOpen = '1';
+  const title = $('drawerTitle');
+  const body = $('drawerBody');
+  if (!title || !body) return;
+  title.textContent = 'Settings';
+  body.dataset.setOpen = '1';
+  body.innerHTML = '<div class="settings-card"><div class="settings-main">Loading settings…</div></div>';
   openDrawer();
+  try {
+    body.innerHTML = settingsTemplate();
+    paintSettings();
+  } catch (error) {
+    console.error('Vector Settings failed to render:', error);
+    body.innerHTML = '<div class="settings-card"><div class="settings-main"><h3>Settings could not load</h3><p>Please close this panel and try again. The error has been recorded in the browser console.</p></div></div>';
+  }
 }
 
 function closeSettings(){
