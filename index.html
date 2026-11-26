@@ -292,7 +292,7 @@
   <button onclick="closeAcctMenu();openMemory()">Memory</button>
   <button onclick="closeAcctMenu();openProjects()">Projects</button>
   <button onclick="closeAcctMenu();openLive()">Live voice</button>
-  <button type="button" id="acctSettingsBtn" onclick="document.getElementById('acctMenu').classList.remove('open');document.getElementById('drawerTitle').textContent='Settings';document.getElementById('drawer').classList.add('open');document.getElementById('scrim').classList.add('open');if(typeof showVectorSettings==='function'){try{showVectorSettings()}catch(e){console.error(e)}}">Settings</button>
+  <button type="button" id="acctSettingsBtn" onclick="document.getElementById('acctMenu').classList.remove('open');document.getElementById('drawerTitle').textContent='Settings';document.getElementById('drawer').classList.add('open');document.getElementById('scrim').classList.add('open');if(typeof openSettings==='function'){try{openSettings()}catch(e){var b=document.getElementById('drawerBody');if(b)b.innerHTML='<div style="padding:18px;color:var(--text)"><h3>Settings error</h3><p>'+String(e&&e.message||e)+'</p></div>'}}else{var b=document.getElementById('drawerBody');if(b)b.innerHTML='<div style="padding:18px;color:var(--text)"><h3>Settings script did not load</h3><p>Refresh Vector and try again.</p></div>'}">Settings</button>
   <hr>
   <button onclick="closeAcctMenu();openGate()">Sign in with Google</button>
   <button id="authAction" onclick="authAction()">Sign in</button>
