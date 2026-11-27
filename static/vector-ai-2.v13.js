@@ -2064,7 +2064,9 @@ function openSettings(){
     paintSettings();
   } catch (error) {
     console.error('Vector Settings failed to render:', error);
-    body.innerHTML = '<div class="settings-card"><div class="settings-main"><h3>Settings could not load</h3><p>Please close this panel and try again. The error has been recorded in the browser console.</p></div></div>';
+    body.innerHTML = '<div class="settings-card"><div class="settings-main"><h3>Settings could not load</h3><p id="settingsRenderError" style="white-space:pre-wrap;overflow-wrap:anywhere"></p><button type="button" class="set-btn" onclick="openSettings()">Try again</button></div></div>';
+    const errorText = document.getElementById('settingsRenderError');
+    if (errorText) errorText.textContent = (error && error.message) ? error.message : String(error || 'Unknown settings error');
   }
 }
 
