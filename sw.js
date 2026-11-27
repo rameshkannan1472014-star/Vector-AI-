@@ -1,4 +1,4 @@
-const CACHE_NAME = "vector-ai-shell-v4";
+const CACHE_NAME = "vector-ai-shell-v5";
 const APP_SHELL = ["/"];
 
 self.addEventListener("install", (event) => {
@@ -29,7 +29,7 @@ self.addEventListener("fetch", (event) => {
 
   if (request.mode === "navigate") {
     event.respondWith(
-      fetch(request)
+      fetch(request, { cache: "no-store" })
         .then((response) => {
           if (response && response.ok) {
             const copy = response.clone();
@@ -42,18 +42,17 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Cache only same-origin static assets; never cache API responses.
+  // Network-first static assets: prevents stale JS/CSS from hiding deployed fixes.
   if (/\.(?:css|js|png|jpg|jpeg|webp|svg|ico|woff2?)$/i.test(url.pathname)) {
     event.respondWith(
-      caches.match(request).then((cached) => {
-        const network = fetch(request).then((response) => {
+      fetch(request, { cache: "no-store" })
+        .then((response) => {
           if (response && response.ok) {
             caches.open(CACHE_NAME).then((cache) => cache.put(request, response.clone()));
           }
           return response;
-        });
-        return cached || network;
-      })
+        })
+        .catch(async () => (await caches.match(request)))
     );
   }
 });
