@@ -292,7 +292,7 @@
   <button onclick="closeAcctMenu();openMemory()">Memory</button>
   <button onclick="closeAcctMenu();openProjects()">Projects</button>
   <button onclick="closeAcctMenu();openLive()">Live voice</button>
-  <button type="button" id="acctSettingsBtn" onclick="openSettings()">Settings</button>
+  <button type="button" id="acctSettingsBtn" onclick="return false;">Settings</button>
   <hr>
   <button onclick="closeAcctMenu();openGate()">Sign in with Google</button>
   <button id="authAction" onclick="authAction()">Sign in</button>
@@ -301,6 +301,16 @@
 <div class="toast" id="toast"></div>
 
 <script src="/static/vector-ai-2.v13.js?v=settings-debug-20261127-1759"></script>
+<script>
+// Mobile-safe Settings menu routing: handle the menu item at document capture phase.
+document.addEventListener("click", function(event) {
+  const button = event.target && event.target.closest ? event.target.closest("#acctSettingsBtn") : null;
+  if (!button) return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  if (typeof showVectorSettings === "function") showVectorSettings();
+}, true);
+</script>
 <script>
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js?settings-refresh-20261127')
