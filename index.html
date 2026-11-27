@@ -301,5 +301,11 @@
 <div class="toast" id="toast"></div>
 
 <script src="/static/vector-ai-2.v13.js?v=settings-debug-20261127-1759"></script>
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js?settings-refresh-20261127')
+    .catch(error => console.warn('Vector service worker update failed:', error));
+}
+</script>
 </body>
 </html>
